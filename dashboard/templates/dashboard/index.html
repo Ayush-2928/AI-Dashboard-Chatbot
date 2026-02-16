@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Enterprise Command Center</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <style>
+        body { 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0; 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; padding: 0;
+            height: 100vh;
+            overflow: hidden; 
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: 60px 60px 140px 1fr 0.85fr; 
+            gap: 16px;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .col-span-3 { grid-column: span 3; }
+        
+        #chart_0 { grid-column: span 2; }
+        #chart_1 { grid-column: span 1; }
+        #chart_2 { grid-column: span 1; }
+        #chart_3 { grid-column: span 1; }
+        #chart_4 { grid-column: span 1; }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 8px;
+        }
+
+        .glass-panel:hover .expand-btn {
+            opacity: 1;
+        }
+
+        .expand-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 10;
+            background: rgba(59, 130, 246, 0.8);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 11px;
+            opacity: 0;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .expand-btn:hover {
+            background: rgba(59, 130, 246, 1);
+            transform: scale(1.05);
+        }
+
+        .chart-controls {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.glass-panel:hover .chart-controls {
+    opacity: 1;
+}
+
+.control-btn {
+    background: rgba(30, 41, 59, 0.9);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+}
+
+.control-btn:hover {
+    background: rgba(59, 130, 246, 0.8);
+    color: white;
+    border-color: #3b82f6;
+    transform: scale(1.1);
+}
+        
+        .kpi-card {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.7));
+            border-left: 4px solid;
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: grid;
+            grid-template-columns: 1fr 120px;
+            gap: 12px;
+            align-items: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+        
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        }
+        
+        .kpi-card:hover { 
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .kpi-emoji {
+            font-size: 18px;
+            margin-bottom: 4px;
+            display: inline-block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .sparkline-container {
+            height: 60px;
+            position: relative;
+            width: 120px;
+            flex-shrink: 0;
+        }
+
+        .trend-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        .trend-up {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .trend-down {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .filter-scroll {
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            scrollbar-color: #475569 #1e293b;
+        }
+
+        .filter-scroll::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .filter-scroll::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 10px;
+        }
+
+        .filter-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 10px;
+        }
+
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1); 
+            border-top: 3px solid #3b82f6; 
+            border-radius: 50%; 
+            width: 24px; 
+            height: 24px; 
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+
+        .upload-zone {
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover {
+            transform: scale(1.02);
+            border-color: #3b82f6 !important;
+        }
+
+        .pulse-dot {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Modal Styles - FIXED FOR FULL CHART DISPLAY */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            width: 90vw;
+            height: 88vh;
+            max-width: 1600px;
+            max-height: 900px;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .modal-body {
+            flex: 1;
+            padding: 30px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .modal-body > div {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .close-btn {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+            border-radius: 10px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(239, 68, 68, 0.4);
+            transform: scale(1.05);
+        }
+
+        .date-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 8px 12px;
+            transition: all 0.2s ease;
+        }
+
+        .date-input-wrapper:hover {
+            border-color: #3b82f6;
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .date-input-wrapper input[type="date"] {
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+        .sankey-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(59, 130, 246, 0.8);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.glass-panel:hover .sankey-hint {
+    opacity: 1;
+}
+    </style>
+</head>
+<body>
+
+    {% csrf_token %}
+
+    <div id="upload-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center">
+        <div class="upload-zone p-12 border-2 border-dashed border-slate-700 rounded-3xl bg-slate-800/50 backdrop-blur-sm text-center">
+            <div class="text-6xl mb-4">📊</div>
+            <h1 class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 mb-4">
+                AI Architect
+            </h1>
+            <p class="text-slate-400 mb-6 text-sm">Upload raw data. Get an instant command center. ✨</p>
+            <label class="cursor-pointer bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-8 rounded-full transition-all shadow-lg hover:shadow-xl">
+                <span>🗂 Select File</span>
+                <input type="file" id="fileInput" accept=".xlsx,.csv" multiple onchange="initUpload()" class="hidden">
+            </label>
+        </div>
+        <div id="loader" class="hidden mt-6 flex items-center gap-3 text-blue-400 font-mono text-sm">
+            <div class="loader"></div> 🔍 Analyzing Data Structure...
+        </div>
+    </div>
+
+    <div id="dashboard-screen" class="hidden dashboard-grid">
+        
+        <div class="col-span-3 flex justify-between items-center border-b border-slate-800/50 pb-2">
+            <div>
+                <h1 id="domain-title" class="text-3xl font-bold text-white flex items-center gap-3">
+                    <span id="domain-emoji">📈</span>
+                    <span>Analytics</span>
+                </h1>
+                <div class="flex items-center gap-4 mt-1">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
+                        <p class="text-xs text-slate-500">🗄️ Live DuckDB Session</p>
+                    </div>
+                    <div class="flex items-center gap-2" id="token-usage" style="display: none;">
+                        <span class="text-xs text-slate-500">|</span>
+                        <p class="text-xs text-slate-500">🤖 <span id="token-count" class="text-blue-400 font-mono font-bold">0</span> tokens</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">|</span>
+                        <button onclick="toggleLogs()" class="text-xs text-slate-500 hover:text-blue-400 transition-colors">
+                            📋 View Logs
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button onclick="location.reload()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-400 hover:bg-slate-700 border border-slate-700 transition-all hover:border-blue-500 flex items-center gap-2">
+                🔄 New Analysis
+            </button>
+            <button onclick="exportToPowerBI()" class="px-6 py-2 bg-green-800 rounded-xl text-xs text-white hover:bg-green-700 border border-green-700 transition-all hover:border-green-500 flex items-center gap-2">
+                📊 Export for Power BI
+            </button>
+        </div>
+
+        <div class="col-span-3 flex items-center gap-3 bg-slate-800/30 p-3 rounded-xl filter-scroll" id="filter-container">
+            <span class="text-xs font-bold text-slate-500 uppercase flex-shrink-0 mr-2">🎯 Filters:</span>
+            
+            <div class="date-input-wrapper flex-shrink-0" id="date-filter-container" style="display: none;">
+                <span class="text-lg">📅</span>
+                <input type="date" id="start-date" class="focus:outline-none cursor-pointer" onchange="handleDateChange()">
+                <span class="text-slate-500 text-xs">→</span>
+                <input type="date" id="end-date" class="focus:outline-none cursor-pointer" onchange="handleDateChange()">
+            </div>
+            
+            <div class="w-px h-4 bg-slate-700 mx-2 flex-shrink-0" id="date-separator" style="display: none;"></div>
+            
+        </div>
+
+        <div class="col-span-3 grid grid-cols-4 gap-4" id="kpi-container">
+        </div>
+
+        <div id="chart_0" class="glass-panel"></div>
+        <div id="chart_1" class="glass-panel"></div>
+
+        <div id="chart_2" class="glass-panel"></div>
+        <div id="chart_3" class="glass-panel"></div>
+        <div id="chart_4" class="glass-panel"></div>
+    </div>
+
+    <!-- Modal for expanded chart -->
+    <div id="chart-modal" class="modal-overlay" style="display: none;" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modal-title" class="text-2xl font-bold text-white">Chart</h2>
+                <button class="close-btn" onclick="closeModal()">✕ Close</button>
+            </div>
+            <div class="modal-body" id="modal-chart-container">
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Modal -->
+    <div id="logs-modal" class="modal-overlay" style="display: none;" onclick="closeLogs(event)">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="text-xl font-bold text-white">📋 Backend Logs & Table Information</h2>
+                <button class="close-btn" onclick="closeLogs()">✕ Close</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div id="logs-content" class="font-mono text-xs space-y-2">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let globalFile = null;
+        let globalFiles = [];
+        let activeFilters = {};
+        let currentData = null;
+
+        const DOMAIN_EMOJIS = {
+            "Supply Chain": "🚚",
+            "Sales": "💰",
+            "Retail": "🛒",
+            "Finance": "💼",
+            "E-commerce": "🛍️",
+            "Marketing": "📣",
+            "Human Resources": "👥",
+            "Production": "🏭",
+            "CRM": "🤝",
+            "Customer Support": "💬",
+            "General": "📊"
+        };
+
+        const KPI_EMOJIS = {
+            "total": "📊", "revenue": "💵", "sales": "💰", "profit": "📈",
+            "loss": "📉", "count": "🔢", "records": "📄", "amount": "💲",
+            "spend": "💸", "customer": "👤", "order": "🛍️", "product": "📦",
+            "cost": "💳", "price": "🏷️", "quantity": "📊", "employee": "👨‍💼",
+            "campaign": "📢", "conversion": "✅", "growth": "📈"
+        };
+
+        function getEmojiForKPI(label) {
+            const lowerLabel = label.toLowerCase();
+            for (const [key, emoji] of Object.entries(KPI_EMOJIS)) {
+                if (lowerLabel.includes(key)) return emoji;
+            }
+            return "📊";
+        }
+
+        async function initUpload() {
+            const files = document.getElementById('fileInput').files;
+            globalFiles = Array.from(files);
+            activeFilters = {};
+            
+            const container = document.getElementById('filter-container');
+            while (container.children.length > 4) {
+                container.removeChild(container.lastChild);
+            }
+            
+            processFile();
+        }
+
+        async function processFile() {
+            if (globalFiles.length === 0) return;
+            
+            document.getElementById('loader').classList.remove('hidden');
+            
+            const formData = new FormData();
+            globalFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            formData.append('filters', JSON.stringify(activeFilters));
+            
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            try {
+                const res = await fetch('/api/process/', { 
+                    method: 'POST', 
+                    body: formData, 
+                    headers: {'X-CSRFToken': csrfToken} 
+                });
+                
+                if (!res.ok) throw new Error("Processing failed");
+                const data = await res.json();
+                
+                // Debug: Log KPI data
+                console.log('KPI Data:', data.kpis);
+                data.kpis.forEach((kpi, idx) => {
+                    console.log(`KPI ${idx} (${kpi.label}):`, kpi.sparkline);
+                });
+      // ... inside processFile function ...
+                
+                // 1. SAVE ORIGINAL DATA (Critical for filtering to work)
+                data.charts.forEach(chart => {
+                    chart.original = {
+                        x: chart.x ? [...chart.x] : [],
+                        y: chart.y ? [...chart.y] : [],
+                        z: chart.z ? [...chart.z] : [],
+                        source: chart.source ? [...chart.source] : [],
+                        target: chart.target ? [...chart.target] : [],
+                        value: chart.value ? [...chart.value] : [],
+                        level: chart.level ? [...chart.level] : [], // critical for sankey
+                        type: chart.type,
+                        xlabel: chart.xlabel,
+                        ylabel: chart.ylabel,
+                        title: chart.title
+                    };
+                    
+                    // Initialize Sankey state
+                    // Initialize Sankey state
+if (chart.type === 'sankey') {
+    chart.expandedNodes = [];
+    
+    // Auto-expand ALL levels (1, 2, 3) initially
+    const uniqueSources = new Set();
+    if (chart.level && chart.source) {
+        chart.source.forEach((src, i) => {
+            const level = parseInt(chart.level[i]);
+            if (level >= 1 && level <= 3) {
+                uniqueSources.add(src);
+            }
+        });
+        chart.expandedNodes = Array.from(uniqueSources);
+        console.log('🔼 Auto-expanded all 3 levels:', chart.expandedNodes);
+    }
+}
+                });
+
+                currentData = data; // Assign to global variable
+                renderDashboard(data);
+                
+                // ... rest of catch block ...
+            } catch (e) { 
+                alert("❌ Error: " + e.message); 
+                location.reload(); 
+            }
+        }
+
+        function handleFilterChange(e) {
+            const col = e.target.dataset.column;
+            const val = e.target.value;
+            
+            if (val.startsWith("All ")) delete activeFilters[col];
+            else activeFilters[col] = val;
+            
+            updateUIState();
+        }
+
+        function handleDateChange() {
+            const start = document.getElementById('start-date').value;
+            const end = document.getElementById('end-date').value;
+            
+            if (start) activeFilters['_start_date'] = start;
+            else delete activeFilters['_start_date'];
+            
+            if (end) activeFilters['_end_date'] = end;
+            else delete activeFilters['_end_date'];
+            
+            updateUIState();
+        }
+
+        function updateUIState() {
+            document.querySelectorAll('.glass-panel').forEach(el => el.style.opacity = '0.5');
+            processFile(); 
+        }
+
+        function createSparkline(containerId, data, color) {
+            console.log(`createSparkline called for ${containerId}`, data, color);
+            
+            if (!data || data.length === 0) {
+                console.warn(`No data for ${containerId}`);
+                return;
+            }
+            
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error(`Container ${containerId} not found!`);
+                return;
+            }
+            
+            console.log(`Container ${containerId} found, dimensions:`, container.offsetWidth, 'x', container.offsetHeight);
+            
+            const trace = {
+                y: data,
+                x: [0, 1, 2, 3, 4, 5, 6],
+                type: 'scatter',
+                mode: 'lines',
+                line: { 
+                    color: color, 
+                    width: 2,
+                    shape: 'spline'
+                },
+                fill: 'tozeroy',
+                fillcolor: color + '25',
+                hovertemplate: '%{y:,.0f}<extra></extra>',
+                showlegend: false
+            };
+
+            const layout = {
+                margin: { t: 5, r: 5, b: 5, l: 5 },
+                xaxis: { 
+                    visible: false,
+                    showgrid: false,
+                    zeroline: false,
+                    fixedrange: true
+                },
+                yaxis: { 
+                    visible: false,
+                    showgrid: false,
+                    zeroline: false,
+                    fixedrange: true
+                },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                showlegend: false,
+                height: 60,
+                autosize: false,
+                width: 120
+            };
+
+            const config = {
+                responsive: false, 
+                displayModeBar: false,
+                staticPlot: false
+            };
+
+            try {
+                Plotly.newPlot(containerId, [trace], layout, config).then(() => {
+                    console.log(`✅ Sparkline ${containerId} created successfully`);
+                });
+            } catch (error) {
+                console.error(`❌ Error creating sparkline ${containerId}:`, error);
+            }
+        }
+
+        function calculateTrend(data) {
+            if (!data || data.length < 2) return 0;
+            const change = ((data[data.length - 1] - data[0]) / data[0]) * 100;
+            return isNaN(change) ? 0 : change;
+        }
+
+        function expandChart(chartId) {
+            const modal = document.getElementById('chart-modal');
+            const modalContainer = document.getElementById('modal-chart-container');
+            const modalTitle = document.getElementById('modal-title');
+            
+            const chart = currentData.charts.find(c => c.id === chartId);
+            if (!chart) return;
+            
+            modalTitle.textContent = chart.title;
+            modalContainer.innerHTML = '';
+            
+            const chartDiv = document.createElement('div');
+            chartDiv.style.width = '100%';
+            chartDiv.style.height = '100%';
+            modalContainer.appendChild(chartDiv);
+            
+            const color = currentData.theme.color || '#3b82f6';
+            
+            modal.style.display = 'flex';
+            
+            // Delay rendering to ensure proper container sizing
+            setTimeout(() => {
+                renderSingleChart(chartDiv, chart, color, true);
+            }, 150);
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== document.getElementById('chart-modal')) return;
+            document.getElementById('chart-modal').style.display = 'none';
+        }
+
+        function toggleLogs() {
+            document.getElementById('logs-modal').style.display = 'flex';
+            renderLogs();
+        }
+
+        function closeLogs(event) {
+            if (event && event.target !== document.getElementById('logs-modal')) return;
+            document.getElementById('logs-modal').style.display = 'none';
+        }
+
+        function renderLogs() {
+            if (!currentData || !currentData.logs) return;
+            
+            const logsContainer = document.getElementById('logs-content');
+            logsContainer.innerHTML = '';
+            
+            currentData.logs.forEach(log => {
+                const logDiv = document.createElement('div');
+                logDiv.className = 'p-2 rounded';
+                
+                // Color code based on log type
+                if (log.includes('✅')) {
+                    logDiv.className += ' bg-green-900/20 text-green-400';
+                } else if (log.includes('❌') || log.includes('⚠️')) {
+                    logDiv.className += ' bg-red-900/20 text-red-400';
+                } else if (log.includes('📋') || log.includes('📊')) {
+                    logDiv.className += ' bg-blue-900/20 text-blue-400';
+                } else if (log.includes('└─')) {
+                    logDiv.className += ' bg-slate-800/50 text-slate-400 ml-4';
+                } else {
+                    logDiv.className += ' bg-slate-800/30 text-slate-300';
+                }
+                
+                logDiv.textContent = log;
+                logsContainer.appendChild(logDiv);
+            });
+            
+            // Add master table preview
+            if (currentData.master_preview && currentData.master_preview.columns) {
+                const previewSection = document.createElement('div');
+                previewSection.className = 'mt-6 p-4 bg-slate-800/50 rounded-lg';
+                
+                const previewTitle = document.createElement('div');
+                previewTitle.className = 'text-sm font-bold text-blue-400 mb-3';
+                previewTitle.textContent = '📊 Master Table Preview (First 3 Rows)';
+                previewSection.appendChild(previewTitle);
+                
+                const table = document.createElement('table');
+                table.className = 'w-full text-xs border-collapse';
+                table.style.borderSpacing = '0';
+                
+                // Header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                currentData.master_preview.columns.forEach(col => {
+                    const th = document.createElement('th');
+                    th.className = 'bg-slate-700/50 text-slate-300 p-2 text-left border border-slate-600';
+                    th.textContent = col;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // Body
+                const tbody = document.createElement('tbody');
+                currentData.master_preview.rows.forEach((row, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.className = idx % 2 === 0 ? 'bg-slate-800/30' : 'bg-slate-800/50';
+                    row.forEach(cell => {
+                        const td = document.createElement('td');
+                        td.className = 'p-2 text-slate-300 border border-slate-600';
+                        td.textContent = cell !== null && cell !== undefined ? String(cell) : 'NULL';
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                
+                previewSection.appendChild(table);
+                logsContainer.appendChild(previewSection);
+            }
+        }
+
+        function renderSingleChart(container, chart, color, isModal = false) {
+            const commonLayout = {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Inter' },
+    margin: isModal ? { t: 50, l: 70, r: 40, b: 100 } : { t: 28, l: 35, r: 8, b: 35 },  // MINIMAL margins
+    autosize: true,
+    dragmode: isModal ? 'pan' : false
+};
+
+            let trace = { marker: { color: color } };
+
+            if (chart.type === 'sankey') {
+    // Initialize expandedNodes ONCE with all 3 levels
+    if (!chart.expandedNodes || chart.expandedNodes.length === 0) {
+        chart.expandedNodes = [];
+        const uniqueSources = new Set();
+        
+        if (chart.level && chart.source) {
+            chart.source.forEach((src, i) => {
+                const level = parseInt(chart.level[i]);
+                if (level >= 1 && level <= 3) {
+                    uniqueSources.add(src);
+                }
+            });
+            chart.expandedNodes = Array.from(uniqueSources);
+        }
+    }
+    
+    // Filter flows based on expanded nodes
+    let filteredSource = [];
+    let filteredTarget = [];
+    let filteredValue = [];
+    
+    chart.source.forEach((source, idx) => {
+        const level = chart.level && chart.level[idx] !== undefined ? parseInt(chart.level[idx]) : 1;
+        const target = chart.target[idx];
+        
+        // Show flow if source is expanded
+        if (chart.expandedNodes.includes(source)) {
+            filteredSource.push(source);
+            filteredTarget.push(target);
+            filteredValue.push(chart.value[idx]);
+        }
+    });
+    
+    // Calculate FIXED node positions (do this ONCE and store)
+    if (!chart.nodePositions || Object.keys(chart.nodePositions).length === 0) {
+        chart.nodePositions = {};
+        const allNodes = [...new Set([...chart.source, ...chart.target])];
+        
+        // Assign level to each node
+        allNodes.forEach(node => {
+            let nodeLevel = 4; // Default
+            
+            chart.source.forEach((src, idx) => {
+                const flowLevel = parseInt(chart.level[idx] || 1);
+                if (src === node) nodeLevel = Math.min(nodeLevel, flowLevel);
+                if (chart.target[idx] === node) nodeLevel = Math.min(nodeLevel, flowLevel + 1);
+            });
+            
+            chart.nodePositions[node] = { level: nodeLevel };
+        });
+        
+        // Group nodes by level
+        const nodesByLevel = {};
+        allNodes.forEach(node => {
+            const level = chart.nodePositions[node].level;
+            if (!nodesByLevel[level]) nodesByLevel[level] = [];
+            nodesByLevel[level].push(node);
+        });
+        
+        // Assign Y positions within each level (evenly distributed)
+        Object.keys(nodesByLevel).forEach(level => {
+            const nodesAtLevel = nodesByLevel[level];
+            nodesAtLevel.forEach((node, idx) => {
+                if (nodesAtLevel.length === 1) {
+                    chart.nodePositions[node].y = 0.5;
+                } else {
+                    chart.nodePositions[node].y = 0.1 + (idx * 0.8) / (nodesAtLevel.length - 1);
+                }
+            });
+        });
+    }
+    
+    // Build visible node list
+    const allNodes = [...new Set([...filteredSource, ...filteredTarget])];
+    const nodeIndices = {};
+    allNodes.forEach((node, idx) => { nodeIndices[node] = idx; });
+    
+    trace.type = 'sankey';
+    trace.node = {
+        pad: isModal ? 15 : 10,
+        thickness: isModal ? 20 : 15,
+        line: { color: '#0f172a', width: 1 },
+        label: allNodes,
+        color: allNodes.map((_, i) => {
+            const baseHue = parseInt(color.slice(1, 3), 16);
+            return `hsl(${(baseHue + i * 25) % 360}, 70%, 55%)`;
+        }),
+        customdata: allNodes,
+        hovertemplate: '<b>%{label}</b><br>Click to expand/collapse<extra></extra>',
+        // Use FIXED positions
+        x: allNodes.map(node => {
+            const storedLevel = chart.nodePositions[node]?.level || 3; // Change default if needed
+            // CHANGE HERE: Divide by 2 instead of 3 to force Level 3 to the far right (1.0)
+            return (storedLevel - 1) / 2; 
+        }),
+        y: allNodes.map(node => {
+            return chart.nodePositions[node]?.y || 0.5;
+        })
+    };
+    
+    trace.link = {
+        source: filteredSource.map(s => nodeIndices[s]),
+        target: filteredTarget.map(t => nodeIndices[t]),
+        value: filteredValue,
+        color: filteredValue.map(() => 'rgba(100, 116, 139, 0.4)')
+    };
+    trace.orientation = 'h';
+    trace.textfont = { size: isModal ? 12 : 10 };
+}
+
+else if (chart.type === 'sunburst') {
+    // Keep sunburst code as fallback
+    trace.type = 'sunburst';
+    trace.labels = chart.labels || [];
+    trace.parents = chart.parents || [];
+    trace.values = chart.values || [];
+    trace.textinfo = 'label+percent parent';
+    trace.hovertemplate = '<b>%{label}</b><br>Value: %{value:,.0f}<br>Percent: %{percentParent}<extra></extra>';
+    trace.marker = {
+        colors: chart.values.map((v, i) => {
+            const baseHue = parseInt(color.slice(1, 3), 16);
+            const variation = (i * 15) % 60;
+            return `hsl(${(baseHue + variation) % 360}, 70%, ${50 + (i % 3) * 10}%)`;
+        }),
+        line: { color: '#0f172a', width: 2 }
+    };
+    trace.branchvalues = 'total';
+}
+            else if (chart.type === 'pie') {
+                trace.type = 'pie';
+                trace.labels = chart.x;
+                trace.values = chart.y;
+                trace.hole = 0.6;
+                trace.textinfo = 'percent+label';
+                trace.textposition = 'inside';
+                trace.marker = { 
+                    colors: [color, adjustColor(color,-20), adjustColor(color,-40), '#475569', '#334155'],
+                    line: { color: '#0f172a', width: 2 }
+                };
+            } 
+            else if (chart.type === 'heatmap') {
+                trace.type = 'heatmap';
+                trace.x = chart.x;
+                trace.y = chart.y;
+                trace.z = chart.z;
+                trace.colorscale = [
+                    [0, '#1e293b'],
+                    [0.5, color],
+                    [1, adjustColor(color, 40)]
+                ];
+                trace.showscale = true;
+            }
+            else if (chart.type === 'line') {
+                trace.type = 'scatter';
+                trace.mode = 'lines+markers'; 
+                trace.x = chart.x;
+                trace.y = chart.y;
+                trace.line = { shape: 'spline', width: isModal ? 4 : 3, color: color }; 
+                trace.fill = 'tozeroy';
+                trace.fillcolor = color + '15'; 
+                trace.marker = { size: isModal ? 8 : 6, color: color };
+            }
+
+            else if (chart.type === 'scatter') {
+    trace.type = 'scatter';
+    trace.mode = 'markers'; 
+    trace.x = chart.x;
+    trace.y = chart.y;
+    trace.marker = { 
+        size: isModal ? 10 : 7, 
+        color: color,
+        opacity: 0.7,
+        line: { color: 'white', width: 1 }
+    };
+}
+            else {
+                trace.type = 'bar';
+                trace.x = chart.x;
+                trace.y = chart.y;
+            }
+
+            const config = { 
+                responsive: true, 
+                displayModeBar: isModal,
+                modeBarButtonsToRemove: isModal ? ['lasso2d', 'select2d'] : [],
+                scrollZoom: isModal,
+                displaylogo: false
+            };
+            // Format x-axis based on chart type and data
+let xaxisConfig = {
+    title: chart.xlabel, 
+    showgrid: false, 
+    tickfont: { size: isModal ? 11 : 8 },
+    automargin: true
+};
+
+// Special handling for different chart types
+if (chart.type === 'bar' && chart.x && chart.x.length > 10) {
+    // Many categories: rotate and limit ticks
+    xaxisConfig.tickangle = -45;
+    xaxisConfig.tickmode = 'linear';
+    xaxisConfig.tick0 = 0;
+    xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 15 : 8));
+} else if (chart.type === 'line') {
+    // Time series: format dates nicely
+    xaxisConfig.tickangle = -45;
+    xaxisConfig.tickformat = '%b %Y';  // "Jan 2023" format
+    xaxisConfig.nticks = isModal ? 12 : 6;
+} else if (chart.type === 'heatmap') {
+    // Heatmap: smaller font, no rotation needed
+    xaxisConfig.tickfont.size = isModal ? 10 : 7;
+    xaxisConfig.tickangle = 0;
+} else {
+    // Default: rotate if more than 5 items
+    xaxisConfig.tickangle = (chart.x && chart.x.length > 5) ? -45 : 0;
+}
+
+            // Set layout based on chart type
+// Set layout based on chart type
+let finalLayout = {...commonLayout};
+
+if (chart.type === 'sankey') {
+    // Sankey needs minimal margins - no axes
+    finalLayout = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Inter' },
+        margin: isModal ? { t: 50, l: 20, r: 20, b: 20 } : { t: 35, l: 10, r: 10, b: 10 },  // MINIMAL margins
+        title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
+        showlegend: false,
+        autosize: true,
+        dragmode: isModal ? 'pan' : false
+    };
+} else if (chart.type === 'sunburst' || chart.type === 'pie') {
+    // Sunburst/Pie also don't need axis margins
+    finalLayout = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Inter' },
+        margin: isModal ? { t: 50, l: 40, r: 40, b: 40 } : { t: 35, l: 20, r: 20, b: 20 },  // MODERATE margins
+        title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
+        showlegend: false,
+        autosize: true,
+        dragmode: isModal ? 'pan' : false
+    };
+} else {
+    finalLayout = {
+        ...commonLayout,
+        title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
+        xaxis: { 
+    title: isModal ? chart.xlabel : '',
+    showgrid: false, 
+    tickfont: { size: isModal ? 11 : 7 },  // Smaller font
+    automargin: true,
+    tickangle: isModal ? -45 : 0,  // NO tilt in small view, tilt in modal
+    tickmode: 'auto',
+    nticks: isModal ? 15 : 6  // Fewer ticks to prevent overlap
+},
+yaxis: { 
+    title: isModal ? chart.ylabel : '',
+    showgrid: true, 
+    gridcolor: '#33415530', 
+    tickfont: { size: isModal ? 12 : 8 },  // Smaller font
+    automargin: true,
+    fixedrange: !isModal  // Prevent zoom in small view for stability
+}
+    };
+}
+
+Plotly.newPlot(container, [trace], finalLayout, config).then(() => {
+    console.log('✅ Plotly chart rendered');
+    console.log('Chart type:', chart.type);
+    console.log('isModal:', isModal);
+    console.log('Container:', container);
+    
+    // ADD: Click handler for Sankey nodes
+    if (chart.type === 'sankey') {
+        console.log('🎯 Attaching click handler to Sankey  (isModal:', isModal, ')');
+  
+        let currentHoveredNode = null;
+    let lastHoveredNode = null;  // Keep track of the last hovered node
+    
+    container.on('plotly_hover', function(data) {
+    const point = data.points[0];
+    if (point && point.label && point.label !== '') {
+        currentHoveredNode = point.label;
+        lastHoveredNode = point.label;
+        console.log('🔍 Hovering over node:', currentHoveredNode);
+        container.style.cursor = 'pointer';
+    }
+});
+
+container.on('plotly_unhover', function() {
+    currentHoveredNode = null;
+    container.style.cursor = 'default';
+});
+
+container.addEventListener('mousedown', function(e) {
+    const nodeToClick = currentHoveredNode || lastHoveredNode;
+    
+    if (!nodeToClick) return;
+    
+    console.log('✅ Click on:', nodeToClick);
+    
+    if (!chart.expandedNodes) chart.expandedNodes = [];
+    
+    const idx = chart.expandedNodes.indexOf(nodeToClick);
+    
+    if (idx > -1) {
+        // COLLAPSE this node only
+        chart.expandedNodes.splice(idx, 1);
+        console.log('🔽 Collapsed', nodeToClick);
+    } else {
+        // EXPAND this node only
+        chart.expandedNodes.push(nodeToClick);
+        console.log('🔼 Expanded', nodeToClick);
+    }
+    
+    // Prevent multiple rapid clicks
+    container.style.pointerEvents = 'none';
+    
+    lastHoveredNode = null;
+    currentHoveredNode = null;
+    
+    // Re-render with debounce
+    setTimeout(() => {
+        if (isModal) {
+            container.innerHTML = '';
+            renderSingleChart(container, chart, currentData.theme.color || '#3b82f6', true);
+        } else {
+            const el = document.getElementById(chart.id);
+            el.innerHTML = `<button class="expand-btn" onclick="expandChart('${chart.id}')">🔍 Expand</button>`;
+            renderSingleChart(el, chart, currentData.theme.color || '#3b82f6', false);
+        }
+        
+        // Re-enable clicks after render
+        setTimeout(() => {
+            container.style.pointerEvents = 'auto';
+        }, 100);
+    }, 50);
+}, { once: false }); // Remove 'once' to allow multiple clicks
+
+    }
+});
+        }
+
+
+        function swapAxes(chartId) {
+    const chart = currentData.charts.find(c => c.id === chartId);
+    if (!chart) return;
+    
+    // Swap x and y data
+    [chart.x, chart.y] = [chart.y, chart.x];
+    [chart.xlabel, chart.ylabel] = [chart.ylabel, chart.xlabel];
+    
+    // Re-render the chart
+    const el = document.getElementById(chartId);
+    const color = currentData.theme.color || '#3b82f6';
+    
+    // Clear and re-render
+    el.innerHTML = `
+    <button class="expand-btn" onclick="expandChart('${chartId}')">🔍 Expand</button>
+    <div class="chart-controls">
+        <button class="control-btn" onclick="swapAxes('${chartId}')" title="Swap X/Y Axes">🔄</button>
+        <button class="control-btn" onclick="changeChartType('${chartId}')" title="Toggle Chart Type">📊</button>
+        <button class="control-btn" onclick="sortChart('${chartId}')" title="Sort Data">⬆️</button>
+        <button class="control-btn" onclick="resetChart('${chartId}')" title="Reset Chart">↩️</button>
+    </div>
+`;
+    renderSingleChart(el, chart, color, false);
+}
+
+function changeChartType(chartId) {
+    const chart = currentData.charts.find(c => c.id === chartId);
+    if (!chart) return;
+    
+    // Cycle through chart types
+    const typeMap = {
+        'bar': 'line',
+        'line': 'scatter',
+        'scatter': 'bar'
+    };
+    
+    chart.type = typeMap[chart.type] || 'bar';
+    
+    // Re-render
+    const el = document.getElementById(chartId);
+    const color = currentData.theme.color || '#3b82f6';
+    
+    el.innerHTML = `
+    <button class="expand-btn" onclick="expandChart('${chartId}')">🔍 Expand</button>
+    <div class="chart-controls">
+        <button class="control-btn" onclick="swapAxes('${chartId}')" title="Swap X/Y Axes">🔄</button>
+        <button class="control-btn" onclick="changeChartType('${chartId}')" title="Toggle Chart Type">📊</button>
+        <button class="control-btn" onclick="sortChart('${chartId}')" title="Sort Data">⬆️</button>
+        <button class="control-btn" onclick="resetChart('${chartId}')" title="Reset Chart">↩️</button>
+    </div>
+`;
+    
+    renderSingleChart(el, chart, color, false);
+}
+
+function sortChart(chartId) {
+    const chart = currentData.charts.find(c => c.id === chartId);
+    if (!chart) return;
+    
+    // Toggle sort direction
+    chart.sortDirection = chart.sortDirection === 'asc' ? 'desc' : 'asc';
+    
+    // Sort data
+    const combined = chart.x.map((x, i) => ({ x, y: chart.y[i] }));
+    combined.sort((a, b) => {
+        if (chart.sortDirection === 'asc') {
+            return a.y - b.y;
+        } else {
+            return b.y - a.y;
+        }
+    });
+    
+    chart.x = combined.map(item => item.x);
+    chart.y = combined.map(item => item.y);
+    
+    // Re-render
+    const el = document.getElementById(chartId);
+    const color = currentData.theme.color || '#3b82f6';
+    
+    el.innerHTML = `
+    <button class="expand-btn" onclick="expandChart('${chartId}')">🔍 Expand</button>
+    <div class="chart-controls">
+        <button class="control-btn" onclick="swapAxes('${chartId}')" title="Swap X/Y Axes">🔄</button>
+        <button class="control-btn" onclick="changeChartType('${chartId}')" title="Toggle Chart Type">📊</button>
+        <button class="control-btn" onclick="sortChart('${chartId}')" title="Sort Data">⬆️</button>
+        <button class="control-btn" onclick="resetChart('${chartId}')" title="Reset Chart">↩️</button>
+    </div>
+`;
+renderSingleChart(el, chart, color, false);
+}
+    function resetChart(chartId) {
+    const chart = currentData.charts.find(c => c.id === chartId);
+    if (!chart || !chart.original) return;
+    
+    // Restore original data
+    chart.x = [...chart.original.x];
+    chart.y = [...chart.original.y];
+    chart.z = chart.original.z ? [...chart.original.z] : [];
+    chart.type = chart.original.type;
+    chart.xlabel = chart.original.xlabel;
+    chart.ylabel = chart.original.ylabel;
+    chart.title = chart.original.title;
+    
+    // Reset sort direction
+    delete chart.sortDirection;
+    
+    // Re-render
+    const el = document.getElementById(chartId);
+    const color = currentData.theme.color || '#3b82f6';
+    
+    el.innerHTML = `
+    <button class="expand-btn" onclick="expandChart('${chartId}')">🔍 Expand</button>
+    <div class="chart-controls">
+        <button class="control-btn" onclick="swapAxes('${chartId}')" title="Swap X/Y Axes">🔄</button>
+        <button class="control-btn" onclick="changeChartType('${chartId}')" title="Toggle Chart Type">📊</button>
+        <button class="control-btn" onclick="sortChart('${chartId}')" title="Sort Data">⬆️</button>
+        <button class="control-btn" onclick="resetChart('${chartId}')" title="Reset Chart">↩️</button>
+    </div>
+`;
+    
+    
+    
+    renderSingleChart(el, chart, color, false);
+}
+
+        function renderDashboard(data) {
+            document.querySelectorAll('.glass-panel').forEach(el => el.style.opacity = '1');
+            document.getElementById('upload-screen').classList.add('hidden');
+            document.getElementById('dashboard-screen').classList.remove('hidden');
+
+            const color = data.theme.color || '#3b82f6';
+            
+            // Display token usage
+            if (data.tokens_used && data.tokens_used > 0) {
+                document.getElementById('token-count').textContent = data.tokens_used.toLocaleString();
+                document.getElementById('token-usage').style.display = 'flex';
+            }
+            
+            // Title & Theme
+            const domain = data.domain || "General";
+            const domainEmoji = DOMAIN_EMOJIS[domain] || "📊";
+            
+            document.getElementById('domain-emoji').innerText = domainEmoji;
+            const titleText = document.getElementById('domain-title').querySelector('span:last-child');
+            titleText.innerText = domain + " Intelligence";
+            titleText.className = `bg-clip-text text-transparent bg-gradient-to-r ${data.theme.gradient}`;
+
+            // Date Range Filter
+            if (data.has_date_column && data.date_range.min && data.date_range.max) {
+                document.getElementById('date-filter-container').style.display = 'flex';
+                document.getElementById('date-separator').style.display = 'block';
+                
+                const startDate = document.getElementById('start-date');
+                const endDate = document.getElementById('end-date');
+                
+                startDate.min = data.date_range.min;
+                startDate.max = data.date_range.max;
+                endDate.min = data.date_range.min;
+                endDate.max = data.date_range.max;
+                
+                if (!activeFilters['_start_date']) {
+                    startDate.value = data.date_range.min;
+                }
+                if (!activeFilters['_end_date']) {
+                    endDate.value = data.date_range.max;
+                }
+            }
+
+            // Filters
+            const filterBox = document.getElementById('filter-container');
+            const existingFilters = filterBox.querySelectorAll('select').length;
+            
+            if (existingFilters === 0 && data.filters.length > 0) {
+                data.filters.forEach(f => {
+                    const sel = document.createElement('select');
+                    sel.className = "bg-slate-800 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all hover:bg-slate-700 flex-shrink-0";
+                    sel.dataset.column = f.column;
+                    sel.onchange = handleFilterChange;
+                    
+                    sel.innerHTML = `<option>All ${f.label}</option>` + 
+                        f.values.map(v => `<option ${activeFilters[f.column] === v ? 'selected' : ''}>${v}</option>`).join('');
+                    
+                    filterBox.appendChild(sel);
+                });
+            }
+
+            // KPIs with Sparklines
+            const kpiBox = document.getElementById('kpi-container');
+            kpiBox.innerHTML = '';
+            
+            console.log('Creating KPI cards for', data.kpis.length, 'KPIs');
+            
+            data.kpis.forEach((k, idx) => {
+                const sparklineId = `sparkline_${idx}`;
+                const trendData = k.sparkline || [];
+                const trendChange = calculateTrend(trendData);
+                const isPositive = trendChange >= 0;
+                const emoji = getEmojiForKPI(k.label);
+                
+                console.log(`Building KPI ${idx}:`, k.label, 'sparkline:', trendData.length, 'points');
+                
+                const kpiDiv = document.createElement('div');
+                kpiDiv.className = 'kpi-card';
+                kpiDiv.style.borderLeftColor = color;
+                
+                kpiDiv.innerHTML = `
+                    <div>
+                        <div class="kpi-emoji">${emoji}</div>
+                        <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${k.label}</div>
+                        <div class="text-2xl font-bold text-white mt-1 mb-1">${k.value}</div>
+                        <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
+                            ${isPositive ? '▲' : '▼'} ${Math.abs(trendChange).toFixed(1)}%
+                        </div>
+                    </div>
+                    <div class="sparkline-container" id="${sparklineId}"></div>
+                `;
+                
+                kpiBox.appendChild(kpiDiv);
+            });
+            
+            // Create sparklines after DOM is ready
+            setTimeout(() => {
+                console.log('Starting sparkline creation...');
+                data.kpis.forEach((k, idx) => {
+                    const sparklineId = `sparkline_${idx}`;
+                    const trendData = k.sparkline || [];
+                    
+                    // Verify container exists
+                    const container = document.getElementById(sparklineId);
+                    console.log(`Checking ${sparklineId}:`, container ? 'EXISTS' : 'NOT FOUND');
+                    
+                    if (trendData.length === 0) {
+                        console.warn(`${sparklineId} has no data!`);
+                        return;
+                    }
+                    
+                    const trendChange = calculateTrend(trendData);
+                    const isPositive = trendChange >= 0;
+                    const trendColor = isPositive ? '#22c55e' : '#ef4444';
+                    
+                    console.log(`Creating sparkline ${sparklineId}:`, {
+                        data: trendData,
+                        color: trendColor,
+                        trend: trendChange.toFixed(2) + '%'
+                    });
+                    
+                    createSparkline(sparklineId, trendData, trendColor);
+                });
+            }, 500);
+
+            // Charts
+            const chartIds = ['chart_0', 'chart_1', 'chart_2', 'chart_3', 'chart_4'];
+
+            data.charts.forEach((c, i) => {
+    if (i >= chartIds.length) return;
+    const id = chartIds[i];
+    const el = document.getElementById(id);
+    
+    console.log(`Rendering chart ${i}:`, c.type, c);
+    
+    if ((!c.x || c.x.length === 0) && (!c.labels || c.labels.length === 0) && (!c.source || c.source.length === 0)) {
+        el.innerHTML = `
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
+                <div class="text-4xl mb-2">🔭</div>
+                <span class="text-xs font-mono opacity-50">No Data Available</span>
+            </div>
+            <div class="absolute top-3 left-4 text-xs font-bold text-slate-400">${c.title}</div>
+        `;
+        return;
+    }
+    
+    // ADD CONTROL BUTTONS (not for Sankey/Sunburst/Pie)
+    const showControls = !['sankey', 'sunburst', 'pie'].includes(c.type);
+    
+    el.innerHTML = `
+    <button class="expand-btn" onclick="expandChart('${c.id}')">🔍 Expand</button>
+    ${showControls ? `
+        <div class="chart-controls">
+            <button class="control-btn" onclick="swapAxes('${c.id}')" title="Swap X/Y Axes">
+                🔄
+            </button>
+            <button class="control-btn" onclick="changeChartType('${c.id}')" title="Toggle Chart Type">
+                📊
+            </button>
+            <button class="control-btn" onclick="sortChart('${c.id}')" title="Sort Data">
+                ⬆️
+            </button>
+            <button class="control-btn" onclick="resetChart('${c.id}')" title="Reset Chart">
+                ↩️
+            </button>
+        </div>
+    ` : ''}
+`;
+    
+    renderSingleChart(el, c, color, false);
+});
+        }
+
+        function adjustColor(color, amount) {
+            return '#' + color.replace(/^#/, '').replace(/../g, color => ('0'+Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeLogs();
+            }
+        });
+        async function exportToPowerBI() {
+    if (!currentData) {
+        alert('⚠️ Please upload and process a file first!');
+        return;
+    }
+    
+    console.log('📊 Starting Power BI export...');
+    
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Generating Export...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('dashboard_data', JSON.stringify(currentData));
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        const response = await fetch('/api/export-powerbi/', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': csrfToken }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Export failed');
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        const domain = currentData.domain || 'Dashboard';
+        const timestamp = new Date().toISOString().split('T')[0];
+        a.download = `${domain}_PowerBI_${timestamp}.zip`;
+        
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        console.log('✅ Export complete!');
+        alert(`✅ Export Successful!\n\nFile: ${domain}_PowerBI_${timestamp}.zip\n\nExtract and import the CSV into Power BI Desktop.`);
+        
+    } catch (error) {
+        console.error('❌ Export error:', error);
+        alert('❌ Export Failed!\n\n' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+    </script>
+</body>
+
+
+
+</html>
