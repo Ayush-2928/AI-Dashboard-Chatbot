@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Enterprise Command Center</title>
+    <title>AI Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -12,7 +13,7 @@
         body { 
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: #e2e8f0; 
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Outfit', system-ui, -apple-system, sans-serif; 
             margin: 0; padding: 0;
             height: 100vh;
             overflow: hidden; 
@@ -20,15 +21,27 @@
         
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: 60px 60px 140px 1fr 0.85fr; 
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-rows: 60px 60px 112px minmax(0, 1fr) minmax(0, 0.95fr); 
             gap: 16px;
             height: 100vh;
             padding: 20px;
             box-sizing: border-box;
+            overflow-y: auto;
+            overflow-x: hidden;
+            align-content: start;
+        }
+
+        .dashboard-grid.with-chatbot-dock {
+            padding-bottom: 110px;
         }
 
         .col-span-3 { grid-column: span 3; }
+
+        .dashboard-grid > * {
+            min-width: 0;
+            min-height: 0;
+        }
         
         #chart_0 { grid-column: span 2; }
         #chart_1 { grid-column: span 1; }
@@ -45,8 +58,16 @@
             position: relative;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow: visible;
             padding: 8px;
+            z-index: 1;
+            min-width: 260px;
+            min-height: 120px;
+            resize: none;
+        }
+
+        .glass-panel:hover {
+            z-index: 35;
         }
 
         .glass-panel:hover .expand-btn {
@@ -74,6 +95,65 @@
             background: rgba(59, 130, 246, 1);
             transform: scale(1.05);
         }
+
+.widget-drag-handle {
+    position: absolute;
+    top: 10px;
+    right: 80px;
+    z-index: 14;
+    background: rgba(30, 41, 59, 0.92);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 10px;
+    line-height: 1;
+    cursor: grab;
+    user-select: none;
+}
+
+.widget-drag-handle:active {
+    cursor: grabbing;
+}
+
+.widget-remove-btn {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    z-index: 15;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.2);
+    color: rgba(203, 213, 225, 0.8);
+    font-size: 10px;
+    line-height: 14px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.glass-panel:hover .widget-remove-btn,
+.kpi-card:hover .widget-remove-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.widget-remove-btn:hover {
+    background: rgba(127, 29, 29, 0.42);
+    border-color: rgba(239, 68, 68, 0.45);
+    color: #fee2e2;
+}
+
+.chart-plot-area {
+    width: 100%;
+    height: 100%;
+}
+
 
         .chart-controls {
     position: absolute;
@@ -105,9 +185,98 @@
 .control-btn:hover {
     background: rgba(59, 130, 246, 0.8);
     color: white;
-    border-color: #3b82f6;
+    border-color: #8b5cf6;
     transform: scale(1.1);
 }
+
+.chart-controls.open {
+    opacity: 1;
+}
+
+.edit-menu {
+    position: relative;
+}
+
+.edit-toggle,
+.reset-toggle {
+    font-size: 11px;
+    min-width: 58px;
+    height: 30px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-dropdown {
+    position: absolute;
+    top: 34px;
+    left: 0;
+    width: 240px;
+    max-height: min(220px, calc(100vh - 140px));
+    overflow-y: auto;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+    padding: 8px;
+    display: none;
+    z-index: 60;
+}
+
+.edit-dropdown.open {
+    display: block;
+}
+
+.edit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.edit-label {
+    width: 68px;
+    font-size: 10px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.edit-select {
+    flex: 1;
+    background: rgba(30, 41, 59, 1);
+    border: 1px solid rgba(100, 116, 139, 0.6);
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 11px;
+    padding: 5px 6px;
+}
+
+.edit-item {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #cbd5e1;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 4px;
+}
+
+.edit-item:last-child {
+    margin-bottom: 0;
+}
+
+.edit-item:hover {
+    background: rgba(51, 65, 85, 0.75);
+    border-color: rgba(148, 163, 184, 0.25);
+    color: #ffffff;
+}
+
         
         .kpi-card {
             background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.7));
@@ -118,10 +287,13 @@
             grid-template-columns: 1fr 120px;
             gap: 12px;
             align-items: center;
-            transition: all 0.3s ease;
+            transition: box-shadow 0.3s ease;
             position: relative;
-            overflow: hidden;
-            height: 100%;
+            overflow: visible;
+            min-height: 98px;
+            min-width: 220px;
+            resize: none;
+            cursor: default;
         }
         
         .kpi-card::before {
@@ -135,7 +307,6 @@
         }
         
         .kpi-card:hover { 
-            transform: translateY(-4px);
             box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
         }
 
@@ -162,11 +333,14 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 6px;
+            padding: 3px 8px;
             border-radius: 8px;
-            font-size: 9px;
-            font-weight: bold;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.15;
             margin-top: 4px;
+            max-width: fit-content;
+            white-space: nowrap;
         }
 
         .trend-up {
@@ -177,6 +351,16 @@
         .trend-down {
             background: rgba(239, 68, 68, 0.2);
             color: #ef4444;
+        }
+
+        .kpi-card.kpi-replace-target {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25), 0 10px 22px rgba(2, 132, 199, 0.18);
+        }
+
+        .kpi-card.kpi-drop-target {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.52), 0 12px 28px rgba(2, 132, 199, 0.32);
         }
 
         .filter-scroll {
@@ -202,7 +386,7 @@
 
         .loader {
             border: 3px solid rgba(255,255,255,0.1); 
-            border-top: 3px solid #3b82f6; 
+            border-top: 3px solid #8b5cf6; 
             border-radius: 50%; 
             width: 24px; 
             height: 24px; 
@@ -214,13 +398,110 @@
             100% { transform: rotate(360deg); } 
         }
 
+        .filter-loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1400;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2, 6, 23, 0.58);
+            backdrop-filter: blur(3px);
+        }
+
+        .filter-loading-overlay.active {
+            display: flex;
+        }
+
+        .filter-loading-card {
+            width: min(540px, calc(100vw - 32px));
+            background: rgba(17, 24, 39, 0.96);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 22px 48px rgba(0, 0, 0, 0.48);
+        }
+
+        .filter-loading-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #e5e7eb;
+            margin-bottom: 10px;
+        }
+
+        .filter-loading-track {
+            width: 100%;
+            height: 10px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            margin-bottom: 10px;
+        }
+
+        .filter-loading-bar {
+            height: 100%;
+            width: 45%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #22c55e, #8b5cf6);
+            animation: filterLoadSlide 1.25s ease-in-out infinite;
+        }
+
+        @keyframes filterLoadSlide {
+            0% { transform: translateX(-110%); }
+            100% { transform: translateX(220%); }
+        }
+
+        .filter-loading-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-loading-note {
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        .filter-loading-stop {
+            border: 1px solid rgba(248, 113, 113, 0.45);
+            background: rgba(127, 29, 29, 0.28);
+            color: #fecaca;
+            border-radius: 8px;
+            font-size: 11px;
+            padding: 7px 10px;
+            cursor: pointer;
+        }
+
+        .filter-loading-stop:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        body.filter-loading-active #dashboard-screen,
+        body.filter-loading-active #chart-sidebar,
+        body.filter-loading-active #chart-chatbot-dock,
+        body.filter-loading-active #custom-chart-popup,
+        body.filter-loading-active #custom-kpi-popup,
+        body.filter-loading-active #chart-modal,
+        body.filter-loading-active #logs-modal {
+            pointer-events: none !important;
+            user-select: none;
+        }
+
+        body.filter-loading-active #dashboard-screen {
+            filter: saturate(0.8) brightness(0.92);
+        }
+
         .upload-zone {
             transition: all 0.3s ease;
         }
 
         .upload-zone:hover {
             transform: scale(1.02);
-            border-color: #3b82f6 !important;
+            border-color: #8b5cf6 !important;
         }
 
         .pulse-dot {
@@ -328,7 +609,7 @@
         }
 
         .date-input-wrapper:hover {
-            border-color: #3b82f6;
+            border-color: #8b5cf6;
             background: rgba(30, 41, 59, 0.7);
         }
 
@@ -344,45 +625,818 @@
             filter: invert(1);
             cursor: pointer;
         }
-        .sankey-hint {
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(59, 130, 246, 0.8);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 10px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-    z-index: 5;
+
+.glass-panel.drop-target {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45), 0 14px 30px rgba(2, 132, 199, 0.28);
 }
 
-.glass-panel:hover .sankey-hint {
-    opacity: 1;
+.chatbot-dock {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 16px;
+    width: min(1100px, calc(100vw - 28px));
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    padding: 10px;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
+
+.chatbot-mode {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+    padding: 10px 10px;
+    color: #e2e8f0;
+    font-size: 12px;
+}
+
+.chatbot-mode:focus {
+    outline: none;
+    border-color: #8b5cf6;
+}
+
+.chatbot-input {
+    flex: 1;
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: #e2e8f0;
+    font-size: 13px;
+}
+
+.chatbot-input:focus {
+    outline: none;
+    border-color: #8b5cf6;
+}
+
+.chatbot-button {
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+    border: none;
+    color: white;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.chatbot-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.chatbot-status {
+    color: #c4b5fd;
+    font-size: 11px;
+    min-width: 170px;
+    text-align: right;
+}
+
+.custom-chart-popup {
+    position: fixed;
+    width: min(620px, calc(100vw - 30px));
+    height: min(460px, calc(100vh - 50px));
+    background: linear-gradient(150deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    border-radius: 14px;
+    box-shadow: 0 20px 48px rgba(2, 6, 23, 0.6);
+    z-index: 1300;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.custom-chart-popup.dragging {
+    opacity: 0.92;
+}
+
+.custom-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    cursor: move;
+    user-select: none;
+}
+
+.custom-chart-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.custom-chart-body {
+    flex: 1;
+    min-height: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.custom-chart-plot {
+    flex: 1;
+    min-height: 0;
+}
+
+.custom-chart-note {
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+.custom-chart-sql {
+    color: #c4b5fd;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.custom-chart-sql-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+
+.custom-kpi-popup {
+    position: fixed;
+    width: min(340px, calc(100vw - 20px));
+    background: linear-gradient(150deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 14px;
+    box-shadow: 0 20px 44px rgba(2, 6, 23, 0.62);
+    z-index: 1310;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.custom-kpi-popup.dragging {
+    opacity: 0.92;
+}
+
+.custom-kpi-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+    cursor: move;
+    user-select: none;
+}
+
+.custom-kpi-body {
+    padding: 10px;
+}
+
+.copy-sql-btn {
+    padding: 8px 10px;
+    font-size: 11px;
+}
+
+
+.dashboard-grid.with-sidebar {
+    width: calc(100vw - 340px);
+    margin-right: 340px;
+}
+
+.chart-sidebar {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    bottom: 86px;
+    width: 310px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 20px 44px rgba(2, 6, 23, 0.5);
+    z-index: 1180;
+    padding: 12px;
+}
+
+.chart-sidebar-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.chart-sidebar-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.chart-sidebar-subtitle {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.chart-sidebar-clear {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.8);
+    color: #cbd5e1;
+    font-size: 11px;
+    padding: 6px 8px;
+    cursor: pointer;
+}
+
+.chart-sidebar-clear:hover {
+    border-color: #8b5cf6;
+    color: #f8fafc;
+}
+
+.chart-sidebar-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chart-sidebar-close {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.8);
+    color: #cbd5e1;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.chart-sidebar-close:hover {
+    border-color: #f87171;
+    color: #fee2e2;
+    background: rgba(127, 29, 29, 0.3);
+}
+
+.chart-library-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    padding-right: 2px;
+}
+
+.chart-library-item {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 10px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.chart-library-item.active {
+    border-color: rgba(56, 189, 248, 0.8);
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.45);
+}
+
+.chart-library-title {
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+    word-break: break-word;
+}
+
+.chart-library-meta {
+    color: #94a3b8;
+    font-size: 10px;
+}
+
+.chart-library-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.chart-library-btn {
+    flex: 1;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.75);
+    color: #cbd5e1;
+    font-size: 10px;
+    padding: 6px 6px;
+    cursor: pointer;
+}
+
+.chart-library-btn:hover {
+    border-color: #8b5cf6;
+    color: #ffffff;
+}
+
+.chart-library-empty {
+    color: #64748b;
+    font-size: 11px;
+    border: 1px dashed rgba(148, 163, 184, 0.25);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+
+@media (max-width: 1250px) {
+    .dashboard-grid.with-sidebar {
+        width: 100vw;
+        margin-right: 0;
+    }
+    .chart-sidebar {
+        width: 260px;
+        right: 10px;
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-grid.with-chatbot-dock {
+        padding-bottom: 150px;
+    }
+    .chatbot-dock {
+        width: calc(100vw - 16px);
+        left: 8px;
+        transform: none;
+        flex-wrap: wrap;
+    }
+    .chatbot-status {
+        text-align: left;
+        min-width: auto;
+    }
+}
+
+
+        :root {
+            --app-bg: #101114;
+            --app-bg-soft: #17191f;
+            --app-bg-soft-2: #13151a;
+            --app-border: rgba(255, 255, 255, 0.07);
+            --app-text: #e4e4e7;
+            --app-muted: #8b8f98;
+            --app-accent: #22c55e;
+            --app-accent-strong: #16a34a;
+        }
+
+        body {
+            background: var(--app-bg) !important;
+            color: var(--app-text) !important;
+            font-family: 'Outfit', system-ui, -apple-system, sans-serif !important;
+        }
+
+        .dashboard-grid {
+            background: var(--app-bg);
+        }
+
+        .glass-panel {
+            background: rgba(26, 27, 31, 0.92);
+            border: 1px solid var(--app-border);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.48);
+        }
+
+        .kpi-card {
+            background: linear-gradient(145deg, rgba(26, 27, 31, 0.96), rgba(17, 18, 21, 0.94));
+            border-left-color: var(--app-accent) !important;
+        }
+
+        .startup-card {
+            background: var(--app-bg-soft) !important;
+            border-color: var(--app-border) !important;
+            box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+        }
+
+        .startup-title {
+            color: #ffffff;
+            letter-spacing: -0.02em;
+        }
+
+        .startup-subtitle,
+        .loader-caption {
+            color: var(--app-muted) !important;
+        }
+
+        .primary-cta {
+            background: var(--app-accent) !important;
+            color: #ffffff;
+        }
+
+        .primary-cta:hover {
+            background: var(--app-accent-strong) !important;
+        }
+
+        .secondary-cta {
+            background: rgba(255, 255, 255, 0.03) !important;
+            border: 1px solid var(--app-border) !important;
+            color: #a1a1aa !important;
+        }
+
+        .secondary-cta:hover {
+            background: rgba(34, 197, 94, 0.08) !important;
+            border-color: rgba(34, 197, 94, 0.28) !important;
+            color: #e4e4e7 !important;
+        }
+
+        .dashboard-title-text {
+            color: #ffffff;
+            letter-spacing: -0.02em;
+        }
+
+        #filter-container {
+            background: rgba(255, 255, 255, 0.02) !important;
+            border: 1px solid var(--app-border);
+        }
+
+
+        #filter-container {
+            background: rgba(18, 16, 24, 0.96) !important;
+            border: 1px solid rgba(34, 197, 94, 0.22) !important;
+        }
+
+        .filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(23, 18, 34, 0.74);
+            border: 1px solid rgba(34, 197, 94, 0.32);
+            border-radius: 10px;
+            padding: 4px 8px;
+        }
+
+        .filter-chip-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+            color: #c4b5fd;
+        }
+
+        .filter-chip-select,
+        .filter-add-select {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(34, 197, 94, 0.32);
+            color: #e9ddff;
+            border-radius: 8px;
+            font-size: 12px;
+            padding: 5px 8px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .filter-chip-select:focus,
+        .filter-add-select:focus {
+            border-color: rgba(74, 222, 128, 0.85);
+            box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.28);
+        }
+
+        .filter-chip-remove {
+            border: none;
+            background: transparent;
+            color: #c4b5fd;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+
+        .filter-chip-remove:hover {
+            color: #fda4af;
+        }
+
+        .filter-clear-btn {
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(34, 197, 94, 0.32);
+            color: #ddd6fe;
+            background: rgba(32, 22, 49, 0.62);
+            cursor: pointer;
+        }
+
+        .filter-clear-btn:hover {
+            border-color: rgba(251, 113, 133, 0.5);
+            color: #ffe4e6;
+        }
+
+        #date-filter-container {
+            background: rgba(23, 18, 34, 0.74) !important;
+            border: 1px solid rgba(34, 197, 94, 0.32) !important;
+        }
+
+        #date-separator {
+            background: rgba(34, 197, 94, 0.32) !important;
+        }
+
+        #filter-container,
+        #filter-container span,
+        #filter-container p {
+            color: #d6c5ff;
+        }
+
+
+
+        .filter-chip-select,
+        .filter-add-select,
+        .chatbot-mode,
+        .edit-select {
+            background-color: #17191f !important;
+            color: #e4e4e7 !important;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            color-scheme: dark;
+        }
+
+        select,
+        option,
+        optgroup {
+            background: #17191f !important;
+            color: #e4e4e7 !important;
+            color-scheme: dark;
+        }
+
+        .filter-chip-select option,
+        .filter-add-select option,
+        .chatbot-mode option,
+        .edit-select option {
+            background: #17191f !important;
+            color: #e4e4e7 !important;
+        }
+
+
+        #open-charts-btn,
+        #open-ai-chart-btn,
+        #reset-dashboard-btn,
+        #dashboard-screen button[onclick="location.reload()"] {
+            background: rgba(255, 255, 255, 0.03) !important;
+            border-color: var(--app-border) !important;
+            color: #a1a1aa !important;
+        }
+
+        #open-charts-btn:hover,
+        #open-ai-chart-btn:hover,
+        #reset-dashboard-btn:hover,
+        #dashboard-screen button[onclick="location.reload()"]:hover {
+            background: rgba(34, 197, 94, 0.1) !important;
+            border-color: rgba(34, 197, 94, 0.28) !important;
+            color: #e4e4e7 !important;
+        }
+
+        .chatbot-button {
+            background: var(--app-accent) !important;
+        }
+
+        .chatbot-button:hover {
+            background: var(--app-accent-strong) !important;
+        }
+
+        .control-btn:hover,
+        .expand-btn:hover,
+        .chart-library-btn:hover,
+        .chart-sidebar-clear:hover {
+            background: rgba(34, 197, 94, 0.12) !important;
+            border-color: rgba(34, 197, 94, 0.28) !important;
+            color: #e4e4e7 !important;
+        }
+
+        .loader {
+            border-top-color: var(--app-accent) !important;
+        }
+
+        .upload-zone:hover {
+            border-color: rgba(139, 92, 246, 0.34) !important;
+            transform: none;
+        }
+
+        .date-input-wrapper,
+        .chatbot-mode,
+        .chatbot-input,
+        .chart-library-item,
+        .chart-library-btn,
+        .chart-sidebar-clear,
+        .chart-sidebar-close,
+        .control-btn,
+        .expand-btn,
+        .edit-dropdown,
+        .custom-chart-sql {
+            border-color: var(--app-border) !important;
+        }
+
+        .date-input-wrapper:hover,
+        .date-input-wrapper:focus-within,
+        .chatbot-mode:focus,
+        .chatbot-input:focus,
+        .edit-select:focus {
+            border-color: rgba(34, 197, 94, 0.42) !important;
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
+        }
+
+        .chatbot-dock,
+        .chart-sidebar,
+        .custom-chart-popup,
+        .custom-kpi-popup,
+        .modal-content {
+            background: rgba(23, 25, 31, 0.96) !important;
+            border-color: var(--app-border) !important;
+            box-shadow: 0 20px 48px rgba(0, 0, 0, 0.62) !important;
+        }
+
+        .chatbot-mode,
+        .chatbot-input {
+            background: rgba(255, 255, 255, 0.03) !important;
+            color: var(--app-text) !important;
+        }
+
+        .chatbot-status,
+        .custom-chart-sql,
+        .chart-sidebar-subtitle,
+        .chart-library-meta {
+            color: #c4b5fd !important;
+        }
+
+        .glass-panel.drop-target,
+        .kpi-card.kpi-replace-target,
+        .kpi-card.kpi-drop-target,
+        .chart-library-item.active {
+            border-color: rgba(34, 197, 94, 0.6) !important;
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35), 0 12px 28px rgba(21, 128, 61, 0.34) !important;
+        }
+
+        .date-input-wrapper input[type="date"] {
+            color: var(--app-text);
+        }
+
+        .chart-library-empty {
+            border-color: rgba(255, 255, 255, 0.18);
+            color: #9197a3;
+        }
+
+        .chart-sidebar-close:hover {
+            border-color: rgba(34, 197, 94, 0.5) !important;
+            background: rgba(34, 197, 94, 0.12) !important;
+            color: #ecfdf3 !important;
+        }
+
+
+
+        :root {
+            --app-purple: #8b5cf6;
+            --app-purple-strong: #7c3aed;
+            --app-purple-soft: #c4b5fd;
+        }
+
+        .widget-drag-handle {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+        }
+
+        .glass-panel:hover .widget-drag-handle,
+        .kpi-card:hover .widget-drag-handle,
+        .widget-drag-handle:active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .widget-drag-handle,
+        .expand-btn,
+        .control-btn,
+        .edit-toggle,
+        .reset-toggle,
+        .widget-remove-btn {
+            height: 22px !important;
+            min-height: 22px !important;
+            padding: 4px 8px !important;
+            font-size: 10px !important;
+            line-height: 1 !important;
+            border-radius: 8px !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .widget-remove-btn {
+            width: auto !important;
+            min-width: 22px;
+            top: 10px;
+            right: 8px;
+        }
+
+        .loader {
+            border-top-color: var(--app-accent-strong) !important;
+        }
+
+        .expand-btn {
+            background: rgba(22, 163, 74, 0.85) !important;
+            border: 1px solid rgba(74, 222, 128, 0.35) !important;
+        }
+
+        .expand-btn:hover {
+            background: rgba(22, 163, 74, 1) !important;
+        }
+
+        .chatbot-button {
+            background: linear-gradient(90deg, #22c55e, #16a34a) !important;
+        }
+
+        .chatbot-button:hover {
+            background: linear-gradient(90deg, #16a34a, #15803d) !important;
+        }
+
+        .chatbot-status,
+        .custom-chart-sql {
+            color: var(--app-purple-soft) !important;
+        }
+
+
+
+        .kpi-card {
+            grid-template-columns: minmax(0, 1fr) 108px !important;
+            gap: 10px !important;
+        }
+
+        .sparkline-container {
+            width: 108px !important;
+            min-width: 108px !important;
+        }
+
+        .kpi-card-content {
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .kpi-card .trend-badge {
+            max-width: 100% !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-flex;
+        }
+
+        .kpi-card.kpi-replace-target,
+        .kpi-card.kpi-drop-target,
+        .glass-panel.drop-target,
+        .chart-library-item.active,
+        .chart-library-btn:hover,
+        .chart-sidebar-clear:hover,
+        .chatbot-mode:focus,
+        .chatbot-input:focus,
+        .date-input-wrapper:hover,
+        .date-input-wrapper:focus-within,
+        .date-input-wrapper input[type="date"]:focus,
+        .control-btn:hover {
+            border-color: var(--app-purple-strong) !important;
+        }
+
+        .kpi-card.kpi-replace-target,
+        .kpi-card.kpi-drop-target,
+        .glass-panel.drop-target,
+        .chart-library-item.active {
+            box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.45), 0 12px 28px rgba(76, 29, 149, 0.35) !important;
+        }
+
     </style>
 </head>
 <body>
 
     {% csrf_token %}
 
-    <div id="upload-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center">
-        <div class="upload-zone p-12 border-2 border-dashed border-slate-700 rounded-3xl bg-slate-800/50 backdrop-blur-sm text-center">
-            <div class="text-6xl mb-4">📊</div>
-            <h1 class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 mb-4">
-                AI Architect
+        <div id="upload-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center">
+        <div class="upload-zone startup-card p-12 border-2 border-dashed rounded-3xl backdrop-blur-sm text-center">
+            <div class="text-6xl mb-4">Yuqta</div>
+            <h1 class="text-4xl font-bold mb-4 startup-title">
+                AI Dashboard
             </h1>
-            <p class="text-slate-400 mb-6 text-sm">Upload raw data. Get an instant command center. ✨</p>
-            <label class="cursor-pointer bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-8 rounded-full transition-all shadow-lg hover:shadow-xl">
-                <span>🗂 Select File</span>
-                <input type="file" id="fileInput" accept=".xlsx,.csv" multiple onchange="initUpload()" class="hidden">
-            </label>
+            <p class="mb-6 text-sm startup-subtitle">Databricks-powered command center.</p>
+            <div class="flex flex-col items-center gap-3">
+                <button onclick="initDatabricksMode()" class="font-bold py-3 px-8 rounded-full transition-all shadow-lg hover:shadow-xl text-sm primary-cta">
+                    Open AI Dashboard
+                </button>
+                <button onclick="initEmptyDashboard()" class="font-semibold py-2 px-6 rounded-full transition-all text-xs secondary-cta">
+                    Generate Empty Dashboard
+                </button>
+            </div>
         </div>
-        <div id="loader" class="hidden mt-6 flex items-center gap-3 text-blue-400 font-mono text-sm">
-            <div class="loader"></div> 🔍 Analyzing Data Structure...
+        <div id="loader" class="hidden mt-6 flex items-center gap-3 loader-caption text-sm">
+            <div class="loader"></div> Connecting to Databricks...
         </div>
     </div>
 
@@ -390,33 +1444,37 @@
         
         <div class="col-span-3 flex justify-between items-center border-b border-slate-800/50 pb-2">
             <div>
-                <h1 id="domain-title" class="text-3xl font-bold text-white flex items-center gap-3">
-                    <span id="domain-emoji">📈</span>
-                    <span>Analytics</span>
+                <h1 id="domain-title" class="text-3xl font-bold text-white">
+                    <span id="dashboard-title-text" class="dashboard-title-text">AI Dashboard</span>
                 </h1>
                 <div class="flex items-center gap-4 mt-1">
                     <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
-                        <p class="text-xs text-slate-500">🗄️ Live DuckDB Session</p>
-                    </div>
-                    <div class="flex items-center gap-2" id="token-usage" style="display: none;">
-                        <span class="text-xs text-slate-500">|</span>
-                        <p class="text-xs text-slate-500">🤖 <span id="token-count" class="text-blue-400 font-mono font-bold">0</span> tokens</p>
+                        <span class="w-2 h-2 rounded-full bg-violet-500 pulse-dot"></span>
+                        <p class="text-xs text-slate-500"><span id="session-source-label">Live Databricks Session</span></p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500">|</span>
-                        <button onclick="toggleLogs()" class="text-xs text-slate-500 hover:text-blue-400 transition-colors">
+                        <button onclick="toggleLogs()" class="text-xs text-slate-500 hover:text-emerald-300 transition-colors">
                             📋 View Logs
                         </button>
                     </div>
                 </div>
             </div>
-            <button onclick="location.reload()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-400 hover:bg-slate-700 border border-slate-700 transition-all hover:border-blue-500 flex items-center gap-2">
-                🔄 New Analysis
-            </button>
-            <button onclick="exportToPowerBI()" class="px-6 py-2 bg-green-800 rounded-xl text-xs text-white hover:bg-green-700 border border-green-700 transition-all hover:border-green-500 flex items-center gap-2">
-                📊 Export for Power BI
-            </button>
+
+            <div class="flex items-center gap-3 flex-wrap justify-end">
+                <button id="open-charts-btn" onclick="toggleChartSidebar()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
+                    Open Charts
+                </button>
+                <button id="open-ai-chart-btn" onclick="toggleChatbotDock()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
+                    AI Chart Generation
+                </button>
+                <button id="reset-dashboard-btn" onclick="resetDashboardToOriginal()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-amber-500 flex items-center gap-2">
+                    Reset Dashboard
+                </button>
+                <button onclick="location.reload()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
+                    New Analysis
+                </button>
+            </div>
         </div>
 
         <div class="col-span-3 flex items-center gap-3 bg-slate-800/30 p-3 rounded-xl filter-scroll" id="filter-container">
@@ -442,6 +1500,74 @@
         <div id="chart_2" class="glass-panel"></div>
         <div id="chart_3" class="glass-panel"></div>
         <div id="chart_4" class="glass-panel"></div>
+    </div>
+
+    <div id="filter-loading-overlay" class="filter-loading-overlay" aria-hidden="true">
+        <div class="filter-loading-card">
+            <div id="filter-loading-message" class="filter-loading-title">Please wait, filters are loading...</div>
+            <div class="filter-loading-track">
+                <div class="filter-loading-bar"></div>
+            </div>
+            <div class="filter-loading-actions">
+                <span id="filter-loading-note" class="filter-loading-note">Fetching filtered results from Databricks.</span>
+                <button id="stop-filter-loading-btn" class="filter-loading-stop" onclick="stopFilterLoading()">Stop Loading</button>
+            </div>
+        </div>
+    </div>
+
+    <aside id="chart-sidebar" class="chart-sidebar" style="display: none;">
+        <div class="chart-sidebar-header">
+            <div>
+                <div class="chart-sidebar-title">Chart Library</div>
+                <div class="chart-sidebar-subtitle"><span id="chart-library-count">0</span> saved item(s)</div>
+            </div>
+            <div class="chart-sidebar-header-actions">
+                <button class="chart-sidebar-clear" onclick="clearChartLibrary()">Clear</button>
+                <button class="chart-sidebar-close" onclick="closeChartSidebar()" title="Close Chart Library">x</button>
+            </div>
+        </div>
+        <div id="chart-library-empty" class="chart-library-empty">New and replaced charts/KPIs will appear here. Use Replace/Expand to reapply them.</div>
+        <div id="chart-library-list" class="chart-library-list"></div>
+    </aside>
+
+    <div id="chart-chatbot-dock" class="chatbot-dock" style="display: none;">
+        <select id="chart-request-mode" class="chatbot-mode" onchange="updateChatbotModeUI()">
+            <option value="chart" selected>Chart</option>
+            <option value="kpi">KPI</option>
+        </select>
+        <input
+            id="chart-request-input"
+            class="chatbot-input"
+            type="text"
+            placeholder="Ask for a chart in natural language (example: bar chart of total sales by region)"
+            onkeydown="if(event.key === 'Enter') submitChatbotRequest()"
+        >
+        <button id="chart-request-btn" class="chatbot-button" onclick="submitChatbotRequest()">Generate Chart</button>
+        <div id="chart-request-status" class="chatbot-status"></div>
+    </div>
+
+    <div id="custom-chart-popup" class="custom-chart-popup" style="display: none;">
+        <div id="custom-chart-header" class="custom-chart-header">
+            <div id="custom-chart-title" class="custom-chart-title">Custom Chart</div>
+            <button class="close-btn" onclick="closeCustomChartPopup()">Close</button>
+        </div>
+        <div class="custom-chart-body">
+            <div id="custom-chart-plot" class="custom-chart-plot"></div>
+            <div class="custom-chart-note">Drag this window by the header and drop it on any chart tile to replace that chart.</div>
+            <div class="custom-chart-sql-row">
+                <div id="custom-chart-sql" class="custom-chart-sql"></div>
+                <button id="copy-custom-sql-btn" class="chatbot-button copy-sql-btn" onclick="copyCustomChartSql()">Copy SQL</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-kpi-popup" class="custom-kpi-popup" style="display: none;">
+        <div id="custom-kpi-header" class="custom-kpi-header">
+            <div class="custom-chart-title">KPI Replace</div>
+            <button class="close-btn" onclick="closeCustomKpiPopup()">Close</button>
+        </div>
+        <div class="custom-kpi-body" id="custom-kpi-body"></div>
+        <div class="custom-chart-note" style="padding: 0 10px 10px 10px;">Drag this popup to a KPI card to replace it.</div>
     </div>
 
     <!-- Modal for expanded chart -->
@@ -471,30 +1597,55 @@
     </div>
 
     <script>
-        let globalFile = null;
-        let globalFiles = [];
         let activeFilters = {};
         let currentData = null;
-
-        const DOMAIN_EMOJIS = {
-            "Supply Chain": "🚚",
-            "Sales": "💰",
-            "Retail": "🛒",
-            "Finance": "💼",
-            "E-commerce": "🛍️",
-            "Marketing": "📣",
-            "Human Resources": "👥",
-            "Production": "🏭",
-            "CRM": "🤝",
-            "Customer Support": "💬",
-            "General": "📊"
+        let dataSourceMode = 'databricks';
+        let customPopupChart = null;
+        let customPopupDragging = false;
+        let customPopupOffset = { x: 0, y: 0 };
+        let customPopupKpi = null;
+        let customKpiPopupDragging = false;
+        let customKpiPopupOffset = { x: 0, y: 0 };
+        const chartSlotIds = ['chart_0', 'chart_1', 'chart_2', 'chart_3', 'chart_4'];
+        let chartLibrary = [];
+        let chartLibrarySeq = 0;
+        let activeLibraryId = null;
+        let customPopupSourceLibraryId = null;
+        let pendingKpiReplaceLibraryId = null;
+        let kpiSeq = 0;
+        let isChartSidebarOpen = false;
+        let isChatbotDockOpen = false;
+        let widgetLayouts = {};
+        let widgetResizeObservers = {};
+        let widgetDragState = null;
+        let widgetResizeState = null;
+        let availableFilterDefs = [];
+        let selectedFilterColumns = [];
+        let originalDashboardState = null;
+        let processAbortController = null;
+        let processRequestToken = 0;
+        let isFilterLoading = false;
+        let userStoppedFilterLoad = false;
+        let lastAppliedFilterState = {
+            activeFilters: {},
+            selectedFilterColumns: []
         };
+        const RESERVED_FILTER_KEYS = new Set(['_start_date', '_end_date']);
+        const FIXED_THEME = {
+            color: '#22c55e',
+            gradientClass: 'from-emerald-400 to-green-500'
+        };
+
+        function getThemeColor() {
+            return FIXED_THEME.color;
+        }
+
 
         const KPI_EMOJIS = {
             "total": "📊", "revenue": "💵", "sales": "💰", "profit": "📈",
             "loss": "📉", "count": "🔢", "records": "📄", "amount": "💲",
-            "spend": "💸", "customer": "👤", "order": "🛍️", "product": "📦",
-            "cost": "💳", "price": "🏷️", "quantity": "📊", "employee": "👨‍💼",
+            "spend": "💸", "customer": "👤", "order": "ðï¸", "product": "📦",
+            "cost": "💳", "price": "ð·ï¸", "quantity": "📊", "employee": "ð¨âð¼",
             "campaign": "📢", "conversion": "✅", "growth": "📈"
         };
 
@@ -506,103 +1657,429 @@
             return "📊";
         }
 
-        async function initUpload() {
-            const files = document.getElementById('fileInput').files;
-            globalFiles = Array.from(files);
+        async function initDatabricksMode() {
+            dataSourceMode = 'databricks';
             activeFilters = {};
-            
-            const container = document.getElementById('filter-container');
-            while (container.children.length > 4) {
-                container.removeChild(container.lastChild);
-            }
-            
-            processFile();
+            availableFilterDefs = [];
+            selectedFilterColumns = [];
+            chartLibrary = [];
+            chartLibrarySeq = 0;
+            activeLibraryId = null;
+            customPopupSourceLibraryId = null;
+            originalDashboardState = null;
+            renderChartLibrary();
+            closeCustomChartPopup();
+            closeCustomKpiPopup();
+            resetFilterUIForNewSession();
+
+            processFile('initial');
         }
 
-        async function processFile() {
-            if (globalFiles.length === 0) return;
-            
-            document.getElementById('loader').classList.remove('hidden');
-            
-            const formData = new FormData();
-            globalFiles.forEach(file => {
-                formData.append('files', file);
+        function initEmptyDashboard() {
+            dataSourceMode = 'databricks';
+            activeFilters = {};
+            availableFilterDefs = [];
+            selectedFilterColumns = [];
+            chartLibrary = [];
+            chartLibrarySeq = 0;
+            activeLibraryId = null;
+            customPopupSourceLibraryId = null;
+            pendingKpiReplaceLibraryId = null;
+            originalDashboardState = null;
+
+            Object.values(widgetResizeObservers || {}).forEach(ro => {
+                try { if (ro) ro.disconnect(); } catch (_) {}
             });
+            widgetResizeObservers = {};
+            widgetLayouts = {};
+
+            closeCustomChartPopup();
+            closeCustomKpiPopup();
+            closeEditMenus();
+            resetFilterUIForNewSession();
+
+            const emptyData = {
+                domain: 'General',
+                theme: {
+                    color: FIXED_THEME.color,
+                    gradient: FIXED_THEME.gradientClass
+                },
+                filters: [],
+                kpis: [],
+                charts: [],
+                has_date_column: false,
+                date_range: {},
+                logs: [],
+                tokens_used: 0,
+                data_mode: 'databricks',
+                session_id: null,
+            };
+
+            currentData = emptyData;
+            isChartSidebarOpen = false;
+            isChatbotDockOpen = true;
+            renderDashboard(currentData);
+            renderChartLibrary();
+
+            originalDashboardState = {
+                data: cloneDashboardPayload(currentData),
+                activeFilters: {},
+                selectedFilterColumns: [],
+            };
+            lastAppliedFilterState = {
+                activeFilters: {},
+                selectedFilterColumns: [],
+            };
+
+            const status = document.getElementById('chart-request-status');
+            if (status) {
+                status.textContent = 'Empty dashboard ready. Use AI Chart Generation to add charts/KPIs.';
+            }
+        }
+
+        function setFilterLoadingState(active, message = 'Please wait, filters are loading...') {
+            const overlay = document.getElementById('filter-loading-overlay');
+            const msg = document.getElementById('filter-loading-message');
+            const note = document.getElementById('filter-loading-note');
+            const stopBtn = document.getElementById('stop-filter-loading-btn');
+
+            isFilterLoading = Boolean(active);
+            if (msg) msg.textContent = message;
+
+            if (active) {
+                if (note) note.textContent = 'Fetching filtered results from Databricks.';
+                if (overlay) {
+                    overlay.classList.add('active');
+                    overlay.setAttribute('aria-hidden', 'false');
+                }
+                document.body.classList.add('filter-loading-active');
+                if (stopBtn) {
+                    stopBtn.disabled = false;
+                    stopBtn.textContent = 'Stop Loading';
+                }
+            } else {
+                if (overlay) {
+                    overlay.classList.remove('active');
+                    overlay.setAttribute('aria-hidden', 'true');
+                }
+                document.body.classList.remove('filter-loading-active');
+                if (stopBtn) {
+                    stopBtn.disabled = false;
+                    stopBtn.textContent = 'Stop Loading';
+                }
+            }
+        }
+
+        function setChartsLoadingOpacity(value) {
+            document.querySelectorAll('.glass-panel').forEach(el => {
+                el.style.opacity = String(value);
+            });
+        }
+
+        function restoreLastAppliedFilterState() {
+            const snapshot = lastAppliedFilterState || {};
+            activeFilters = { ...(snapshot.activeFilters || {}) };
+            selectedFilterColumns = Array.isArray(snapshot.selectedFilterColumns)
+                ? [...snapshot.selectedFilterColumns]
+                : [];
+
+            renderEditableFilters();
+
+            const startDate = document.getElementById('start-date');
+            const endDate = document.getElementById('end-date');
+            const dateRange = currentData && currentData.date_range ? currentData.date_range : {};
+
+            if (startDate) startDate.value = activeFilters['_start_date'] || dateRange.min || '';
+            if (endDate) endDate.value = activeFilters['_end_date'] || dateRange.max || '';
+
+            setChartsLoadingOpacity(1);
+        }
+
+        function stopFilterLoading() {
+            if (!processAbortController || !isFilterLoading) return;
+
+            const stopBtn = document.getElementById('stop-filter-loading-btn');
+            const note = document.getElementById('filter-loading-note');
+            if (stopBtn) {
+                stopBtn.disabled = true;
+                stopBtn.textContent = 'Stopping...';
+            }
+            if (note) note.textContent = 'Cancelling filter request...';
+            userStoppedFilterLoad = true;
+            processAbortController.abort();
+        }
+
+        async function processFile(reason = 'manual') {
+            dataSourceMode = 'databricks';
+            const isFilterRequest = reason === 'filters';
+            const loader = document.getElementById('loader');
+
+            if (loader) loader.classList.remove('hidden');
+            if (isFilterRequest) {
+                userStoppedFilterLoad = false;
+                setFilterLoadingState(true, 'Please wait, filters are loading...');
+            }
+
+            if (processAbortController) {
+                try { processAbortController.abort(); } catch (_) {}
+            }
+            const requestToken = ++processRequestToken;
+            processAbortController = new AbortController();
+
+            const formData = new FormData();
             formData.append('filters', JSON.stringify(activeFilters));
-            
+
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
             try {
-                const res = await fetch('/api/process/', { 
-                    method: 'POST', 
-                    body: formData, 
-                    headers: {'X-CSRFToken': csrfToken} 
+                const res = await fetch('/api/process/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {'X-CSRFToken': csrfToken},
+                    signal: processAbortController.signal
                 });
-                
-                if (!res.ok) throw new Error("Processing failed");
+
+                if (!res.ok) throw new Error('Processing failed');
                 const data = await res.json();
-                
-                // Debug: Log KPI data
+
+                if (requestToken !== processRequestToken) return;
+
                 console.log('KPI Data:', data.kpis);
                 data.kpis.forEach((kpi, idx) => {
                     console.log(`KPI ${idx} (${kpi.label}):`, kpi.sparkline);
                 });
-      // ... inside processFile function ...
-                
-                // 1. SAVE ORIGINAL DATA (Critical for filtering to work)
+
                 data.charts.forEach(chart => {
                     chart.original = {
                         x: chart.x ? [...chart.x] : [],
                         y: chart.y ? [...chart.y] : [],
                         z: chart.z ? [...chart.z] : [],
-                        source: chart.source ? [...chart.source] : [],
-                        target: chart.target ? [...chart.target] : [],
-                        value: chart.value ? [...chart.value] : [],
-                        level: chart.level ? [...chart.level] : [], // critical for sankey
                         type: chart.type,
                         xlabel: chart.xlabel,
                         ylabel: chart.ylabel,
-                        title: chart.title
+                        title: chart.title,
+                        showDataLabels: Boolean(chart.showDataLabels)
                     };
-                    
-                    // Initialize Sankey state
-                    // Initialize Sankey state
-if (chart.type === 'sankey') {
-    chart.expandedNodes = [];
-    
-    // Auto-expand ALL levels (1, 2, 3) initially
-    const uniqueSources = new Set();
-    if (chart.level && chart.source) {
-        chart.source.forEach((src, i) => {
-            const level = parseInt(chart.level[i]);
-            if (level >= 1 && level <= 3) {
-                uniqueSources.add(src);
-            }
-        });
-        chart.expandedNodes = Array.from(uniqueSources);
-        console.log('🔼 Auto-expanded all 3 levels:', chart.expandedNodes);
-    }
-}
                 });
 
-                currentData = data; // Assign to global variable
+                currentData = data;
+                dataSourceMode = 'databricks';
+                closeCustomChartPopup();
+                closeCustomKpiPopup();
+                document.getElementById('chart-request-status').textContent = '';
+                updateChatbotModeUI();
                 renderDashboard(data);
-                
-                // ... rest of catch block ...
-            } catch (e) { 
-                alert("❌ Error: " + e.message); 
-                location.reload(); 
+
+                originalDashboardState = {
+                    data: cloneDashboardPayload(currentData),
+                    activeFilters: { ...activeFilters },
+                    selectedFilterColumns: [...selectedFilterColumns],
+                };
+                lastAppliedFilterState = {
+                    activeFilters: { ...activeFilters },
+                    selectedFilterColumns: [...selectedFilterColumns],
+                };
+                setChartsLoadingOpacity(1);
+            } catch (e) {
+                if (e && e.name === 'AbortError') {
+                    const status = document.getElementById('chart-request-status');
+                    if (isFilterRequest && userStoppedFilterLoad) {
+                        restoreLastAppliedFilterState();
+                    }
+                    if (status && isFilterRequest) {
+                        status.textContent = userStoppedFilterLoad
+                            ? 'Filter loading stopped. Previous filters restored.'
+                            : 'Filter loading cancelled.';
+                    }
+                    return;
+                }
+                setChartsLoadingOpacity(1);
+                alert('Error: ' + e.message);
+            } finally {
+                if (requestToken === processRequestToken) {
+                    processAbortController = null;
+                    if (isFilterRequest) setFilterLoadingState(false);
+                    if (loader) loader.classList.add('hidden');
+                    if (isFilterRequest) userStoppedFilterLoad = false;
+                }
             }
+        }
+
+        function resetFilterUIForNewSession() {
+
+            const dynamic = document.getElementById('dynamic-filter-controls');
+            if (dynamic) dynamic.remove();
+
+            const dateBox = document.getElementById('date-filter-container');
+            const dateSep = document.getElementById('date-separator');
+            const startDate = document.getElementById('start-date');
+            const endDate = document.getElementById('end-date');
+
+            if (dateBox) dateBox.style.display = 'none';
+            if (dateSep) dateSep.style.display = 'none';
+            if (startDate) startDate.value = '';
+            if (endDate) endDate.value = '';
+        }
+
+        function getFilterDef(column) {
+            return (availableFilterDefs || []).find(f => f && f.column === column) || null;
+        }
+
+        function refreshFilterDefinitions(filters) {
+            availableFilterDefs = Array.isArray(filters) ? filters : [];
+            const availableCols = new Set(availableFilterDefs.map(f => f.column));
+
+            selectedFilterColumns = selectedFilterColumns.filter(col => availableCols.has(col));
+
+            Object.keys(activeFilters).forEach(key => {
+                if (!RESERVED_FILTER_KEYS.has(key) && !availableCols.has(key)) {
+                    delete activeFilters[key];
+                }
+            });
+
+            Object.keys(activeFilters).forEach(key => {
+                if (!RESERVED_FILTER_KEYS.has(key) && availableCols.has(key) && !selectedFilterColumns.includes(key)) {
+                    selectedFilterColumns.push(key);
+                }
+            });
+
+            if (selectedFilterColumns.length === 0 && availableFilterDefs.length > 0) {
+                selectedFilterColumns = availableFilterDefs.slice(0, Math.min(3, availableFilterDefs.length)).map(f => f.column);
+            }
+
+            selectedFilterColumns = [...new Set(selectedFilterColumns)];
+            renderEditableFilters();
+        }
+
+        function renderEditableFilters() {
+            const filterBox = document.getElementById('filter-container');
+            if (!filterBox) return;
+
+            const old = document.getElementById('dynamic-filter-controls');
+            if (old) old.remove();
+
+            const controls = document.createElement('div');
+            controls.id = 'dynamic-filter-controls';
+            controls.className = 'flex items-center gap-2 flex-wrap';
+
+            selectedFilterColumns.forEach(column => {
+                const def = getFilterDef(column);
+                if (!def) return;
+
+                const label = def.label || column;
+                const values = Array.isArray(def.values) ? def.values : [];
+                const activeValue = activeFilters[column];
+                if (activeValue !== undefined && !values.map(String).includes(String(activeValue))) {
+                    delete activeFilters[column];
+                }
+
+                const chip = document.createElement('div');
+                chip.className = 'filter-chip';
+
+                const name = document.createElement('span');
+                name.className = 'filter-chip-label';
+                name.textContent = label;
+
+                const sel = document.createElement('select');
+                sel.className = 'filter-chip-select';
+                sel.dataset.column = column;
+                sel.onchange = handleFilterChange;
+
+                const allOpt = document.createElement('option');
+                allOpt.value = '';
+                allOpt.textContent = `All ${label}`;
+                sel.appendChild(allOpt);
+
+                values.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = String(v);
+                    opt.textContent = String(v);
+                    sel.appendChild(opt);
+                });
+
+                sel.value = activeFilters[column] !== undefined ? String(activeFilters[column]) : '';
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'filter-chip-remove';
+                removeBtn.title = `Remove ${label}`;
+                removeBtn.textContent = 'x';
+                removeBtn.onclick = () => removeFilterColumn(column);
+
+                chip.appendChild(name);
+                chip.appendChild(sel);
+                chip.appendChild(removeBtn);
+                controls.appendChild(chip);
+            });
+
+            const addSel = document.createElement('select');
+            addSel.className = 'filter-add-select';
+            addSel.innerHTML = '<option value="">+ Add Filter</option>';
+
+            availableFilterDefs
+                .filter(f => f && !selectedFilterColumns.includes(f.column))
+                .forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.column;
+                    opt.textContent = f.label || f.column;
+                    addSel.appendChild(opt);
+                });
+
+            addSel.onchange = () => {
+                const col = addSel.value;
+                if (!col) return;
+                if (!selectedFilterColumns.includes(col)) {
+                    selectedFilterColumns.push(col);
+                }
+                addSel.value = '';
+                renderEditableFilters();
+            };
+
+            controls.appendChild(addSel);
+
+            if (selectedFilterColumns.length > 0) {
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'filter-clear-btn';
+                clearBtn.textContent = 'Clear Filters';
+                clearBtn.onclick = clearAllEditableFilters;
+                controls.appendChild(clearBtn);
+            }
+
+            filterBox.appendChild(controls);
         }
 
         function handleFilterChange(e) {
             const col = e.target.dataset.column;
             const val = e.target.value;
-            
-            if (val.startsWith("All ")) delete activeFilters[col];
+            if (!col) return;
+
+            if (val === '') delete activeFilters[col];
             else activeFilters[col] = val;
-            
+
             updateUIState();
+        }
+
+        function removeFilterColumn(column) {
+            const hadActiveValue = Object.prototype.hasOwnProperty.call(activeFilters, column);
+            selectedFilterColumns = selectedFilterColumns.filter(c => c !== column);
+            delete activeFilters[column];
+            renderEditableFilters();
+            if (hadActiveValue) {
+                updateUIState();
+            }
+        }
+
+        function clearAllEditableFilters() {
+            selectedFilterColumns = [];
+            const hadActiveValues = Object.keys(activeFilters).some(key => !RESERVED_FILTER_KEYS.has(key));
+            Object.keys(activeFilters).forEach(key => {
+                if (!RESERVED_FILTER_KEYS.has(key)) {
+                    delete activeFilters[key];
+                }
+            });
+            renderEditableFilters();
+            if (hadActiveValues) {
+                updateUIState();
+            }
         }
 
         function handleDateChange() {
@@ -619,9 +2096,1392 @@ if (chart.type === 'sankey') {
         }
 
         function updateUIState() {
-            document.querySelectorAll('.glass-panel').forEach(el => el.style.opacity = '0.5');
-            processFile(); 
+            setChartsLoadingOpacity(0.5);
+            processFile('filters'); 
         }
+
+        function createChartSnapshot(chart) {
+            return {
+                x: chart.x ? [...chart.x] : [],
+                y: chart.y ? [...chart.y] : [],
+                z: chart.z ? [...chart.z] : [],
+                labels: chart.labels ? [...chart.labels] : [],
+                parents: chart.parents ? [...chart.parents] : [],
+                values: chart.values ? [...chart.values] : [],
+                type: chart.type,
+                xlabel: chart.xlabel,
+                ylabel: chart.ylabel,
+                title: chart.title,
+                showDataLabels: Boolean(chart.showDataLabels)
+            };
+        }
+
+        function cloneChart(chart) {
+            return JSON.parse(JSON.stringify(chart || {}));
+        }
+
+        function cloneKpi(kpi) {
+            return JSON.parse(JSON.stringify(kpi || {}));
+        }
+
+        function cloneDashboardPayload(payload) {
+            return JSON.parse(JSON.stringify(payload || {}));
+        }
+
+        function ensureKpiId(kpi) {
+            if (!kpi) return '';
+            if (kpi._id) {
+                const idText = String(kpi._id);
+                const m = idText.match(/^kpi_(\d+)$/i);
+                if (m) {
+                    kpiSeq = Math.max(kpiSeq, Number(m[1]) || 0);
+                }
+                return idText;
+            }
+            kpi._id = `kpi_${++kpiSeq}`;
+            return kpi._id;
+        }
+
+        function chartTypeLabel(type) {
+            const t = (type || '').toLowerCase();
+            if (t === 'kpi') return 'KPI';
+            if (t === 'line') return 'Line';
+            if (t === 'bar') return 'Bar';
+            if (t === 'scatter') return 'Scatter';
+            if (t === 'heatmap') return 'Heatmap';
+            if (t === 'pie') return 'Pie';
+            if (t === 'table') return 'Table';
+            if (t === 'treemap') return 'Treemap';
+            if (t === 'waterfall') return 'Waterfall';
+            return type || 'Chart';
+        }
+
+        function applyWidgetLayoutToElement(el, widgetId) {
+            if (!el || !widgetId) return;
+            const layout = widgetLayouts[widgetId];
+            if (!layout) {
+                el.style.transform = '';
+                el.style.width = '';
+                el.style.height = '';
+                return;
+            }
+
+            const x = Number(layout.x) || 0;
+            const y = Number(layout.y) || 0;
+            el.style.transform = `translate(${x}px, ${y}px)`;
+            el.style.width = Number(layout.w) > 0 ? `${Math.max(140, Number(layout.w))}px` : '';
+            el.style.height = Number(layout.h) > 0 ? `${Math.max(90, Number(layout.h))}px` : '';
+        }
+
+        function saveWidgetSize(widgetId, el) {
+            if (!widgetId || !el) return;
+            if (!widgetLayouts[widgetId]) widgetLayouts[widgetId] = { x: 0, y: 0 };
+            widgetLayouts[widgetId].w = el.offsetWidth;
+            widgetLayouts[widgetId].h = el.offsetHeight;
+        }
+
+        function resizeChartPlot(chartId) {
+            const plotEl = document.getElementById(`plot-${chartId}`);
+            if (!plotEl || typeof Plotly === 'undefined') return;
+            try {
+                Plotly.Plots.resize(plotEl);
+            } catch (_) {}
+        }
+
+        function getWidgetResizeEdge(el, event) {
+            const rect = el.getBoundingClientRect();
+            const edgeSize = 8;
+            const localX = event.clientX - rect.left;
+            const localY = event.clientY - rect.top;
+            const onLeft = localX >= 0 && localX <= edgeSize;
+            const onRight = localX >= (rect.width - edgeSize) && localX <= rect.width;
+            const onTop = localY >= 0 && localY <= edgeSize;
+            const onBottom = localY >= (rect.height - edgeSize) && localY <= rect.height;
+
+            let vertical = '';
+            let horizontal = '';
+            if (onTop) vertical = 'n';
+            else if (onBottom) vertical = 's';
+            if (onLeft) horizontal = 'w';
+            else if (onRight) horizontal = 'e';
+            return `${vertical}${horizontal}`;
+        }
+
+        function getWidgetResizeCursor(edge) {
+            const map = {
+                n: 'ns-resize',
+                s: 'ns-resize',
+                e: 'ew-resize',
+                w: 'ew-resize',
+                ne: 'nesw-resize',
+                sw: 'nesw-resize',
+                nw: 'nwse-resize',
+                se: 'nwse-resize'
+            };
+            return map[edge] || '';
+        }
+
+        function isWidgetInteractiveTarget(target) {
+            if (!target) return false;
+            return Boolean(target.closest('button, input, select, textarea, a, .chart-controls, .edit-dropdown, .widget-drag-handle'));
+        }
+
+        function onWidgetEdgeHover(event) {
+            if (widgetDragState || widgetResizeState) return;
+            const el = event.currentTarget;
+            if (!el) return;
+            const edge = getWidgetResizeEdge(el, event);
+            el.style.cursor = getWidgetResizeCursor(edge) || 'default';
+        }
+
+        function onWidgetEdgeLeave(event) {
+            if (widgetResizeState || widgetDragState) return;
+            const el = event.currentTarget;
+            if (el) el.style.cursor = 'default';
+        }
+
+        function onWidgetResizeMouseDown(event) {
+            if (event.button !== 0) return;
+            if (widgetDragState || widgetResizeState) return;
+            if (isWidgetInteractiveTarget(event.target)) return;
+
+            const el = event.currentTarget;
+            if (!el) return;
+            const widgetId = el.dataset.widgetId;
+            const kind = el.dataset.widgetKind || 'chart';
+            if (!widgetId) return;
+
+            const edge = getWidgetResizeEdge(el, event);
+            if (!edge) return;
+
+            startWidgetResize(event, widgetId, edge, kind);
+        }
+
+        function initWidgetInteractionsForElement(el, widgetId, kind = 'chart') {
+            if (!el || !widgetId) return;
+            el.dataset.widgetId = widgetId;
+            el.dataset.widgetKind = kind;
+            applyWidgetLayoutToElement(el, widgetId);
+            saveWidgetSize(widgetId, el);
+
+            if (el.dataset.widgetInteractionBound !== '1') {
+                el.dataset.widgetInteractionBound = '1';
+                el.addEventListener('mousemove', onWidgetEdgeHover);
+                el.addEventListener('mouseleave', onWidgetEdgeLeave);
+                el.addEventListener('mousedown', onWidgetResizeMouseDown);
+            }
+
+            if (kind === 'chart') {
+                if (typeof ResizeObserver !== 'undefined') {
+                    if (widgetResizeObservers[widgetId]) {
+                        try { widgetResizeObservers[widgetId].disconnect(); } catch (_) {}
+                    }
+                    const ro = new ResizeObserver(() => resizeChartPlot(widgetId));
+                    ro.observe(el);
+                    widgetResizeObservers[widgetId] = ro;
+                }
+                setTimeout(() => resizeChartPlot(widgetId), 30);
+            }
+        }
+
+        function startWidgetResize(event, widgetId, edge, kind) {
+            const el = document.getElementById(widgetId);
+            if (!el) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const layout = widgetLayouts[widgetId] || { x: 0, y: 0, w: el.offsetWidth, h: el.offsetHeight };
+            widgetLayouts[widgetId] = layout;
+
+            widgetResizeState = {
+                widgetId,
+                edge,
+                kind,
+                startX: event.clientX,
+                startY: event.clientY,
+                baseX: Number(layout.x) || 0,
+                baseY: Number(layout.y) || 0,
+                baseW: Number(layout.w) || el.offsetWidth,
+                baseH: Number(layout.h) || el.offsetHeight,
+                minW: kind === 'kpi' ? 220 : 260,
+                minH: kind === 'kpi' ? 90 : 120,
+            };
+
+            el.style.cursor = getWidgetResizeCursor(edge);
+            document.addEventListener('mousemove', onWidgetResizeMove);
+            document.addEventListener('mouseup', onWidgetResizeEnd);
+        }
+
+        function onWidgetResizeMove(event) {
+            if (!widgetResizeState) return;
+            const {
+                widgetId,
+                edge,
+                startX,
+                startY,
+                baseX,
+                baseY,
+                baseW,
+                baseH,
+                minW,
+                minH,
+                kind
+            } = widgetResizeState;
+
+            const el = document.getElementById(widgetId);
+            if (!el) return;
+
+            const dx = event.clientX - startX;
+            const dy = event.clientY - startY;
+
+            let nextX = baseX;
+            let nextY = baseY;
+            let nextW = baseW;
+            let nextH = baseH;
+
+            if (edge.includes('e')) nextW = baseW + dx;
+            if (edge.includes('s')) nextH = baseH + dy;
+            if (edge.includes('w')) {
+                nextW = baseW - dx;
+                nextX = baseX + dx;
+            }
+            if (edge.includes('n')) {
+                nextH = baseH - dy;
+                nextY = baseY + dy;
+            }
+
+            if (nextW < minW) {
+                if (edge.includes('w')) nextX -= (minW - nextW);
+                nextW = minW;
+            }
+            if (nextH < minH) {
+                if (edge.includes('n')) nextY -= (minH - nextH);
+                nextH = minH;
+            }
+
+            widgetLayouts[widgetId] = {
+                ...(widgetLayouts[widgetId] || {}),
+                x: nextX,
+                y: nextY,
+                w: nextW,
+                h: nextH,
+            };
+
+            applyWidgetLayoutToElement(el, widgetId);
+            if (kind === 'chart') {
+                resizeChartPlot(widgetId);
+            }
+        }
+
+        function onWidgetResizeEnd() {
+            if (!widgetResizeState) return;
+            const { widgetId } = widgetResizeState;
+            const el = document.getElementById(widgetId);
+            if (el) {
+                saveWidgetSize(widgetId, el);
+                el.style.cursor = 'default';
+                if (widgetId.startsWith('chart_')) {
+                    resizeChartPlot(widgetId);
+                }
+            }
+
+            widgetResizeState = null;
+            document.removeEventListener('mousemove', onWidgetResizeMove);
+            document.removeEventListener('mouseup', onWidgetResizeEnd);
+        }
+
+        function startWidgetDrag(event, widgetId) {
+            const el = document.getElementById(widgetId);
+            if (!el) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const layout = widgetLayouts[widgetId] || { x: 0, y: 0, w: el.offsetWidth, h: el.offsetHeight };
+            widgetLayouts[widgetId] = layout;
+
+            widgetDragState = {
+                widgetId,
+                startX: event.clientX,
+                startY: event.clientY,
+                baseX: Number(layout.x) || 0,
+                baseY: Number(layout.y) || 0,
+            };
+
+            document.addEventListener('mousemove', onWidgetDragMove);
+            document.addEventListener('mouseup', onWidgetDragEnd);
+        }
+
+        function onWidgetDragMove(event) {
+            if (!widgetDragState) return;
+            const { widgetId, startX, startY, baseX, baseY } = widgetDragState;
+            const el = document.getElementById(widgetId);
+            if (!el) return;
+
+            const dx = event.clientX - startX;
+            const dy = event.clientY - startY;
+            const nextX = baseX + dx;
+            const nextY = baseY + dy;
+
+            if (!widgetLayouts[widgetId]) widgetLayouts[widgetId] = {};
+            widgetLayouts[widgetId].x = nextX;
+            widgetLayouts[widgetId].y = nextY;
+
+            applyWidgetLayoutToElement(el, widgetId);
+        }
+
+        function onWidgetDragEnd() {
+            if (!widgetDragState) return;
+            const { widgetId } = widgetDragState;
+            const el = document.getElementById(widgetId);
+            if (el) {
+                saveWidgetSize(widgetId, el);
+                if (widgetId.startsWith('chart_')) {
+                    resizeChartPlot(widgetId);
+                }
+            }
+
+            widgetDragState = null;
+            document.removeEventListener('mousemove', onWidgetDragMove);
+            document.removeEventListener('mouseup', onWidgetDragEnd);
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function updateChartsToggleButton() {
+            const btn = document.getElementById('open-charts-btn');
+            if (!btn) return;
+            btn.textContent = isChartSidebarOpen ? '📚 Close Charts' : '📚 Open Charts';
+        }
+
+        function updateChatbotDockVisibility() {
+            const dock = document.getElementById('chart-chatbot-dock');
+            const btn = document.getElementById('open-ai-chart-btn');
+            const dashboard = document.getElementById('dashboard-screen');
+            if (!dock || !btn || !dashboard) return;
+
+            const showDock = isChatbotDockOpen && !dashboard.classList.contains('hidden');
+            dock.style.display = showDock ? 'flex' : 'none';
+            btn.textContent = isChatbotDockOpen ? 'Close AI Chart' : 'AI Chart Generation';
+        }
+
+        function updateChatbotModeUI() {
+            const modeEl = document.getElementById('chart-request-mode');
+            const inputEl = document.getElementById('chart-request-input');
+            const btnEl = document.getElementById('chart-request-btn');
+            if (!modeEl || !inputEl || !btnEl) return;
+
+            const mode = (modeEl.value || 'chart').toLowerCase();
+            if (mode === 'kpi') {
+                inputEl.placeholder = 'Ask for a KPI (example: total revenue with monthly sparkline)';
+                btnEl.textContent = 'Add KPI';
+            } else {
+                inputEl.placeholder = 'Ask for a chart in natural language (example: bar chart of total sales by region)';
+                btnEl.textContent = 'Generate Chart';
+            }
+        }
+
+        function submitChatbotRequest() {
+            const modeEl = document.getElementById('chart-request-mode');
+            const mode = modeEl ? String(modeEl.value || 'chart').toLowerCase() : 'chart';
+            if (mode === 'kpi') {
+                return submitCustomKpiRequest();
+            }
+            return submitCustomChartRequest();
+        }
+
+        function toggleChatbotDock(forceOpen = null) {
+            if (typeof forceOpen === 'boolean') {
+                isChatbotDockOpen = forceOpen;
+            } else {
+                isChatbotDockOpen = !isChatbotDockOpen;
+            }
+
+            updateChatbotDockVisibility();
+            updateChatbotModeUI();
+
+            if (isChatbotDockOpen) {
+                const input = document.getElementById('chart-request-input');
+                if (input) {
+                    setTimeout(() => input.focus(), 50);
+                }
+            }
+        }
+
+        function resetDashboardToOriginal() {
+            if (!originalDashboardState || !originalDashboardState.data) {
+                const status = document.getElementById('chart-request-status');
+                if (status) status.textContent = 'No baseline snapshot available yet.';
+                return;
+            }
+
+            Object.values(widgetResizeObservers || {}).forEach(ro => {
+                try { if (ro) ro.disconnect(); } catch (_) {}
+            });
+            widgetResizeObservers = {};
+            widgetLayouts = {};
+
+            chartLibrary = [];
+            chartLibrarySeq = 0;
+            activeLibraryId = null;
+            customPopupSourceLibraryId = null;
+            pendingKpiReplaceLibraryId = null;
+
+            closeCustomChartPopup();
+            closeCustomKpiPopup();
+            closeEditMenus();
+
+            activeFilters = { ...(originalDashboardState.activeFilters || {}) };
+            selectedFilterColumns = Array.isArray(originalDashboardState.selectedFilterColumns)
+                ? [...originalDashboardState.selectedFilterColumns]
+                : [];
+            currentData = cloneDashboardPayload(originalDashboardState.data);
+
+            renderDashboard(currentData);
+            renderChartLibrary();
+
+            lastAppliedFilterState = {
+                activeFilters: { ...activeFilters },
+                selectedFilterColumns: [...selectedFilterColumns],
+            };
+
+            const status = document.getElementById('chart-request-status');
+            if (status) status.textContent = 'Dashboard reset to original state.';
+        }
+
+        function toggleChartSidebar() {
+            isChartSidebarOpen = !isChartSidebarOpen;
+            updateChartsToggleButton();
+            updateDashboardSidebarLayout();
+        }
+
+        function closeChartSidebar() {
+            if (!isChartSidebarOpen) return;
+            isChartSidebarOpen = false;
+            updateChartsToggleButton();
+            updateDashboardSidebarLayout();
+        }
+
+        function updateDashboardSidebarLayout() {
+            const dashboard = document.getElementById('dashboard-screen');
+            const sidebar = document.getElementById('chart-sidebar');
+            if (!dashboard || !sidebar) return;
+
+            if (dashboard.classList.contains('hidden') || !isChartSidebarOpen) {
+                sidebar.style.display = 'none';
+                dashboard.classList.remove('with-sidebar');
+                return;
+            }
+
+            sidebar.style.display = 'flex';
+            if (window.innerWidth > 1250) {
+                dashboard.classList.add('with-sidebar');
+            } else {
+                dashboard.classList.remove('with-sidebar');
+            }
+        }
+
+        function renderChartLibrary() {
+            const list = document.getElementById('chart-library-list');
+            const empty = document.getElementById('chart-library-empty');
+            const count = document.getElementById('chart-library-count');
+            if (!list || !empty || !count) return;
+
+            count.textContent = String(chartLibrary.length);
+            updateChartsToggleButton();
+            list.innerHTML = '';
+
+            if (chartLibrary.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+
+            chartLibrary.forEach(entry => {
+                const item = document.createElement('div');
+                item.className = `chart-library-item ${entry.id === activeLibraryId ? 'active' : ''}`;
+                const isKpi = entry.artifact === 'kpi';
+                const metaType = isKpi ? 'KPI' : chartTypeLabel(entry.type);
+                const useLabel = 'Use';
+                const expandHandler = isKpi ? `openLibraryKpiModal('${entry.id}')` : `openLibraryChartModal('${entry.id}')`;
+                const useHandler = isKpi ? `useLibraryKpi('${entry.id}')` : `useLibraryChart('${entry.id}')`;
+                const replaceBtn = isKpi
+                    ? `<button class="chart-library-btn" onclick="openLibraryKpiReplace('${entry.id}')">Replace</button>`
+                    : `<button class="chart-library-btn" onclick="openLibraryChartInPopup('${entry.id}')">Replace</button>`;
+
+                item.innerHTML = `
+                    <div class="chart-library-title">${escapeHtml(entry.title)}</div>
+                    <div class="chart-library-meta">${escapeHtml(entry.source)} | ${escapeHtml(metaType)}</div>
+                    <div class="chart-library-actions">
+                        <button class="chart-library-btn" onclick="${useHandler}">${useLabel}</button>
+                        ${replaceBtn}
+                        <button class="chart-library-btn" onclick="${expandHandler}">Expand</button>
+                        <button class="chart-library-btn" onclick="removeLibraryChart('${entry.id}')">Delete</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function addChartToLibrary(chart, options = {}) {
+            if (!chart) return null;
+
+            const chartClone = cloneChart(chart);
+            delete chartClone.id;
+            delete chartClone.original;
+
+            const entry = {
+                id: `lib_${++chartLibrarySeq}`,
+                artifact: 'chart',
+                title: chartClone.title || options.title || `Chart ${chartLibrarySeq}`,
+                type: chartClone.type || 'bar',
+                source: options.source || 'Generated',
+                sql: options.sql || '',
+                chart: chartClone,
+                createdAt: Date.now()
+            };
+
+            chartLibrary.unshift(entry);
+            activeLibraryId = entry.id;
+            renderChartLibrary();
+            return entry;
+        }
+
+        function addKpiToLibrary(kpi, options = {}) {
+            if (!kpi) return null;
+            const kpiClone = cloneKpi(kpi);
+            ensureKpiId(kpiClone);
+
+            const sqlValue = options.sql || '';
+            const sqlText = typeof sqlValue === 'string' ? sqlValue : JSON.stringify(sqlValue);
+
+            const entry = {
+                id: `lib_${++chartLibrarySeq}`,
+                artifact: 'kpi',
+                title: kpiClone.label || options.title || `KPI ${chartLibrarySeq}`,
+                type: 'kpi',
+                source: options.source || 'Generated',
+                sql: sqlText,
+                kpi: kpiClone,
+                createdAt: Date.now()
+            };
+
+            chartLibrary.unshift(entry);
+            activeLibraryId = entry.id;
+            renderChartLibrary();
+            return entry;
+        }
+
+        function removeLibraryChart(libraryId) {
+            chartLibrary = chartLibrary.filter(item => item.id !== libraryId);
+            if (activeLibraryId === libraryId) activeLibraryId = null;
+            if (pendingKpiReplaceLibraryId === libraryId) pendingKpiReplaceLibraryId = null;
+            renderChartLibrary();
+            refreshKpiReplaceTargets();
+        }
+
+        function clearChartLibrary() {
+            chartLibrary = [];
+            activeLibraryId = null;
+            pendingKpiReplaceLibraryId = null;
+            renderChartLibrary();
+            refreshKpiReplaceTargets();
+        }
+
+        function openLibraryKpiModal(libraryId) {
+            const entry = chartLibrary.find(item => item.id === libraryId);
+            if (!entry || entry.artifact !== 'kpi' || !entry.kpi || !currentData) return;
+
+            activeLibraryId = libraryId;
+            renderChartLibrary();
+
+            const modal = document.getElementById('chart-modal');
+            const modalContainer = document.getElementById('modal-chart-container');
+            const modalTitle = document.getElementById('modal-title');
+            const color = getThemeColor();
+            const trendData = Array.isArray(entry.kpi.sparkline) ? entry.kpi.sparkline : [];
+            const trendChange = calculateTrend(trendData);
+            const isPositive = trendChange >= 0;
+            const emoji = getEmojiForKPI(entry.kpi.label || 'KPI');
+            const sparkId = `library-kpi-spark-${Date.now()}`;
+
+            modalTitle.textContent = `${entry.title} (KPI)`;
+            modalContainer.innerHTML = `
+                <div class="kpi-card" style="border-left-color:${color}; max-width: 440px; margin: 10px auto; resize:none; transform:none; min-height: 130px;">
+                    <div class="kpi-card-content">
+                        <div class="kpi-emoji">${emoji}</div>
+                        <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${escapeHtml(entry.kpi.label || 'KPI')}</div>
+                        <div class="text-3xl font-bold text-white mt-1 mb-1">${escapeHtml(entry.kpi.value || '0')}</div>
+                        <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
+                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}%
+                        </div>
+                    </div>
+                    <div class="sparkline-container" id="${sparkId}"></div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                const trendColor = '#8b5cf6';
+                createSparkline(sparkId, trendData.length ? trendData : [0, 0, 0, 0, 0, 0, 0], trendColor);
+            }, 80);
+        }
+
+        function openLibraryKpiReplace(libraryId) {
+            const entry = chartLibrary.find(item => item.id === libraryId);
+            if (!entry || entry.artifact !== 'kpi') return;
+
+            pendingKpiReplaceLibraryId = libraryId;
+            activeLibraryId = libraryId;
+            customPopupSourceLibraryId = null;
+            closeCustomChartPopup();
+            openCustomKpiPopup(entry);
+            renderChartLibrary();
+            refreshKpiReplaceTargets();
+
+            const status = document.getElementById('chart-request-status');
+            if (status) {
+                status.textContent = `Drag the KPI popup and drop it on a KPI card to replace it with "${entry.title}".`;
+            }
+        }
+
+        function useLibraryChart(libraryId) {
+            const entry = chartLibrary.find(item => item.id === libraryId);
+            if (!entry || entry.artifact === 'kpi' || !entry.chart || !currentData) return;
+
+            if (!Array.isArray(currentData.charts)) {
+                currentData.charts = [];
+            }
+
+            activeLibraryId = libraryId;
+            pendingKpiReplaceLibraryId = null;
+            customPopupSourceLibraryId = null;
+            closeCustomKpiPopup();
+
+            if (currentData.charts.length >= chartSlotIds.length) {
+                openLibraryChartInPopup(libraryId);
+                const statusFull = document.getElementById('chart-request-status');
+                if (statusFull) {
+                    statusFull.textContent = 'All chart slots are full. Drag and drop to replace a chart.';
+                }
+                return;
+            }
+
+            const chartToAdd = cloneChart(entry.chart);
+            delete chartToAdd.id;
+            chartToAdd.original = createChartSnapshot(chartToAdd);
+            currentData.charts.push(chartToAdd);
+
+            renderDashboard(currentData);
+            renderChartLibrary();
+
+            const status = document.getElementById('chart-request-status');
+            if (status) {
+                status.textContent = `Added "${entry.title}" to dashboard.`;
+            }
+        }
+
+        function useLibraryKpi(libraryId) {
+            const entry = chartLibrary.find(item => item.id === libraryId);
+            if (!entry || entry.artifact !== 'kpi' || !entry.kpi || !currentData) return;
+
+            if (!Array.isArray(currentData.kpis)) {
+                currentData.kpis = [];
+            }
+
+            activeLibraryId = libraryId;
+            customPopupSourceLibraryId = null;
+            closeCustomChartPopup();
+            closeCustomKpiPopup();
+
+            const maxKpiSlots = 4;
+            if (currentData.kpis.length >= maxKpiSlots) {
+                openLibraryKpiReplace(libraryId);
+                const statusFull = document.getElementById('chart-request-status');
+                if (statusFull) {
+                    statusFull.textContent = 'All KPI slots are full. Drag and drop to replace a KPI card.';
+                }
+                return;
+            }
+
+            const kpiToAdd = cloneKpi(entry.kpi);
+            delete kpiToAdd._id;
+            ensureKpiId(kpiToAdd);
+            currentData.kpis.push(kpiToAdd);
+
+            renderDashboard(currentData);
+            renderChartLibrary();
+
+            const status = document.getElementById('chart-request-status');
+            if (status) {
+                status.textContent = `Added KPI "${entry.title}" to dashboard.`;
+            }
+        }
+
+        function openLibraryChartModal(libraryId) {
+            const entry = chartLibrary.find(item => item.id === libraryId);
+            if (!entry || !currentData) return;
+            if (entry.artifact === 'kpi') {
+                openLibraryKpiModal(libraryId);
+                return;
+            }
+
+            activeLibraryId = libraryId;
+            renderChartLibrary();
+
+            const modal = document.getElementById('chart-modal');
+            const modalContainer = document.getElementById('modal-chart-container');
+            const modalTitle = document.getElementById('modal-title');
+
+            const chart = cloneChart(entry.chart);
+            modalTitle.textContent = `${entry.title}`;
+            modalContainer.innerHTML = '';
+
+            const chartDiv = document.createElement('div');
+            chartDiv.style.width = '100%';
+            chartDiv.style.height = '100%';
+            modalContainer.appendChild(chartDiv);
+
+            const color = getThemeColor();
+            modal.style.display = 'flex';
+
+            setTimeout(() => {
+                renderSingleChart(chartDiv, chart, color, true);
+            }, 120);
+        }
+
+        function openLibraryChartInPopup(libraryId) {
+            const entry = chartLibrary.find(item => item.id === libraryId);
+            if (!entry || entry.artifact === 'kpi') return;
+
+            pendingKpiReplaceLibraryId = null;
+            activeLibraryId = libraryId;
+            customPopupSourceLibraryId = libraryId;
+            customPopupChart = cloneChart(entry.chart);
+            customPopupChart.original = createChartSnapshot(customPopupChart);
+
+            openCustomChartPopup(entry.sql || '');
+            const status = document.getElementById('chart-request-status');
+            status.textContent = 'Drag popup onto a chart tile to replace it.';
+            renderChartLibrary();
+        }
+
+        function getKpiById(kpiId) {
+            if (!currentData || !Array.isArray(currentData.kpis)) return null;
+            return currentData.kpis.find(k => ensureKpiId(k) === kpiId) || null;
+        }
+
+        function handleKpiCardClick(kpiId) {
+            if (!pendingKpiReplaceLibraryId) return;
+            applyLibraryKpiToSlot(kpiId);
+        }
+
+
+        function refreshKpiReplaceTargets() {
+            document.querySelectorAll('#kpi-container .kpi-card').forEach(el => {
+                if (pendingKpiReplaceLibraryId) el.classList.add('kpi-replace-target');
+                else el.classList.remove('kpi-replace-target');
+            });
+        }
+
+        function applyLibraryKpiToSlot(kpiId) {
+            if (!currentData || !Array.isArray(currentData.kpis) || !pendingKpiReplaceLibraryId) return;
+
+            const entry = chartLibrary.find(item => item.id === pendingKpiReplaceLibraryId);
+            if (!entry || entry.artifact !== 'kpi' || !entry.kpi) return;
+
+            const targetIndex = currentData.kpis.findIndex(k => ensureKpiId(k) === kpiId);
+            if (targetIndex === -1) return;
+
+            const replaced = cloneKpi(currentData.kpis[targetIndex]);
+            if (replaced) {
+                addKpiToLibrary(replaced, { source: `Replaced ${kpiId}` });
+            }
+
+            const replacement = cloneKpi(customPopupKpi || entry.kpi);
+            replacement._id = kpiId;
+            currentData.kpis[targetIndex] = replacement;
+
+            pendingKpiReplaceLibraryId = null;
+            customPopupKpi = null;
+            renderDashboard(currentData);
+            closeCustomKpiPopup();
+            refreshKpiReplaceTargets();
+            renderChartLibrary();
+
+            const status = document.getElementById('chart-request-status');
+            if (status) {
+                status.textContent = `Replaced ${kpiId} from Chart Library.`;
+            }
+        }
+
+        async function _postCustomArtifactRequest(promptText, artifactType = 'chart', clarificationChoice = null) {
+            const formData = new FormData();
+            formData.append('prompt', String(promptText || ''));
+            formData.append('artifact_type', artifactType);
+            if (currentData && currentData.session_id) {
+                formData.append('session_id', currentData.session_id);
+            }
+            if (clarificationChoice) {
+                formData.append('clarification_choice', JSON.stringify(clarificationChoice));
+            }
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const res = await fetch('/api/custom-chart/', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to generate artifact');
+            }
+            return data;
+        }
+
+        function _buildClarificationPromptText(clarification) {
+            const keyword = String((clarification && clarification.keyword) || '').trim();
+            const question = String((clarification && clarification.question) || '').trim() ||
+                'Your request matches multiple columns. Please choose one.';
+            const options = Array.isArray(clarification && clarification.options)
+                ? clarification.options
+                : [];
+
+            const lines = [question];
+            if (keyword) {
+                lines.push(`Keyword: ${keyword}`);
+            }
+            lines.push('');
+            options.forEach((opt, idx) => {
+                const label = String((opt && (opt.label || opt.column)) || `Option ${idx + 1}`);
+                lines.push(`${idx + 1}. ${label}`);
+            });
+            lines.push('');
+            lines.push('Enter the option number.');
+            return lines.join('\n');
+        }
+
+        function _askUserForClarificationChoice(clarification, statusEl) {
+            const options = Array.isArray(clarification && clarification.options)
+                ? clarification.options
+                : [];
+            if (!options.length) {
+                throw new Error('Clarification options are missing. Please mention the column explicitly in your request.');
+            }
+
+            const message = _buildClarificationPromptText(clarification);
+            for (let attempt = 0; attempt < 3; attempt++) {
+                const raw = window.prompt(message, '1');
+                if (raw === null) {
+                    if (statusEl) statusEl.textContent = 'Chart request cancelled.';
+                    return null;
+                }
+
+                const idx = Number.parseInt(String(raw).trim(), 10) - 1;
+                if (!Number.isInteger(idx) || idx < 0 || idx >= options.length) {
+                    alert('Please enter a valid option number from the list.');
+                    continue;
+                }
+
+                const selected = options[idx] || {};
+                const column = String(selected.column || selected.label || '').trim();
+                const keyword = String((clarification && clarification.keyword) || '').trim();
+                if (!column) {
+                    alert('Selected option is invalid. Please try again.');
+                    continue;
+                }
+
+                return { keyword, column };
+            }
+
+            if (statusEl) statusEl.textContent = 'Could not resolve clarification. Please retry with explicit column name.';
+            return null;
+        }
+
+        async function requestChartWithClarification(promptText, statusEl) {
+            let clarificationChoice = null;
+            let mergedLogs = [];
+
+            for (let round = 0; round < 3; round++) {
+                const data = await _postCustomArtifactRequest(promptText, 'chart', clarificationChoice);
+                if (Array.isArray(data.logs)) {
+                    mergedLogs = mergedLogs.concat(data.logs);
+                }
+
+                if (!data.needs_clarification) {
+                    data.logs = mergedLogs;
+                    return data;
+                }
+
+                const clarification = data.clarification || {};
+                if (statusEl) {
+                    statusEl.textContent = 'Clarification needed. Please choose the correct column.';
+                }
+
+                const choice = _askUserForClarificationChoice(clarification, statusEl);
+                if (!choice) {
+                    return null;
+                }
+
+                clarificationChoice = choice;
+                if (statusEl) {
+                    statusEl.textContent = `Using '${choice.column}' for '${choice.keyword || 'term'}'. Regenerating...`;
+                }
+            }
+
+            throw new Error('Could not resolve ambiguity after multiple attempts. Please mention the exact column in your prompt.');
+        }
+
+        async function submitCustomChartRequest() {
+            if (!currentData) {
+                alert('Please start AI Dashboard first.');
+                return;
+            }
+
+            const input = document.getElementById('chart-request-input');
+            const button = document.getElementById('chart-request-btn');
+            const status = document.getElementById('chart-request-status');
+            const prompt = (input.value || '').trim();
+
+            if (!prompt) {
+                status.textContent = 'Enter a chart request.';
+                return;
+            }
+
+            button.disabled = true;
+            status.textContent = 'Generating...';
+
+            try {
+                const data = await requestChartWithClarification(prompt, status);
+                if (!data) {
+                    return;
+                }
+
+                const generatedChart = data.chart || null;
+                if (!generatedChart) {
+                    throw new Error('No chart returned by backend');
+                }
+
+                const libraryEntry = addChartToLibrary(generatedChart, {
+                    source: 'Generated',
+                    sql: data.generated_sql || ''
+                });
+                if (!libraryEntry) {
+                    throw new Error('Unable to save generated chart');
+                }
+
+                if (Array.isArray(data.logs) && currentData) {
+                    if (!Array.isArray(currentData.logs)) currentData.logs = [];
+                    currentData.logs.push('[CHATBOT] Custom chart LLM request');
+                    data.logs.forEach(logLine => {
+                        currentData.logs.push(`[CHATBOT] ${logLine}`);
+                    });
+                }
+
+                openLibraryChartInPopup(libraryEntry.id);
+                status.textContent = 'Chart saved to library. Drag popup onto a chart tile to replace it. Open View Logs to inspect LLM payload logs.';
+            } catch (error) {
+                status.textContent = 'Request failed.';
+                alert('Error: ' + error.message);
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function submitCustomKpiRequest() {
+            if (!currentData) {
+                alert('Please start AI Dashboard first.');
+                return;
+            }
+
+            const input = document.getElementById('chart-request-input');
+            const button = document.getElementById('chart-request-btn');
+            const status = document.getElementById('chart-request-status');
+            const prompt = (input.value || '').trim();
+
+            if (!prompt) {
+                status.textContent = 'Enter a KPI request.';
+                return;
+            }
+
+            button.disabled = true;
+            status.textContent = 'Generating KPI...';
+
+            try {
+                const formData = new FormData();
+                formData.append('prompt', prompt);
+                formData.append('artifact_type', 'kpi');
+                if (currentData.session_id) {
+                    formData.append('session_id', currentData.session_id);
+                }
+
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const res = await fetch('/api/custom-chart/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-CSRFToken': csrfToken }
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to generate KPI');
+                }
+
+                const generatedKpi = data.kpi || null;
+                if (!generatedKpi) {
+                    throw new Error('No KPI returned by backend');
+                }
+
+                const nextKpi = cloneKpi(generatedKpi);
+                ensureKpiId(nextKpi);
+
+                if (!Array.isArray(currentData.kpis)) {
+                    currentData.kpis = [];
+                }
+                currentData.kpis = [nextKpi, ...currentData.kpis].slice(0, 4);
+                addKpiToLibrary(nextKpi, {
+                    source: 'Generated',
+                    sql: data.generated_sql || ''
+                });
+
+                if (Array.isArray(data.logs) && currentData) {
+                    if (!Array.isArray(currentData.logs)) currentData.logs = [];
+                    currentData.logs.push('[CHATBOT] Custom KPI LLM request');
+                    data.logs.forEach(logLine => {
+                        currentData.logs.push(`[CHATBOT KPI] ${logLine}`);
+                    });
+                }
+
+                renderDashboard(currentData);
+                const statusEl = document.getElementById('chart-request-status');
+                if (statusEl) {
+                    statusEl.textContent = `KPI "${nextKpi.label || 'Custom KPI'}" added and saved to Chart Library.`;
+                }
+            } catch (error) {
+                status.textContent = 'KPI request failed.';
+                alert('Error: ' + error.message);
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function openCustomChartPopup(sqlText) {
+            if (!customPopupChart) return;
+
+            const popup = document.getElementById('custom-chart-popup');
+            const title = document.getElementById('custom-chart-title');
+            const plotContainer = document.getElementById('custom-chart-plot');
+            const sqlEl = document.getElementById('custom-chart-sql');
+            const copyBtn = document.getElementById('copy-custom-sql-btn');
+            const color = getThemeColor();
+
+            title.textContent = customPopupChart.title || 'Custom Chart';
+            sqlEl.textContent = sqlText ? `SQL: ${sqlText}` : 'SQL: Not available';
+            copyBtn.disabled = !sqlText;
+            copyBtn.textContent = 'Copy SQL';
+
+            popup.style.display = 'flex';
+            popup.style.left = `${Math.max(12, window.innerWidth - 660)}px`;
+            popup.style.top = `${Math.max(12, window.innerHeight - 500)}px`;
+
+            plotContainer.innerHTML = '';
+            const innerPlot = document.createElement('div');
+            innerPlot.style.width = '100%';
+            innerPlot.style.height = '100%';
+            plotContainer.appendChild(innerPlot);
+
+            setTimeout(() => {
+                renderSingleChart(innerPlot, customPopupChart, color, true);
+            }, 50);
+        }
+
+        async function copyCustomChartSql() {
+            const sqlEl = document.getElementById('custom-chart-sql');
+            const copyBtn = document.getElementById('copy-custom-sql-btn');
+            const status = document.getElementById('chart-request-status');
+            const sql = (sqlEl.textContent || '').replace(/^SQL:\s*/i, '').trim();
+
+            if (!sql || sql.toLowerCase() === 'not available') return;
+
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(sql);
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = sql;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+
+                copyBtn.textContent = 'Copied';
+                status.textContent = 'SQL copied to clipboard.';
+                setTimeout(() => {
+                    copyBtn.textContent = 'Copy SQL';
+                }, 1200);
+            } catch (err) {
+                status.textContent = 'Could not copy SQL.';
+            }
+        }
+
+        function closeCustomChartPopup() {
+            const popup = document.getElementById('custom-chart-popup');
+            popup.style.display = 'none';
+            customPopupChart = null;
+            customPopupSourceLibraryId = null;
+            highlightDropTarget(null);
+        }
+
+        function openCustomKpiPopup(entry) {
+            if (!entry || entry.artifact !== 'kpi' || !entry.kpi) return;
+
+            const popup = document.getElementById('custom-kpi-popup');
+            const body = document.getElementById('custom-kpi-body');
+            const color = getThemeColor();
+
+            customPopupKpi = cloneKpi(entry.kpi);
+            const trendData = Array.isArray(customPopupKpi.sparkline) ? customPopupKpi.sparkline : [];
+            const trendChange = calculateTrend(trendData);
+            const isPositive = trendChange >= 0;
+            const trendColor = '#8b5cf6';
+            const emoji = getEmojiForKPI(customPopupKpi.label || 'KPI');
+            const sparkId = `custom-kpi-spark-${Date.now()}`;
+
+            body.innerHTML = `
+                <div class="kpi-card" style="border-left-color:${color}; min-height: 120px; min-width: 260px; transform:none;">
+                    <div class="kpi-card-content">
+                        <div class="kpi-emoji">${emoji}</div>
+                        <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${escapeHtml(customPopupKpi.label || 'KPI')}</div>
+                        <div class="text-2xl font-bold text-white mt-1 mb-1">${escapeHtml(customPopupKpi.value || '0')}</div>
+                        <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
+                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}%
+                        </div>
+                    </div>
+                    <div class="sparkline-container" id="${sparkId}"></div>
+                </div>
+            `;
+
+            popup.style.display = 'flex';
+            popup.style.left = `${Math.max(12, window.innerWidth - 380)}px`;
+            popup.style.top = `${Math.max(12, window.innerHeight - 300)}px`;
+
+            refreshKpiReplaceTargets();
+            setTimeout(() => {
+                const data = trendData.length ? trendData : [0, 0, 0, 0, 0, 0, 0];
+                createSparkline(sparkId, data, trendColor);
+            }, 40);
+        }
+
+        function closeCustomKpiPopup() {
+            const popup = document.getElementById('custom-kpi-popup');
+            if (popup) {
+                popup.style.display = 'none';
+                popup.classList.remove('dragging');
+            }
+            customPopupKpi = null;
+            customKpiPopupDragging = false;
+            pendingKpiReplaceLibraryId = null;
+            highlightKpiDropTarget(null);
+            refreshKpiReplaceTargets();
+
+            document.removeEventListener('mousemove', onCustomKpiPopupMouseMove);
+            document.removeEventListener('mouseup', onCustomKpiPopupMouseUp);
+        }
+
+        function getDropTargetKpiId(clientX, clientY) {
+            const cards = document.querySelectorAll('#kpi-container .kpi-card');
+            for (const card of cards) {
+                const rect = card.getBoundingClientRect();
+                if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                    return card.id;
+                }
+            }
+            return null;
+        }
+
+        function highlightKpiDropTarget(targetId) {
+            document.querySelectorAll('#kpi-container .kpi-card').forEach(card => {
+                if (targetId && card.id === targetId) card.classList.add('kpi-drop-target');
+                else card.classList.remove('kpi-drop-target');
+            });
+        }
+
+        function onCustomKpiPopupMouseMove(e) {
+            if (!customKpiPopupDragging) return;
+
+            const popup = document.getElementById('custom-kpi-popup');
+            const width = popup.offsetWidth;
+            const height = popup.offsetHeight;
+            const maxLeft = Math.max(6, window.innerWidth - width - 6);
+            const maxTop = Math.max(6, window.innerHeight - height - 6);
+
+            const nextLeft = Math.min(Math.max(6, e.clientX - customKpiPopupOffset.x), maxLeft);
+            const nextTop = Math.min(Math.max(6, e.clientY - customKpiPopupOffset.y), maxTop);
+
+            popup.style.left = `${nextLeft}px`;
+            popup.style.top = `${nextTop}px`;
+
+            const target = getDropTargetKpiId(e.clientX, e.clientY);
+            highlightKpiDropTarget(target);
+        }
+
+        function onCustomKpiPopupMouseUp(e) {
+            if (!customKpiPopupDragging) return;
+
+            customKpiPopupDragging = false;
+            const popup = document.getElementById('custom-kpi-popup');
+            popup.classList.remove('dragging');
+
+            const target = getDropTargetKpiId(e.clientX, e.clientY);
+            highlightKpiDropTarget(null);
+
+            document.removeEventListener('mousemove', onCustomKpiPopupMouseMove);
+            document.removeEventListener('mouseup', onCustomKpiPopupMouseUp);
+
+            if (target) {
+                applyLibraryKpiToSlot(target);
+            }
+        }
+
+        function initCustomKpiPopupDrag() {
+            const header = document.getElementById('custom-kpi-header');
+            if (!header || header.dataset.bound === '1') return;
+
+            header.dataset.bound = '1';
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.closest('button')) return;
+
+                const popup = document.getElementById('custom-kpi-popup');
+                if (!popup || popup.style.display === 'none') return;
+
+                const rect = popup.getBoundingClientRect();
+                customKpiPopupDragging = true;
+                customKpiPopupOffset.x = e.clientX - rect.left;
+                customKpiPopupOffset.y = e.clientY - rect.top;
+                popup.classList.add('dragging');
+
+                document.addEventListener('mousemove', onCustomKpiPopupMouseMove);
+                document.addEventListener('mouseup', onCustomKpiPopupMouseUp);
+            });
+        }
+
+        function getDropTargetChartId(clientX, clientY) {
+            for (const id of chartSlotIds) {
+                const el = document.getElementById(id);
+                if (!el) continue;
+                const rect = el.getBoundingClientRect();
+                if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                    return id;
+                }
+            }
+            return null;
+        }
+
+        function highlightDropTarget(targetId) {
+            chartSlotIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (id === targetId) el.classList.add('drop-target');
+                else el.classList.remove('drop-target');
+            });
+        }
+
+        function applyCustomChartToSlot(slotId) {
+            if (!currentData || !currentData.charts || !customPopupChart) return;
+
+            const targetIndex = currentData.charts.findIndex(c => c.id === slotId);
+            if (targetIndex === -1) return;
+
+            const replaced = cloneChart(currentData.charts[targetIndex]);
+            if (replaced) {
+                addChartToLibrary(replaced, { source: `Replaced ${slotId}` });
+            }
+
+            const replacement = cloneChart(customPopupChart);
+            replacement.id = slotId;
+            replacement.original = createChartSnapshot(replacement);
+
+            currentData.charts[targetIndex] = replacement;
+            renderDashboard(currentData);
+            renderChartLibrary();
+            closeCustomChartPopup();
+
+            const status = document.getElementById('chart-request-status');
+            status.textContent = `Replaced ${slotId}. Previous chart moved to Chart Library.`;
+        }
+
+        function onCustomPopupMouseMove(e) {
+            if (!customPopupDragging) return;
+
+            const popup = document.getElementById('custom-chart-popup');
+            const width = popup.offsetWidth;
+            const height = popup.offsetHeight;
+            const maxLeft = Math.max(6, window.innerWidth - width - 6);
+            const maxTop = Math.max(6, window.innerHeight - height - 6);
+
+            const nextLeft = Math.min(Math.max(6, e.clientX - customPopupOffset.x), maxLeft);
+            const nextTop = Math.min(Math.max(6, e.clientY - customPopupOffset.y), maxTop);
+
+            popup.style.left = `${nextLeft}px`;
+            popup.style.top = `${nextTop}px`;
+
+            const target = getDropTargetChartId(e.clientX, e.clientY);
+            highlightDropTarget(target);
+        }
+
+        function onCustomPopupMouseUp(e) {
+            if (!customPopupDragging) return;
+
+            customPopupDragging = false;
+            const popup = document.getElementById('custom-chart-popup');
+            popup.classList.remove('dragging');
+
+            const target = getDropTargetChartId(e.clientX, e.clientY);
+            highlightDropTarget(null);
+
+            document.removeEventListener('mousemove', onCustomPopupMouseMove);
+            document.removeEventListener('mouseup', onCustomPopupMouseUp);
+
+            if (target) {
+                applyCustomChartToSlot(target);
+            }
+        }
+
+        function initCustomPopupDrag() {
+            const header = document.getElementById('custom-chart-header');
+            if (!header || header.dataset.bound === '1') return;
+
+            header.dataset.bound = '1';
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.closest('button')) return;
+
+                const popup = document.getElementById('custom-chart-popup');
+                if (popup.style.display === 'none') return;
+
+                const rect = popup.getBoundingClientRect();
+                customPopupDragging = true;
+                customPopupOffset.x = e.clientX - rect.left;
+                customPopupOffset.y = e.clientY - rect.top;
+                popup.classList.add('dragging');
+
+                document.addEventListener('mousemove', onCustomPopupMouseMove);
+                document.addEventListener('mouseup', onCustomPopupMouseUp);
+            });
+        }
+
+        initCustomPopupDrag();
+        initCustomKpiPopupDrag();
 
         function createSparkline(containerId, data, color) {
             console.log(`createSparkline called for ${containerId}`, data, color);
@@ -688,14 +3548,38 @@ if (chart.type === 'sankey') {
                     console.log(`✅ Sparkline ${containerId} created successfully`);
                 });
             } catch (error) {
-                console.error(`❌ Error creating sparkline ${containerId}:`, error);
+                console.error(`â Error creating sparkline ${containerId}:`, error);
             }
         }
 
         function calculateTrend(data) {
-            if (!data || data.length < 2) return 0;
-            const change = ((data[data.length - 1] - data[0]) / data[0]) * 100;
-            return isNaN(change) ? 0 : change;
+            if (!Array.isArray(data)) return 0;
+            const clean = data
+                .map(v => Number(v))
+                .filter(v => Number.isFinite(v));
+
+            if (clean.length < 2) return 0;
+
+            const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+            const w = clean.length >= 6 ? 3 : 1;
+
+            // Use beginning vs ending window so trend reflects full sparkline direction.
+            const prev = avg(clean.slice(0, w));
+            const curr = avg(clean.slice(-w));
+
+            if (!Number.isFinite(prev) || !Number.isFinite(curr)) return 0;
+
+            if (Math.abs(prev) < 1e-9) {
+                if (Math.abs(curr) < 1e-9) return 0;
+                return curr > 0 ? 100 : -100;
+            }
+
+            let change = ((curr - prev) / Math.abs(prev)) * 100;
+            if (!Number.isFinite(change)) return 0;
+
+            if (change > 999) change = 999;
+            if (change < -999) change = -999;
+            return change;
         }
 
         function expandChart(chartId) {
@@ -714,7 +3598,7 @@ if (chart.type === 'sankey') {
             chartDiv.style.height = '100%';
             modalContainer.appendChild(chartDiv);
             
-            const color = currentData.theme.color || '#3b82f6';
+            const color = getThemeColor();
             
             modal.style.display = 'flex';
             
@@ -752,10 +3636,10 @@ if (chart.type === 'sankey') {
                 // Color code based on log type
                 if (log.includes('✅')) {
                     logDiv.className += ' bg-green-900/20 text-green-400';
-                } else if (log.includes('❌') || log.includes('⚠️')) {
+                } else if (log.includes('â') || log.includes('â ï¸')) {
                     logDiv.className += ' bg-red-900/20 text-red-400';
                 } else if (log.includes('📋') || log.includes('📊')) {
-                    logDiv.className += ' bg-blue-900/20 text-blue-400';
+                    logDiv.className += ' bg-violet-900/20 text-violet-400';
                 } else if (log.includes('└─')) {
                     logDiv.className += ' bg-slate-800/50 text-slate-400 ml-4';
                 } else {
@@ -772,7 +3656,7 @@ if (chart.type === 'sankey') {
                 previewSection.className = 'mt-6 p-4 bg-slate-800/50 rounded-lg';
                 
                 const previewTitle = document.createElement('div');
-                previewTitle.className = 'text-sm font-bold text-blue-400 mb-3';
+                previewTitle.className = 'text-sm font-bold text-violet-400 mb-3';
                 previewTitle.textContent = '📊 Master Table Preview (First 3 Rows)';
                 previewSection.appendChild(previewTitle);
                 
@@ -814,510 +3698,750 @@ if (chart.type === 'sankey') {
 
         function renderSingleChart(container, chart, color, isModal = false) {
             const commonLayout = {
-    paper_bgcolor: 'rgba(0,0,0,0)',
-    plot_bgcolor: 'rgba(0,0,0,0)',
-    font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Inter' },
-    margin: isModal ? { t: 50, l: 70, r: 40, b: 100 } : { t: 28, l: 35, r: 8, b: 35 },  // MINIMAL margins
-    autosize: true,
-    dragmode: isModal ? 'pan' : false
-};
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Outfit' },
+                margin: isModal ? { t: 50, l: 70, r: 40, b: 100 } : { t: 28, l: 35, r: 8, b: 35 },
+                autosize: true,
+                dragmode: isModal ? 'pan' : false
+            };
 
-            let trace = { marker: { color: color } };
-
-            if (chart.type === 'sankey') {
-    // Initialize expandedNodes ONCE with all 3 levels
-    if (!chart.expandedNodes || chart.expandedNodes.length === 0) {
-        chart.expandedNodes = [];
-        const uniqueSources = new Set();
-        
-        if (chart.level && chart.source) {
-            chart.source.forEach((src, i) => {
-                const level = parseInt(chart.level[i]);
-                if (level >= 1 && level <= 3) {
-                    uniqueSources.add(src);
-                }
-            });
-            chart.expandedNodes = Array.from(uniqueSources);
-        }
-    }
-    
-    // Filter flows based on expanded nodes
-    let filteredSource = [];
-    let filteredTarget = [];
-    let filteredValue = [];
-    
-    chart.source.forEach((source, idx) => {
-        const level = chart.level && chart.level[idx] !== undefined ? parseInt(chart.level[idx]) : 1;
-        const target = chart.target[idx];
-        
-        // Show flow if source is expanded
-        if (chart.expandedNodes.includes(source)) {
-            filteredSource.push(source);
-            filteredTarget.push(target);
-            filteredValue.push(chart.value[idx]);
-        }
-    });
-    
-    // Calculate FIXED node positions (do this ONCE and store)
-    if (!chart.nodePositions || Object.keys(chart.nodePositions).length === 0) {
-        chart.nodePositions = {};
-        const allNodes = [...new Set([...chart.source, ...chart.target])];
-        
-        // Assign level to each node
-        allNodes.forEach(node => {
-            let nodeLevel = 4; // Default
-            
-            chart.source.forEach((src, idx) => {
-                const flowLevel = parseInt(chart.level[idx] || 1);
-                if (src === node) nodeLevel = Math.min(nodeLevel, flowLevel);
-                if (chart.target[idx] === node) nodeLevel = Math.min(nodeLevel, flowLevel + 1);
-            });
-            
-            chart.nodePositions[node] = { level: nodeLevel };
-        });
-        
-        // Group nodes by level
-        const nodesByLevel = {};
-        allNodes.forEach(node => {
-            const level = chart.nodePositions[node].level;
-            if (!nodesByLevel[level]) nodesByLevel[level] = [];
-            nodesByLevel[level].push(node);
-        });
-        
-        // Assign Y positions within each level (evenly distributed)
-        Object.keys(nodesByLevel).forEach(level => {
-            const nodesAtLevel = nodesByLevel[level];
-            nodesAtLevel.forEach((node, idx) => {
-                if (nodesAtLevel.length === 1) {
-                    chart.nodePositions[node].y = 0.5;
-                } else {
-                    chart.nodePositions[node].y = 0.1 + (idx * 0.8) / (nodesAtLevel.length - 1);
-                }
-            });
-        });
-    }
-    
-    // Build visible node list
-    const allNodes = [...new Set([...filteredSource, ...filteredTarget])];
-    const nodeIndices = {};
-    allNodes.forEach((node, idx) => { nodeIndices[node] = idx; });
-    
-    trace.type = 'sankey';
-    trace.node = {
-        pad: isModal ? 15 : 10,
-        thickness: isModal ? 20 : 15,
-        line: { color: '#0f172a', width: 1 },
-        label: allNodes,
-        color: allNodes.map((_, i) => {
-            const baseHue = parseInt(color.slice(1, 3), 16);
-            return `hsl(${(baseHue + i * 25) % 360}, 70%, 55%)`;
-        }),
-        customdata: allNodes,
-        hovertemplate: '<b>%{label}</b><br>Click to expand/collapse<extra></extra>',
-        // Use FIXED positions
-        x: allNodes.map(node => {
-            const storedLevel = chart.nodePositions[node]?.level || 3; // Change default if needed
-            // CHANGE HERE: Divide by 2 instead of 3 to force Level 3 to the far right (1.0)
-            return (storedLevel - 1) / 2; 
-        }),
-        y: allNodes.map(node => {
-            return chart.nodePositions[node]?.y || 0.5;
-        })
-    };
-    
-    trace.link = {
-        source: filteredSource.map(s => nodeIndices[s]),
-        target: filteredTarget.map(t => nodeIndices[t]),
-        value: filteredValue,
-        color: filteredValue.map(() => 'rgba(100, 116, 139, 0.4)')
-    };
-    trace.orientation = 'h';
-    trace.textfont = { size: isModal ? 12 : 10 };
-}
-
-else if (chart.type === 'sunburst') {
-    // Keep sunburst code as fallback
-    trace.type = 'sunburst';
-    trace.labels = chart.labels || [];
-    trace.parents = chart.parents || [];
-    trace.values = chart.values || [];
-    trace.textinfo = 'label+percent parent';
-    trace.hovertemplate = '<b>%{label}</b><br>Value: %{value:,.0f}<br>Percent: %{percentParent}<extra></extra>';
-    trace.marker = {
-        colors: chart.values.map((v, i) => {
-            const baseHue = parseInt(color.slice(1, 3), 16);
-            const variation = (i * 15) % 60;
-            return `hsl(${(baseHue + variation) % 360}, 70%, ${50 + (i % 3) * 10}%)`;
-        }),
-        line: { color: '#0f172a', width: 2 }
-    };
-    trace.branchvalues = 'total';
-}
-            else if (chart.type === 'pie') {
-                trace.type = 'pie';
-                trace.labels = chart.x;
-                trace.values = chart.y;
-                trace.hole = 0.6;
-                trace.textinfo = 'percent+label';
-                trace.textposition = 'inside';
-                trace.marker = { 
-                    colors: [color, adjustColor(color,-20), adjustColor(color,-40), '#475569', '#334155'],
-                    line: { color: '#0f172a', width: 2 }
-                };
-            } 
-            else if (chart.type === 'heatmap') {
-                trace.type = 'heatmap';
-                trace.x = chart.x;
-                trace.y = chart.y;
-                trace.z = chart.z;
-                trace.colorscale = [
-                    [0, '#1e293b'],
-                    [0.5, color],
-                    [1, adjustColor(color, 40)]
-                ];
-                trace.showscale = true;
-            }
-            else if (chart.type === 'line') {
-                trace.type = 'scatter';
-                trace.mode = 'lines+markers'; 
-                trace.x = chart.x;
-                trace.y = chart.y;
-                trace.line = { shape: 'spline', width: isModal ? 4 : 3, color: color }; 
-                trace.fill = 'tozeroy';
-                trace.fillcolor = color + '15'; 
-                trace.marker = { size: isModal ? 8 : 6, color: color };
-            }
-
-            else if (chart.type === 'scatter') {
-    trace.type = 'scatter';
-    trace.mode = 'markers'; 
-    trace.x = chart.x;
-    trace.y = chart.y;
-    trace.marker = { 
-        size: isModal ? 10 : 7, 
-        color: color,
-        opacity: 0.7,
-        line: { color: 'white', width: 1 }
-    };
-}
-            else {
-                trace.type = 'bar';
-                trace.x = chart.x;
-                trace.y = chart.y;
-            }
-
-            const config = { 
-                responsive: true, 
+            const config = {
+                responsive: true,
                 displayModeBar: isModal,
                 modeBarButtonsToRemove: isModal ? ['lasso2d', 'select2d'] : [],
                 scrollZoom: isModal,
                 displaylogo: false
             };
-            // Format x-axis based on chart type and data
-let xaxisConfig = {
-    title: chart.xlabel, 
-    showgrid: false, 
-    tickfont: { size: isModal ? 11 : 8 },
-    automargin: true
-};
 
-// Special handling for different chart types
-if (chart.type === 'bar' && chart.x && chart.x.length > 10) {
-    // Many categories: rotate and limit ticks
-    xaxisConfig.tickangle = -45;
-    xaxisConfig.tickmode = 'linear';
-    xaxisConfig.tick0 = 0;
-    xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 15 : 8));
-} else if (chart.type === 'line') {
-    // Time series: format dates nicely
-    xaxisConfig.tickangle = -45;
-    xaxisConfig.tickformat = '%b %Y';  // "Jan 2023" format
-    xaxisConfig.nticks = isModal ? 12 : 6;
-} else if (chart.type === 'heatmap') {
-    // Heatmap: smaller font, no rotation needed
-    xaxisConfig.tickfont.size = isModal ? 10 : 7;
-    xaxisConfig.tickangle = 0;
-} else {
-    // Default: rotate if more than 5 items
-    xaxisConfig.tickangle = (chart.x && chart.x.length > 5) ? -45 : 0;
-}
+            let trace = { marker: { color: color } };
+            const chartType = String(chart.type || 'bar').toLowerCase();
+            const showDataLabels = Boolean(chart && chart.showDataLabels);
+            const formatValueLabel = (v) => {
+                const n = Number(v);
+                if (!Number.isFinite(n)) return String(v ?? '');
+                if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+                if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}K`;
+                return Number.isInteger(n) ? String(n) : n.toFixed(2);
+            };
 
-            // Set layout based on chart type
-// Set layout based on chart type
-let finalLayout = {...commonLayout};
+            if (chartType === 'table') {
+                trace = {
+                    type: 'table',
+                    header: {
+                        values: (chart.columns || []).map(c => `<b>${c}</b>`),
+                        align: 'left',
+                        fill: { color: 'rgba(30,41,59,0.9)' },
+                        font: { color: '#e2e8f0', size: isModal ? 12 : 10 }
+                    },
+                    cells: {
+                        values: (chart.columns || []).map((_, idx) => (chart.rows || []).map(r => (Array.isArray(r) ? (r[idx] ?? '') : ''))),
+                        align: 'left',
+                        fill: { color: 'rgba(15,23,42,0.7)' },
+                        font: { color: '#cbd5e1', size: isModal ? 11 : 9 }
+                    }
+                };
+            } else if (chartType === 'treemap') {
+                trace = {
+                    type: 'treemap',
+                    labels: chart.labels || chart.x || [],
+                    parents: chart.parents || (chart.labels ? new Array(chart.labels.length).fill('') : []),
+                    values: chart.values || chart.y || [],
+                    branchvalues: 'total',
+                    marker: { colorscale: [[0, '#0b1a10'], [0.6, '#15803d'], [1, '#86efac']] },
+                    textinfo: showDataLabels ? 'label+value' : 'label'
+                };
+            } else if (chartType === 'waterfall') {
+                trace = {
+                    type: 'waterfall',
+                    x: chart.x || [],
+                    y: chart.y || [],
+                    measure: chart.measure || new Array((chart.x || []).length).fill('relative'),
+                    connector: { line: { color: '#64748b' } },
+                    increasing: { marker: { color: '#22c55e' } },
+                    decreasing: { marker: { color: '#ef4444' } },
+                    totals: { marker: { color: color } }
+                };
+                if (showDataLabels) {
+                    trace.text = (chart.y || []).map(v => formatValueLabel(v));
+                    trace.textposition = 'outside';
+                }
+            } else if (chartType === 'pie') {
+                trace.type = 'pie';
+                trace.labels = chart.x;
+                trace.values = chart.y;
+                trace.hole = 0.6;
+                trace.textinfo = showDataLabels ? 'percent+label+value' : 'percent+label';
+                trace.textposition = 'inside';
+                trace.marker = {
+                    colors: [color, adjustColor(color,-20), adjustColor(color,-40), '#475569', '#334155'],
+                    line: { color: '#0f172a', width: 2 }
+                };
+            } else if (chartType === 'heatmap') {
+                trace.type = 'heatmap';
+                trace.x = chart.x;
+                trace.y = chart.y;
+                trace.z = chart.z;
+                trace.colorscale = [
+                    [0, '#0b1a10'],
+                    [0.35, '#14532d'],
+                    [0.7, '#22c55e'],
+                    [1, '#bbf7d0']
+                ];
+                trace.showscale = true;
+                if (showDataLabels) {
+                    trace.texttemplate = '%{z}';
+                    trace.textfont = { color: '#e2e8f0', size: isModal ? 11 : 9 };
+                }
+            } else if (chartType === 'line') {
+                trace.type = 'scatter';
+                trace.mode = 'lines+markers';
+                trace.x = chart.x;
+                trace.y = chart.y;
+                trace.line = { shape: 'spline', width: isModal ? 4 : 3, color: color };
+                trace.fill = 'tozeroy';
+                trace.fillcolor = color + '15';
+                trace.marker = { size: isModal ? 8 : 6, color: color };
+                if (showDataLabels) {
+                    trace.mode = 'lines+markers+text';
+                    trace.text = (chart.y || []).map(v => formatValueLabel(v));
+                    trace.textposition = 'top center';
+                }
+            } else if (chartType === 'scatter') {
+                trace.type = 'scatter';
+                trace.mode = 'markers';
+                trace.x = chart.x;
+                trace.y = chart.y;
+                trace.marker = {
+                    size: isModal ? 10 : 7,
+                    color: color,
+                    opacity: 0.7,
+                    line: { color: 'white', width: 1 }
+                };
+                if (showDataLabels) {
+                    trace.mode = 'markers+text';
+                    trace.text = (chart.y || []).map(v => formatValueLabel(v));
+                    trace.textposition = 'top center';
+                }
+            } else {
+                trace.type = 'bar';
+                trace.x = chart.x;
+                trace.y = chart.y;
+                if (showDataLabels) {
+                    trace.text = (chart.y || []).map(v => formatValueLabel(v));
+                    trace.textposition = 'outside';
+                    trace.cliponaxis = false;
+                }
+            }
 
-if (chart.type === 'sankey') {
-    // Sankey needs minimal margins - no axes
-    finalLayout = {
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Inter' },
-        margin: isModal ? { t: 50, l: 20, r: 20, b: 20 } : { t: 35, l: 10, r: 10, b: 10 },  // MINIMAL margins
-        title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
-        showlegend: false,
-        autosize: true,
-        dragmode: isModal ? 'pan' : false
-    };
-} else if (chart.type === 'sunburst' || chart.type === 'pie') {
-    // Sunburst/Pie also don't need axis margins
-    finalLayout = {
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Inter' },
-        margin: isModal ? { t: 50, l: 40, r: 40, b: 40 } : { t: 35, l: 20, r: 20, b: 20 },  // MODERATE margins
-        title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
-        showlegend: false,
-        autosize: true,
-        dragmode: isModal ? 'pan' : false
-    };
-} else {
-    finalLayout = {
-        ...commonLayout,
-        title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
-        xaxis: { 
-    title: isModal ? chart.xlabel : '',
-    showgrid: false, 
-    tickfont: { size: isModal ? 11 : 7 },  // Smaller font
-    automargin: true,
-    tickangle: isModal ? -45 : 0,  // NO tilt in small view, tilt in modal
-    tickmode: 'auto',
-    nticks: isModal ? 15 : 6  // Fewer ticks to prevent overlap
-},
-yaxis: { 
-    title: isModal ? chart.ylabel : '',
-    showgrid: true, 
-    gridcolor: '#33415530', 
-    tickfont: { size: isModal ? 12 : 8 },  // Smaller font
-    automargin: true,
-    fixedrange: !isModal  // Prevent zoom in small view for stability
-}
-    };
-}
+            let xaxisConfig = {
+                title: chart.xlabel,
+                showgrid: false,
+                tickfont: { size: isModal ? 11 : 8 },
+                automargin: true
+            };
 
-Plotly.newPlot(container, [trace], finalLayout, config).then(() => {
-    console.log('✅ Plotly chart rendered');
-    console.log('Chart type:', chart.type);
-    console.log('isModal:', isModal);
-    console.log('Container:', container);
-    
-    // ADD: Click handler for Sankey nodes
-    if (chart.type === 'sankey') {
-        console.log('🎯 Attaching click handler to Sankey  (isModal:', isModal, ')');
-  
-        let currentHoveredNode = null;
-    let lastHoveredNode = null;  // Keep track of the last hovered node
-    
-    container.on('plotly_hover', function(data) {
-    const point = data.points[0];
-    if (point && point.label && point.label !== '') {
-        currentHoveredNode = point.label;
-        lastHoveredNode = point.label;
-        console.log('🔍 Hovering over node:', currentHoveredNode);
-        container.style.cursor = 'pointer';
-    }
-});
+            if (chartType === 'bar' && chart.x && chart.x.length > 10) {
+                xaxisConfig.tickangle = -45;
+                xaxisConfig.tickmode = 'linear';
+                xaxisConfig.tick0 = 0;
+                xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 15 : 8));
+            } else if (chartType === 'line') {
+                xaxisConfig.tickangle = -45;
+                xaxisConfig.tickformat = '%b %Y';
+                xaxisConfig.nticks = isModal ? 12 : 6;
+                const monthHint = `${chart.title || ''} ${chart.xlabel || ''}`.toLowerCase();
+                if (monthHint.includes('month') || monthHint.includes('yyyy_mm')) {
+                    xaxisConfig.type = 'category';
+                }
+            } else if (chartType === 'heatmap') {
+                xaxisConfig.tickfont.size = isModal ? 10 : 7;
+                xaxisConfig.tickangle = 0;
+            } else {
+                xaxisConfig.tickangle = (chart.x && chart.x.length > 5) ? -45 : 0;
+            }
 
-container.on('plotly_unhover', function() {
-    currentHoveredNode = null;
-    container.style.cursor = 'default';
-});
+            let finalLayout = { ...commonLayout };
+            if (chartType === 'pie' || chartType === 'treemap') {
+                finalLayout = {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Outfit' },
+                    margin: isModal ? { t: 50, l: 40, r: 40, b: 40 } : { t: 35, l: 20, r: 20, b: 20 },
+                    title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
+                    showlegend: false,
+                    autosize: true,
+                    dragmode: isModal ? 'pan' : false
+                };
+            } else if (chartType === 'table') {
+                finalLayout = {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Outfit' },
+                    margin: isModal ? { t: 50, l: 20, r: 20, b: 20 } : { t: 35, l: 8, r: 8, b: 8 },
+                    title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
+                    autosize: true
+                };
+            } else {
+                finalLayout = {
+                    ...commonLayout,
+                    title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
+                    xaxis: {
+                        ...xaxisConfig,
+                        title: isModal ? chart.xlabel : ''
+                    },
+                    yaxis: {
+                        title: isModal ? chart.ylabel : '',
+                        showgrid: true,
+                        gridcolor: '#33415530',
+                        tickfont: { size: isModal ? 12 : 8 },
+                        automargin: true,
+                        fixedrange: !isModal
+                    },
+                    autotypenumbers: 'strict'
+                };
+            }
 
-container.addEventListener('mousedown', function(e) {
-    const nodeToClick = currentHoveredNode || lastHoveredNode;
-    
-    if (!nodeToClick) return;
-    
-    console.log('✅ Click on:', nodeToClick);
-    
-    if (!chart.expandedNodes) chart.expandedNodes = [];
-    
-    const idx = chart.expandedNodes.indexOf(nodeToClick);
-    
-    if (idx > -1) {
-        // COLLAPSE this node only
-        chart.expandedNodes.splice(idx, 1);
-        console.log('🔽 Collapsed', nodeToClick);
-    } else {
-        // EXPAND this node only
-        chart.expandedNodes.push(nodeToClick);
-        console.log('🔼 Expanded', nodeToClick);
-    }
-    
-    // Prevent multiple rapid clicks
-    container.style.pointerEvents = 'none';
-    
-    lastHoveredNode = null;
-    currentHoveredNode = null;
-    
-    // Re-render with debounce
-    setTimeout(() => {
-        if (isModal) {
-            container.innerHTML = '';
-            renderSingleChart(container, chart, currentData.theme.color || '#3b82f6', true);
-        } else {
-            const el = document.getElementById(chart.id);
-            el.innerHTML = `<button class="expand-btn" onclick="expandChart('${chart.id}')">🔍 Expand</button>`;
-            renderSingleChart(el, chart, currentData.theme.color || '#3b82f6', false);
+            Plotly.newPlot(container, [trace], finalLayout, config);
         }
-        
-        // Re-enable clicks after render
-        setTimeout(() => {
-            container.style.pointerEvents = 'auto';
-        }, 100);
-    }, 50);
-}, { once: false }); // Remove 'once' to allow multiple clicks
 
-    }
-});
+        function getChartById(chartId) {
+            return currentData && Array.isArray(currentData.charts)
+                ? currentData.charts.find(c => c.id === chartId)
+                : null;
         }
 
+        function hasRenderableChartData(chart) {
+            if (!chart) return false;
+            const hasXY = Array.isArray(chart.x) && chart.x.length > 0 && Array.isArray(chart.y) && chart.y.length > 0;
+            const hasTree = Array.isArray(chart.labels) && chart.labels.length > 0 && Array.isArray(chart.values) && chart.values.length > 0;
+            const hasTable = Array.isArray(chart.rows) && chart.rows.length > 0;
+            const hasHeat = Array.isArray(chart.z) && chart.z.length > 0;
+            return hasXY || hasTree || hasTable || hasHeat;
+        }
+
+        function createEmptyChartState(chartId, fallbackTitle = 'Chart') {
+            return {
+                id: chartId,
+                title: `${fallbackTitle} (Removed)`,
+                type: 'bar',
+                xlabel: '',
+                ylabel: '',
+                x: [],
+                y: [],
+                z: [],
+                columns: [],
+                rows: [],
+                labels: [],
+                parents: [],
+                values: [],
+                measure: [],
+                original: null,
+                showDataLabels: false,
+            };
+        }
+
+        function removeChart(chartId) {
+            if (!currentData || !Array.isArray(currentData.charts)) return;
+            const idx = currentData.charts.findIndex(c => c.id === chartId);
+            if (idx === -1) return;
+
+            const existing = cloneChart(currentData.charts[idx]);
+            if (existing && hasRenderableChartData(existing)) {
+                addChartToLibrary(existing, { source: `Removed ${chartId}` });
+            }
+
+            currentData.charts.splice(idx, 1);
+            delete widgetLayouts[chartId];
+
+            renderDashboard(currentData);
+            renderChartLibrary();
+
+            const status = document.getElementById('chart-request-status');
+            if (status) {
+                status.textContent = `${chartId} removed.`;
+            }
+        }
+
+        function removeKpi(kpiId) {
+            if (!currentData || !Array.isArray(currentData.kpis)) return;
+            const idx = currentData.kpis.findIndex(k => ensureKpiId(k) === kpiId);
+            if (idx === -1) return;
+
+            const removed = cloneKpi(currentData.kpis[idx]);
+            if (removed && (removed.label || removed.value)) {
+                addKpiToLibrary(removed, { source: `Removed ${kpiId}` });
+            }
+
+            currentData.kpis.splice(idx, 1);
+            delete widgetLayouts[kpiId];
+            if (pendingKpiReplaceLibraryId) pendingKpiReplaceLibraryId = null;
+
+            renderDashboard(currentData);
+            renderChartLibrary();
+
+            const status = document.getElementById('chart-request-status');
+            if (status) {
+                status.textContent = `${kpiId} removed.`;
+            }
+        }
+
+        function closeEditMenus(exceptChartId = null) {
+            document.querySelectorAll('.edit-dropdown.open').forEach(menu => {
+                if (exceptChartId && menu.id === `edit-dropdown-${exceptChartId}`) return;
+                menu.classList.remove('open');
+            });
+            document.querySelectorAll('.chart-controls.open').forEach(box => {
+                if (exceptChartId && box.id === `chart-controls-${exceptChartId}`) return;
+                box.classList.remove('open');
+            });
+        }
+
+        function getEditableChartTypes(chart) {
+            const preferred = ['bar', 'line', 'scatter', 'pie', 'heatmap', 'table', 'treemap', 'waterfall'];
+            const hasXY = Array.isArray(chart?.x) && chart.x.length > 0 && Array.isArray(chart?.y) && chart.y.length > 0;
+            const hasTree = Array.isArray(chart?.labels) && chart.labels.length > 0 && Array.isArray(chart?.values) && chart.values.length > 0;
+            const hasHeat = Array.isArray(chart?.x) && Array.isArray(chart?.y) && Array.isArray(chart?.z) && chart.x.length > 0 && chart.y.length > 0 && chart.z.length > 0;
+            const hasTable = Array.isArray(chart?.columns) && chart.columns.length > 0 && Array.isArray(chart?.rows) && chart.rows.length > 0;
+            const tableHasTwoCols = hasTable && Array.isArray(chart.rows[0]) && chart.rows[0].length >= 2;
+
+            const allowed = new Set();
+            if (hasXY || tableHasTwoCols || hasTree) {
+                ['bar', 'line', 'scatter', 'pie'].forEach(t => allowed.add(t));
+            }
+            if (hasXY || tableHasTwoCols) {
+                allowed.add('waterfall');
+            }
+            if (hasHeat) {
+                allowed.add('heatmap');
+            }
+            if (hasXY || hasHeat || hasTree || hasTable) {
+                allowed.add('table');
+            }
+            if (hasTree || hasXY || tableHasTwoCols) {
+                allowed.add('treemap');
+            }
+
+            if (chart && chart.type) {
+                allowed.add(String(chart.type).toLowerCase());
+            }
+
+            return preferred.filter(t => allowed.has(t));
+        }
+
+        function buildChartControlsHtml(chartId) {
+            const chart = getChartById(chartId);
+            if (!chart) return '';
+
+            const currentType = String(chart.type || 'bar').toLowerCase();
+            const typeOptions = getEditableChartTypes(chart)
+                .map(t => `<option value="${t}" ${t === currentType ? 'selected' : ''}>${chartTypeLabel(t)}</option>`)
+                .join('');
+            const labelsToggleText = chart.showDataLabels ? 'Hide Data Labels' : 'Show Data Labels';
+
+            return `
+                <div class="chart-controls" id="chart-controls-${chartId}">
+                    <div class="edit-menu">
+                        <button class="control-btn edit-toggle" onclick="toggleEditMenu('${chartId}')" title="Edit Chart">Edit</button>
+                        <div class="edit-dropdown" id="edit-dropdown-${chartId}">
+                            <div class="edit-row">
+                                <span class="edit-label">Type</span>
+                                <select class="edit-select" onchange="onChartTypeSelect('${chartId}', this)">${typeOptions}</select>
+                            </div>
+                            <button class="edit-item" onclick="swapAxes('${chartId}')">Swap X/Y</button>
+                            <button class="edit-item" onclick="renameAxisLabels('${chartId}')">Edit Axis Labels</button>
+                            <button class="edit-item" onclick="aiEditChart('${chartId}')">Edit with AI</button>
+                            <button class="edit-item" onclick="toggleDataLabels('${chartId}')">${labelsToggleText}</button>
+                            <button class="edit-item" onclick="sortChart('${chartId}')">Sort by Y</button>
+                            <button class="edit-item" onclick="resetChart('${chartId}')">Reset Chart</button>
+                        </div>
+                    </div>
+                    <button class="control-btn reset-toggle" onclick="resetChart('${chartId}')" title="Reset Chart">Reset</button>
+                </div>
+            `;
+        }
+
+        function getChartShellHtml(chartId) {
+            return `
+                <button class="expand-btn" onclick="expandChart('${chartId}')">Expand</button>
+                <button class="widget-remove-btn" onclick="removeChart('${chartId}')" title="Remove Chart">x</button>
+                <div class="widget-drag-handle" onmousedown="startWidgetDrag(event, '${chartId}')">Move</div>
+                ${buildChartControlsHtml(chartId)}
+                <div class="chart-plot-area" id="plot-${chartId}"></div>
+            `;
+        }
+
+        function renderChartById(chartId) {
+            const chart = getChartById(chartId);
+            const el = document.getElementById(chartId);
+            if (!chart || !el) return;
+
+            el.style.display = 'flex';
+            const color = getThemeColor();
+            el.innerHTML = getChartShellHtml(chartId);
+
+            const plotEl = document.getElementById(`plot-${chartId}`);
+            initWidgetInteractionsForElement(el, chartId, 'chart');
+
+            if (!hasRenderableChartData(chart)) {
+                if (plotEl) {
+                    plotEl.innerHTML = `
+                        <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
+                            <span class="text-xs font-mono opacity-50">No Data Available</span>
+                        </div>
+                        <div class="absolute top-3 left-4 text-xs font-bold text-slate-400">${chart.title || 'Chart'}</div>
+                    `;
+                    plotEl.style.position = 'relative';
+                }
+                return;
+            }
+
+            if (plotEl) {
+                renderSingleChart(plotEl, chart, color, false);
+            }
+        }
+
+        function toggleEditMenu(chartId) {
+            const menu = document.getElementById(`edit-dropdown-${chartId}`);
+            const controls = document.getElementById(`chart-controls-${chartId}`);
+            if (!menu || !controls) return;
+
+            const willOpen = !menu.classList.contains('open');
+            closeEditMenus(chartId);
+            if (willOpen) {
+                menu.classList.add('open');
+                controls.classList.add('open');
+            } else {
+                menu.classList.remove('open');
+                controls.classList.remove('open');
+            }
+        }
+
+        function ensureXYDataForEditing(chart) {
+            const hasXY = Array.isArray(chart.x) && chart.x.length > 0 && Array.isArray(chart.y) && chart.y.length > 0;
+            if (hasXY) return true;
+
+            const hasTree = Array.isArray(chart.labels) && chart.labels.length > 0 && Array.isArray(chart.values) && chart.values.length > 0;
+            if (hasTree) {
+                chart.x = [...chart.labels];
+                chart.y = chart.values.map(v => {
+                    const n = Number(v);
+                    return Number.isFinite(n) ? n : 0;
+                });
+                chart.xlabel = chart.xlabel || 'Category';
+                chart.ylabel = chart.ylabel || 'Value';
+                return true;
+            }
+
+            const hasTable = Array.isArray(chart.columns) && chart.columns.length >= 2 && Array.isArray(chart.rows) && chart.rows.length > 0;
+            if (hasTable) {
+                chart.x = chart.rows.map(r => Array.isArray(r) ? String(r[0] ?? '') : '');
+                chart.y = chart.rows.map(r => {
+                    const n = Number(Array.isArray(r) ? r[1] : 0);
+                    return Number.isFinite(n) ? n : 0;
+                });
+                chart.xlabel = chart.xlabel || String(chart.columns[0] || 'X');
+                chart.ylabel = chart.ylabel || String(chart.columns[1] || 'Y');
+                return true;
+            }
+
+            return false;
+        }
+
+        function ensureTableDataForEditing(chart) {
+            const hasTable = Array.isArray(chart.columns) && chart.columns.length > 0 && Array.isArray(chart.rows) && chart.rows.length > 0;
+            if (hasTable) return true;
+
+            const hasHeat = Array.isArray(chart.x) && Array.isArray(chart.y) && Array.isArray(chart.z) && chart.x.length > 0 && chart.y.length > 0 && chart.z.length > 0;
+            if (hasHeat) {
+                const size = Math.min(chart.x.length, chart.y.length, chart.z.length);
+                chart.columns = ['x', 'y', 'z'];
+                chart.rows = Array.from({ length: size }, (_, i) => [chart.x[i], chart.y[i], chart.z[i]]);
+                return true;
+            }
+
+            if (ensureXYDataForEditing(chart)) {
+                const size = Math.min(chart.x.length, chart.y.length);
+                chart.columns = [chart.xlabel || 'x', chart.ylabel || 'y'];
+                chart.rows = Array.from({ length: size }, (_, i) => [chart.x[i], chart.y[i]]);
+                return true;
+            }
+
+            return false;
+        }
+
+        function ensureTreemapDataForEditing(chart) {
+            const hasTree = Array.isArray(chart.labels) && chart.labels.length > 0 && Array.isArray(chart.values) && chart.values.length > 0;
+            if (hasTree) return true;
+
+            if (ensureXYDataForEditing(chart)) {
+                chart.labels = chart.x.map(v => String(v));
+                chart.values = chart.y.map(v => {
+                    const n = Number(v);
+                    return Number.isFinite(n) ? n : 0;
+                });
+                chart.parents = new Array(chart.labels.length).fill('');
+                return true;
+            }
+            return false;
+        }
+
+        function applyChartType(chart, newType) {
+            const type = String(newType || '').toLowerCase();
+            if (!type) return false;
+
+            if (['bar', 'line', 'scatter', 'pie', 'waterfall'].includes(type)) {
+                if (!ensureXYDataForEditing(chart)) {
+                    alert('Chart cannot be converted to this type due to missing X/Y data.');
+                    return false;
+                }
+                chart.type = type;
+                return true;
+            }
+
+            if (type === 'heatmap') {
+                const hasHeat = Array.isArray(chart.x) && Array.isArray(chart.y) && Array.isArray(chart.z) && chart.x.length && chart.y.length && chart.z.length;
+                if (!hasHeat) {
+                    alert('Heatmap needs x, y and z data.');
+                    return false;
+                }
+                chart.type = type;
+                return true;
+            }
+
+            if (type === 'table') {
+                if (!ensureTableDataForEditing(chart)) {
+                    alert('Table view could not be generated from this chart data.');
+                    return false;
+                }
+                chart.type = type;
+                return true;
+            }
+
+            if (type === 'treemap') {
+                if (!ensureTreemapDataForEditing(chart)) {
+                    alert('Treemap needs label/value-style data.');
+                    return false;
+                }
+                chart.type = type;
+                return true;
+            }
+
+            return false;
+        }
+
+        function onChartTypeSelect(chartId, selectEl) {
+            changeChartType(chartId, selectEl ? selectEl.value : null);
+        }
+
+        function changeChartType(chartId, explicitType = null) {
+            const chart = getChartById(chartId);
+            if (!chart) return;
+
+            if (explicitType) {
+                if (!applyChartType(chart, explicitType)) return;
+            } else {
+                const typeMap = { 'bar': 'line', 'line': 'scatter', 'scatter': 'bar' };
+                const nextType = typeMap[String(chart.type || 'bar').toLowerCase()] || 'bar';
+                if (!applyChartType(chart, nextType)) return;
+            }
+
+            closeEditMenus();
+            renderChartById(chartId);
+        }
 
         function swapAxes(chartId) {
-    const chart = currentData.charts.find(c => c.id === chartId);
-    if (!chart) return;
-    
-    // Swap x and y data
-    [chart.x, chart.y] = [chart.y, chart.x];
-    [chart.xlabel, chart.ylabel] = [chart.ylabel, chart.xlabel];
-    
-    // Re-render the chart
-    const el = document.getElementById(chartId);
-    const color = currentData.theme.color || '#3b82f6';
-    
-    // Clear and re-render
-    el.innerHTML = `
-    <button class="expand-btn" onclick="expandChart('${chartId}')">🔍 Expand</button>
-    <div class="chart-controls">
-        <button class="control-btn" onclick="swapAxes('${chartId}')" title="Swap X/Y Axes">🔄</button>
-        <button class="control-btn" onclick="changeChartType('${chartId}')" title="Toggle Chart Type">📊</button>
-        <button class="control-btn" onclick="sortChart('${chartId}')" title="Sort Data">⬆️</button>
-        <button class="control-btn" onclick="resetChart('${chartId}')" title="Reset Chart">↩️</button>
-    </div>
-`;
-    renderSingleChart(el, chart, color, false);
-}
+            const chart = getChartById(chartId);
+            if (!chart) return;
 
-function changeChartType(chartId) {
-    const chart = currentData.charts.find(c => c.id === chartId);
-    if (!chart) return;
-    
-    // Cycle through chart types
-    const typeMap = {
-        'bar': 'line',
-        'line': 'scatter',
-        'scatter': 'bar'
-    };
-    
-    chart.type = typeMap[chart.type] || 'bar';
-    
-    // Re-render
-    const el = document.getElementById(chartId);
-    const color = currentData.theme.color || '#3b82f6';
-    
-    el.innerHTML = `
-    <button class="expand-btn" onclick="expandChart('${chartId}')">🔍 Expand</button>
-    <div class="chart-controls">
-        <button class="control-btn" onclick="swapAxes('${chartId}')" title="Swap X/Y Axes">🔄</button>
-        <button class="control-btn" onclick="changeChartType('${chartId}')" title="Toggle Chart Type">📊</button>
-        <button class="control-btn" onclick="sortChart('${chartId}')" title="Sort Data">⬆️</button>
-        <button class="control-btn" onclick="resetChart('${chartId}')" title="Reset Chart">↩️</button>
-    </div>
-`;
-    
-    renderSingleChart(el, chart, color, false);
-}
+            if (String(chart.type || '').toLowerCase() === 'heatmap') {
+                const hasHeat = Array.isArray(chart.x) && Array.isArray(chart.y) && Array.isArray(chart.z) && chart.x.length && chart.y.length && chart.z.length;
+                if (!hasHeat) {
+                    alert('Heatmap has no swappable x/y data.');
+                    return;
+                }
+                [chart.x, chart.y] = [chart.y, chart.x];
+                [chart.xlabel, chart.ylabel] = [chart.ylabel, chart.xlabel];
+                closeEditMenus();
+                renderChartById(chartId);
+                return;
+            }
 
-function sortChart(chartId) {
-    const chart = currentData.charts.find(c => c.id === chartId);
-    if (!chart) return;
-    
-    // Toggle sort direction
-    chart.sortDirection = chart.sortDirection === 'asc' ? 'desc' : 'asc';
-    
-    // Sort data
-    const combined = chart.x.map((x, i) => ({ x, y: chart.y[i] }));
-    combined.sort((a, b) => {
-        if (chart.sortDirection === 'asc') {
-            return a.y - b.y;
-        } else {
-            return b.y - a.y;
+            if (!ensureXYDataForEditing(chart)) {
+                alert('This chart has no X/Y data to swap.');
+                return;
+            }
+
+            [chart.x, chart.y] = [chart.y, chart.x];
+            [chart.xlabel, chart.ylabel] = [chart.ylabel, chart.xlabel];
+
+            closeEditMenus();
+            renderChartById(chartId);
         }
-    });
-    
-    chart.x = combined.map(item => item.x);
-    chart.y = combined.map(item => item.y);
-    
-    // Re-render
-    const el = document.getElementById(chartId);
-    const color = currentData.theme.color || '#3b82f6';
-    
-    el.innerHTML = `
-    <button class="expand-btn" onclick="expandChart('${chartId}')">🔍 Expand</button>
-    <div class="chart-controls">
-        <button class="control-btn" onclick="swapAxes('${chartId}')" title="Swap X/Y Axes">🔄</button>
-        <button class="control-btn" onclick="changeChartType('${chartId}')" title="Toggle Chart Type">📊</button>
-        <button class="control-btn" onclick="sortChart('${chartId}')" title="Sort Data">⬆️</button>
-        <button class="control-btn" onclick="resetChart('${chartId}')" title="Reset Chart">↩️</button>
-    </div>
-`;
-renderSingleChart(el, chart, color, false);
-}
-    function resetChart(chartId) {
-    const chart = currentData.charts.find(c => c.id === chartId);
-    if (!chart || !chart.original) return;
-    
-    // Restore original data
-    chart.x = [...chart.original.x];
-    chart.y = [...chart.original.y];
-    chart.z = chart.original.z ? [...chart.original.z] : [];
-    chart.type = chart.original.type;
-    chart.xlabel = chart.original.xlabel;
-    chart.ylabel = chart.original.ylabel;
-    chart.title = chart.original.title;
-    
-    // Reset sort direction
-    delete chart.sortDirection;
-    
-    // Re-render
-    const el = document.getElementById(chartId);
-    const color = currentData.theme.color || '#3b82f6';
-    
-    el.innerHTML = `
-    <button class="expand-btn" onclick="expandChart('${chartId}')">🔍 Expand</button>
-    <div class="chart-controls">
-        <button class="control-btn" onclick="swapAxes('${chartId}')" title="Swap X/Y Axes">🔄</button>
-        <button class="control-btn" onclick="changeChartType('${chartId}')" title="Toggle Chart Type">📊</button>
-        <button class="control-btn" onclick="sortChart('${chartId}')" title="Sort Data">⬆️</button>
-        <button class="control-btn" onclick="resetChart('${chartId}')" title="Reset Chart">↩️</button>
-    </div>
-`;
-    
-    
-    
-    renderSingleChart(el, chart, color, false);
-}
+
+        function renameAxisLabels(chartId) {
+            const chart = getChartById(chartId);
+            if (!chart) return;
+
+            const newX = prompt('Enter X-axis label:', chart.xlabel || 'X Axis');
+            if (newX === null) return;
+            const newY = prompt('Enter Y-axis label:', chart.ylabel || 'Y Axis');
+            if (newY === null) return;
+
+            chart.xlabel = String(newX).trim() || chart.xlabel || 'X Axis';
+            chart.ylabel = String(newY).trim() || chart.ylabel || 'Y Axis';
+
+            closeEditMenus();
+            renderChartById(chartId);
+        }
+
+
+        function toggleDataLabels(chartId) {
+            const chart = getChartById(chartId);
+            if (!chart) return;
+
+            chart.showDataLabels = !Boolean(chart.showDataLabels);
+            closeEditMenus();
+            renderChartById(chartId);
+        }
+
+        async function aiEditChart(chartId) {
+            const chart = getChartById(chartId);
+            if (!chart || !currentData) return;
+
+            const instruction = prompt(
+                'What change do you want? Example: Replace Product with Brand and keep sales by month.',
+                `Replace ${chart.xlabel || 'current dimension'} with ...`
+            );
+            if (instruction === null) return;
+
+            const trimmed = String(instruction).trim();
+            if (!trimmed) return;
+
+            closeEditMenus();
+            const status = document.getElementById('chart-request-status');
+            if (status) status.textContent = `Updating ${chartId} with AI...`;
+
+            try {
+                const contextLines = [
+                    'You are editing an existing chart on a dashboard.',
+                    `Current chart title: ${chart.title || 'Untitled'}`,
+                    `Current chart type: ${chart.type || 'bar'}`,
+                    `Current X label: ${chart.xlabel || 'X'}`,
+                    `Current Y label: ${chart.ylabel || 'Y'}`,
+                    'Keep the same business intent/metric where possible, and apply the user requested label/dimension change.',
+                    `User change request: ${trimmed}`
+                ];
+
+                const aiPrompt = contextLines.join('\n');
+
+                const data = await requestChartWithClarification(aiPrompt, status);
+                if (!data) {
+                    if (status) status.textContent = 'AI chart edit cancelled.';
+                    return;
+                }
+
+                const generatedChart = data.chart || null;
+                if (!generatedChart) {
+                    throw new Error('No chart returned by backend');
+                }
+
+                const targetIndex = currentData.charts.findIndex(c => c.id === chartId);
+                if (targetIndex === -1) {
+                    throw new Error(`Target chart ${chartId} not found`);
+                }
+
+                const replaced = cloneChart(currentData.charts[targetIndex]);
+                if (replaced) {
+                    addChartToLibrary(replaced, { source: `AI Edit Replaced ${chartId}` });
+                }
+
+                const replacement = cloneChart(generatedChart);
+                replacement.id = chartId;
+                replacement.original = createChartSnapshot(replacement);
+                currentData.charts[targetIndex] = replacement;
+
+                if (Array.isArray(data.logs) && currentData) {
+                    if (!Array.isArray(currentData.logs)) currentData.logs = [];
+                    currentData.logs.push(`[CHART EDIT] AI edit request for ${chartId}`);
+                    data.logs.forEach(logLine => {
+                        currentData.logs.push(`[CHART EDIT] ${logLine}`);
+                    });
+                }
+
+                renderChartById(chartId);
+                renderChartLibrary();
+
+                if (status) status.textContent = `${chartId} updated with AI.`;
+            } catch (error) {
+                if (status) status.textContent = 'AI chart edit failed.';
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function sortChart(chartId) {
+            const chart = getChartById(chartId);
+            if (!chart) return;
+
+            if (!ensureXYDataForEditing(chart)) {
+                alert('This chart has no sortable X/Y data.');
+                return;
+            }
+
+            chart.sortDirection = chart.sortDirection === 'asc' ? 'desc' : 'asc';
+            const combined = chart.x.map((x, i) => ({ x, y: Number(chart.y[i]) || 0 }));
+            combined.sort((a, b) => chart.sortDirection === 'asc' ? (a.y - b.y) : (b.y - a.y));
+
+            chart.x = combined.map(item => item.x);
+            chart.y = combined.map(item => item.y);
+
+            closeEditMenus();
+            renderChartById(chartId);
+        }
+
+        function resetChart(chartId) {
+            const chart = getChartById(chartId);
+            if (!chart || !chart.original) return;
+
+            chart.x = [...chart.original.x];
+            chart.y = [...chart.original.y];
+            chart.z = chart.original.z ? [...chart.original.z] : [];
+            chart.type = chart.original.type;
+            chart.xlabel = chart.original.xlabel;
+            chart.ylabel = chart.original.ylabel;
+            chart.title = chart.original.title;
+            chart.showDataLabels = Boolean(chart.original.showDataLabels);
+            delete chart.sortDirection;
+
+            closeEditMenus();
+            renderChartById(chartId);
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.edit-menu')) {
+                closeEditMenus();
+            }
+        });
 
         function renderDashboard(data) {
             document.querySelectorAll('.glass-panel').forEach(el => el.style.opacity = '1');
             document.getElementById('upload-screen').classList.add('hidden');
             document.getElementById('dashboard-screen').classList.remove('hidden');
+            document.getElementById('dashboard-screen').classList.remove('with-chatbot-dock');
+            updateChatbotDockVisibility();
 
-            const color = data.theme.color || '#3b82f6';
+            const color = getThemeColor();
             
-            // Display token usage
-            if (data.tokens_used && data.tokens_used > 0) {
-                document.getElementById('token-count').textContent = data.tokens_used.toLocaleString();
-                document.getElementById('token-usage').style.display = 'flex';
-            }
-            
+
             // Title & Theme
-            const domain = data.domain || "General";
-            const domainEmoji = DOMAIN_EMOJIS[domain] || "📊";
-            
-            document.getElementById('domain-emoji').innerText = domainEmoji;
-            const titleText = document.getElementById('domain-title').querySelector('span:last-child');
-            titleText.innerText = domain + " Intelligence";
-            titleText.className = `bg-clip-text text-transparent bg-gradient-to-r ${data.theme.gradient}`;
+            const sessionLabel = document.getElementById('session-source-label');
+            if (sessionLabel) {
+                sessionLabel.textContent = 'Live Databricks Session';
+            }
+            const titleText = document.getElementById('dashboard-title-text');
+            if (titleText) {
+                titleText.innerText = 'AI Dashboard';
+            }
 
             // Date Range Filter
             if (data.has_date_column && data.date_range.min && data.date_range.max) {
@@ -1338,136 +4462,102 @@ renderSingleChart(el, chart, color, false);
                 if (!activeFilters['_end_date']) {
                     endDate.value = data.date_range.max;
                 }
+            } else {
+                document.getElementById('date-filter-container').style.display = 'none';
+                document.getElementById('date-separator').style.display = 'none';
+                delete activeFilters['_start_date'];
+                delete activeFilters['_end_date'];
             }
 
             // Filters
-            const filterBox = document.getElementById('filter-container');
-            const existingFilters = filterBox.querySelectorAll('select').length;
-            
-            if (existingFilters === 0 && data.filters.length > 0) {
-                data.filters.forEach(f => {
-                    const sel = document.createElement('select');
-                    sel.className = "bg-slate-800 border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all hover:bg-slate-700 flex-shrink-0";
-                    sel.dataset.column = f.column;
-                    sel.onchange = handleFilterChange;
-                    
-                    sel.innerHTML = `<option>All ${f.label}</option>` + 
-                        f.values.map(v => `<option ${activeFilters[f.column] === v ? 'selected' : ''}>${v}</option>`).join('');
-                    
-                    filterBox.appendChild(sel);
-                });
-            }
+            refreshFilterDefinitions(data.filters || []);
 
             // KPIs with Sparklines
             const kpiBox = document.getElementById('kpi-container');
             kpiBox.innerHTML = '';
-            
+
+            if (!Array.isArray(data.kpis)) data.kpis = [];
+            data.kpis.forEach(k => ensureKpiId(k));
+
             console.log('Creating KPI cards for', data.kpis.length, 'KPIs');
-            
+
             data.kpis.forEach((k, idx) => {
-                const sparklineId = `sparkline_${idx}`;
+                const kpiId = ensureKpiId(k);
+                const sparklineId = `sparkline_${kpiId}`;
                 const trendData = k.sparkline || [];
                 const trendChange = calculateTrend(trendData);
                 const isPositive = trendChange >= 0;
                 const emoji = getEmojiForKPI(k.label);
-                
-                console.log(`Building KPI ${idx}:`, k.label, 'sparkline:', trendData.length, 'points');
-                
+
                 const kpiDiv = document.createElement('div');
-                kpiDiv.className = 'kpi-card';
+                kpiDiv.className = `kpi-card ${pendingKpiReplaceLibraryId ? 'kpi-replace-target' : ''}`;
+                kpiDiv.id = kpiId;
                 kpiDiv.style.borderLeftColor = color;
-                
+                kpiDiv.setAttribute('onclick', `handleKpiCardClick('${kpiId}')`);
+
                 kpiDiv.innerHTML = `
-                    <div>
+                    <button class="widget-remove-btn" onclick="event.stopPropagation(); removeKpi('${kpiId}')" title="Remove KPI">x</button>
+                    <div class="widget-drag-handle" onmousedown="startWidgetDrag(event, '${kpiId}')">Move</div>
+                    <div class="kpi-card-content">
                         <div class="kpi-emoji">${emoji}</div>
                         <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${k.label}</div>
                         <div class="text-2xl font-bold text-white mt-1 mb-1">${k.value}</div>
                         <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
-                            ${isPositive ? '▲' : '▼'} ${Math.abs(trendChange).toFixed(1)}%
+                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}%
                         </div>
                     </div>
                     <div class="sparkline-container" id="${sparklineId}"></div>
                 `;
-                
+
                 kpiBox.appendChild(kpiDiv);
+                initWidgetInteractionsForElement(kpiDiv, kpiId, 'kpi');
             });
-            
+
             // Create sparklines after DOM is ready
             setTimeout(() => {
-                console.log('Starting sparkline creation...');
-                data.kpis.forEach((k, idx) => {
-                    const sparklineId = `sparkline_${idx}`;
+                data.kpis.forEach((k) => {
+                    const kpiId = ensureKpiId(k);
+                    const sparklineId = `sparkline_${kpiId}`;
                     const trendData = k.sparkline || [];
-                    
-                    // Verify container exists
+
                     const container = document.getElementById(sparklineId);
-                    console.log(`Checking ${sparklineId}:`, container ? 'EXISTS' : 'NOT FOUND');
-                    
-                    if (trendData.length === 0) {
-                        console.warn(`${sparklineId} has no data!`);
-                        return;
-                    }
-                    
+                    if (!container) return;
+                    if (trendData.length === 0) return;
+
                     const trendChange = calculateTrend(trendData);
                     const isPositive = trendChange >= 0;
-                    const trendColor = isPositive ? '#22c55e' : '#ef4444';
-                    
-                    console.log(`Creating sparkline ${sparklineId}:`, {
-                        data: trendData,
-                        color: trendColor,
-                        trend: trendChange.toFixed(2) + '%'
-                    });
-                    
+                    const trendColor = '#8b5cf6';
                     createSparkline(sparklineId, trendData, trendColor);
                 });
-            }, 500);
+            }, 180);
 
             // Charts
             const chartIds = ['chart_0', 'chart_1', 'chart_2', 'chart_3', 'chart_4'];
 
+            chartIds.forEach(id => {
+                const slot = document.getElementById(id);
+                if (slot) {
+                    slot.style.display = 'none';
+                    slot.style.transform = '';
+                    slot.style.width = '';
+                    slot.style.height = '';
+                    slot.innerHTML = '';
+                }
+            });
+
             data.charts.forEach((c, i) => {
-    if (i >= chartIds.length) return;
-    const id = chartIds[i];
-    const el = document.getElementById(id);
-    
-    console.log(`Rendering chart ${i}:`, c.type, c);
-    
-    if ((!c.x || c.x.length === 0) && (!c.labels || c.labels.length === 0) && (!c.source || c.source.length === 0)) {
-        el.innerHTML = `
-            <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
-                <div class="text-4xl mb-2">🔭</div>
-                <span class="text-xs font-mono opacity-50">No Data Available</span>
-            </div>
-            <div class="absolute top-3 left-4 text-xs font-bold text-slate-400">${c.title}</div>
-        `;
-        return;
-    }
-    
-    // ADD CONTROL BUTTONS (not for Sankey/Sunburst/Pie)
-    const showControls = !['sankey', 'sunburst', 'pie'].includes(c.type);
-    
-    el.innerHTML = `
-    <button class="expand-btn" onclick="expandChart('${c.id}')">🔍 Expand</button>
-    ${showControls ? `
-        <div class="chart-controls">
-            <button class="control-btn" onclick="swapAxes('${c.id}')" title="Swap X/Y Axes">
-                🔄
-            </button>
-            <button class="control-btn" onclick="changeChartType('${c.id}')" title="Toggle Chart Type">
-                📊
-            </button>
-            <button class="control-btn" onclick="sortChart('${c.id}')" title="Sort Data">
-                ⬆️
-            </button>
-            <button class="control-btn" onclick="resetChart('${c.id}')" title="Reset Chart">
-                ↩️
-            </button>
-        </div>
-    ` : ''}
-`;
-    
-    renderSingleChart(el, c, color, false);
-});
+                if (i >= chartIds.length) return;
+                const id = chartIds[i];
+                const slot = document.getElementById(id);
+                if (!slot) return;
+                c.id = id;
+                slot.style.display = 'flex';
+                console.log(`Rendering chart ${i}:`, c.type, c);
+                renderChartById(id);
+            });
+
+            renderChartLibrary();
+            updateDashboardSidebarLayout();
         }
 
         function adjustColor(color, amount) {
@@ -1481,64 +4571,17 @@ renderSingleChart(el, chart, color, false);
                 closeLogs();
             }
         });
-        async function exportToPowerBI() {
-    if (!currentData) {
-        alert('⚠️ Please upload and process a file first!');
-        return;
-    }
-    
-    console.log('📊 Starting Power BI export...');
-    
-    const btn = event.target;
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Generating Export...';
-    
-    try {
-        const formData = new FormData();
-        formData.append('dashboard_data', JSON.stringify(currentData));
-        
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        
-        const response = await fetch('/api/export-powerbi/', {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-CSRFToken': csrfToken }
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Export failed');
-        }
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        
-        const domain = currentData.domain || 'Dashboard';
-        const timestamp = new Date().toISOString().split('T')[0];
-        a.download = `${domain}_PowerBI_${timestamp}.zip`;
-        
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        console.log('✅ Export complete!');
-        alert(`✅ Export Successful!\n\nFile: ${domain}_PowerBI_${timestamp}.zip\n\nExtract and import the CSV into Power BI Desktop.`);
-        
-    } catch (error) {
-        console.error('❌ Export error:', error);
-        alert('❌ Export Failed!\n\n' + error.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
-}
+        window.addEventListener('resize', updateDashboardSidebarLayout);
     </script>
 </body>
 
 
 
 </html>
+
+
+
+
+
+
+
