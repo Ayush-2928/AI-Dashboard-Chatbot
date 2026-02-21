@@ -1891,30 +1891,31 @@ def execute_dashboard_logic_databricks(active_filters_json=None, session_id=None
             except Exception:
                 continue
 
-        kpis = plan.get("kpis", [])
-        valid_kpis = []
-        for kpi in kpis:
-            try:
-                kpi_sql = str(kpi.get("sql", "")).replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME)
-                df, guarded_sql = _execute_databricks_user_sql(
-                    connection,
-                    kpi_sql,
-                    source_table_base,
-                    query_source=source_table_query,
-                    where_sql=where_sql,
-                    logs=log,
-                    context=f"KPI {kpi.get('label', '')}",
-                )
-                val = 0
-                if not df.empty and df.shape[1] >= 1:
-                    raw_val = df.iloc[0, 0]
-                    val = 0 if pd.isna(raw_val) else raw_val
-                fmt = f"{val:,.0f}" if isinstance(val, (int, float)) else str(val)
+        def _run_kpi_spec(label, kpi_sql, trend_sql=None, context_prefix="KPI"):
+            label_text = str(label or "Metric").strip() or "Metric"
+            kpi_sql = str(kpi_sql or "").replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME).strip()
+            if not kpi_sql:
+                raise ValueError("Empty KPI SQL")
 
-                sparkline_data = []
-                trend_sql = kpi.get("trend_sql")
+            df, _ = _execute_databricks_user_sql(
+                connection,
+                kpi_sql,
+                source_table_base,
+                query_source=source_table_query,
+                where_sql=where_sql,
+                logs=log,
+                context=f"{context_prefix} {label_text}",
+            )
+
+            val = 0
+            if not df.empty and df.shape[1] >= 1:
+                raw_val = df.iloc[0, 0]
+                val = 0 if pd.isna(raw_val) else raw_val
+
+            sparkline_data = []
+            if trend_sql:
+                trend_sql = str(trend_sql).replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME).strip()
                 if trend_sql:
-                    trend_sql = str(trend_sql).replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME)
                     try:
                         trend_df, _ = _execute_databricks_user_sql(
                             connection,
@@ -1923,28 +1924,169 @@ def execute_dashboard_logic_databricks(active_filters_json=None, session_id=None
                             query_source=source_table_query,
                             where_sql=where_sql,
                             logs=log,
-                            context=f"KPI Trend {kpi.get('label', '')}",
+                            context=f"{context_prefix} Trend {label_text}",
                         )
                         if not trend_df.empty and trend_df.shape[1] >= 2:
                             sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=7)
                     except Exception as e:
-                        log.append(f"[WARN] KPI trend query failed for {kpi.get('label', '')}: {str(e)}")
+                        log.append(f"[WARN] KPI trend query failed for {label_text}: {str(e)}")
 
-                if not sparkline_data:
-                    base_val = float(val) if isinstance(val, (int, float)) else 0.0
-                    base_val = max(0.0, base_val)
-                    sparkline_data = [base_val] * 7
+            if not sparkline_data:
+                try:
+                    base_val = float(val)
+                except Exception:
+                    base_val = 0.0
+                sparkline_data = [max(0.0, base_val)] * 7
 
-                valid_kpis.append({
-                    "label": kpi.get("label", "Metric"),
-                    "value": fmt,
-                    "sparkline": sparkline_data,
-                })
+            return {
+                "label": label_text,
+                "value": _format_kpi_display_value(val),
+                "sparkline": [float(v) for v in sparkline_data],
+            }
+
+        filtered_row_count = 0
+        try:
+            count_df = fetch_dataframe(
+                connection,
+                f"SELECT COUNT(*) AS c FROM {source_table_query}" + (f" WHERE {where_sql}" if where_sql else ""),
+                readonly=True,
+            )
+            if not count_df.empty:
+                filtered_row_count = int(count_df.iloc[0].get("c") or 0)
+        except Exception as e:
+            log.append(f"[WARN] Could not compute filtered row count for KPI fallback: {str(e)}")
+
+        kpis = plan.get("kpis", [])
+        valid_kpis = []
+        used_labels = set()
+
+        for kpi in kpis:
+            label = str(kpi.get("label", "Metric")).strip() or "Metric"
+            label_key = label.lower()
+            if label_key in used_labels:
+                continue
+            try:
+                valid_kpis.append(
+                    _run_kpi_spec(
+                        label=label,
+                        kpi_sql=kpi.get("sql", ""),
+                        trend_sql=kpi.get("trend_sql"),
+                        context_prefix="KPI",
+                    )
+                )
+                used_labels.add(label_key)
             except Exception as e:
-                log.append(f"[WARN] KPI failed ({kpi.get('label', 'Metric')}): {str(e)}")
+                log.append(f"[WARN] KPI failed ({label}): {str(e)}")
+
+        preferred_numeric_names = [
+            "netamount",
+            "gross_value",
+            "total_value",
+            "amount",
+            "revenue",
+            "sales",
+            "invoicequantity",
+            "quantity",
+        ]
+        fallback_metric_col = None
+        if num_cols:
+            fallback_metric_col = num_cols[0]
+            for candidate in preferred_numeric_names:
+                matched = next((c for c in num_cols if str(c).lower() == candidate), None)
+                if matched:
+                    fallback_metric_col = matched
+                    break
+
+        entity_count_col = next((c for c in column_names if str(c).lower() in {"invoicenumber", "billdetailedrid", "inv_item_guid", "retaileruid"}), None)
+        fallback_kpis = [
+            {
+                "label": "Record Count",
+                "sql": f"SELECT COUNT(*) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
+                "trend_sql": f"SELECT CAST({_quote_identifier(date_column)} AS DATE) AS x, COUNT(*) AS y FROM {DATABRICKS_LOGICAL_VIEW_NAME} GROUP BY 1 ORDER BY 1" if date_column else "",
+            },
+            {
+                "label": "Distinct Invoices",
+                "sql": f"SELECT COUNT(DISTINCT {_quote_identifier(entity_count_col)}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
+                "trend_sql": f"SELECT CAST({_quote_identifier(date_column)} AS DATE) AS x, COUNT(DISTINCT {_quote_identifier(entity_count_col)}) AS y FROM {DATABRICKS_LOGICAL_VIEW_NAME} GROUP BY 1 ORDER BY 1" if date_column else "",
+            } if entity_count_col else None,
+            {
+                "label": f"Total {fallback_metric_col.replace('_', ' ').title()}",
+                "sql": f"SELECT SUM({_quote_identifier(fallback_metric_col)}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
+                "trend_sql": f"SELECT CAST({_quote_identifier(date_column)} AS DATE) AS x, SUM({_quote_identifier(fallback_metric_col)}) AS y FROM {DATABRICKS_LOGICAL_VIEW_NAME} GROUP BY 1 ORDER BY 1" if (date_column and fallback_metric_col) else "",
+            } if fallback_metric_col else None,
+            {
+                "label": f"Avg {fallback_metric_col.replace('_', ' ').title()}",
+                "sql": f"SELECT AVG({_quote_identifier(fallback_metric_col)}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
+                "trend_sql": f"SELECT CAST({_quote_identifier(date_column)} AS DATE) AS x, AVG({_quote_identifier(fallback_metric_col)}) AS y FROM {DATABRICKS_LOGICAL_VIEW_NAME} GROUP BY 1 ORDER BY 1" if (date_column and fallback_metric_col) else "",
+            } if fallback_metric_col else None,
+        ]
+
+        if filtered_row_count > 0:
+            for ncol in num_cols:
+                if not ncol:
+                    continue
+                ncol_key = str(ncol).lower()
+                if fallback_metric_col and ncol_key == str(fallback_metric_col).lower():
+                    continue
+                ncol_ident = _quote_identifier(ncol)
+                ncol_name = str(ncol).replace('_', ' ').title()
+                fallback_kpis.append({
+                    "label": f"Total {ncol_name}",
+                    "sql": f"SELECT SUM({ncol_ident}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
+                    "trend_sql": f"SELECT CAST({_quote_identifier(date_column)} AS DATE) AS x, SUM({ncol_ident}) AS y FROM {DATABRICKS_LOGICAL_VIEW_NAME} GROUP BY 1 ORDER BY 1" if date_column else "",
+                })
+                fallback_kpis.append({
+                    "label": f"Avg {ncol_name}",
+                    "sql": f"SELECT AVG({ncol_ident}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
+                    "trend_sql": f"SELECT CAST({_quote_identifier(date_column)} AS DATE) AS x, AVG({ncol_ident}) AS y FROM {DATABRICKS_LOGICAL_VIEW_NAME} GROUP BY 1 ORDER BY 1" if date_column else "",
+                })
+                if len(fallback_kpis) >= 16:
+                    break
+
+            for tcol in text_cols:
+                if not tcol:
+                    continue
+                tcol_ident = _quote_identifier(tcol)
+                tcol_name = str(tcol).replace('_', ' ').title()
+                fallback_kpis.append({
+                    "label": f"Distinct {tcol_name}",
+                    "sql": f"SELECT COUNT(DISTINCT {tcol_ident}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
+                    "trend_sql": "",
+                })
+                if len(fallback_kpis) >= 24:
+                    break
+
+        if filtered_row_count > 0 and len(valid_kpis) < 4:
+            for fallback_kpi in fallback_kpis:
+                if not fallback_kpi or len(valid_kpis) >= 4:
+                    continue
+                label = str(fallback_kpi["label"]).strip() or "Metric"
+                label_key = label.lower()
+                if label_key in used_labels:
+                    continue
+                try:
+                    valid_kpis.append(
+                        _run_kpi_spec(
+                            label=label,
+                            kpi_sql=fallback_kpi["sql"],
+                            trend_sql=fallback_kpi.get("trend_sql"),
+                            context_prefix="KPI Fallback",
+                        )
+                    )
+                    used_labels.add(label_key)
+                except Exception as e:
+                    log.append(f"[WARN] KPI fallback failed ({label}): {str(e)}")
 
         while len(valid_kpis) < 4:
-            valid_kpis.append({"label": f"Metric {len(valid_kpis)+1}", "value": "0", "sparkline": [0]*7})
+            if filtered_row_count <= 0:
+                valid_kpis.append({"label": "No Data", "value": "-", "sparkline": [0.0] * 7})
+            else:
+                valid_kpis.append({
+                    "label": f"Rows (Filtered) {len(valid_kpis)+1}",
+                    "value": _format_kpi_display_value(filtered_row_count),
+                    "sparkline": [float(filtered_row_count)] * 7,
+                })
+
         output["kpis"] = valid_kpis[:4]
 
         charts = plan.get("charts", [])[:5]
