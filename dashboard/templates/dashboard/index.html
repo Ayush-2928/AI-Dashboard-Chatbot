@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -16,34 +16,35 @@
             font-family: 'Outfit', system-ui, -apple-system, sans-serif; 
             margin: 0; padding: 0;
             height: 100vh;
-            overflow: hidden; 
+            overflow: hidden;
         }
         
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            grid-template-rows: 60px 60px 112px minmax(0, 1fr) minmax(0, 0.95fr); 
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-rows: auto minmax(60px, auto) minmax(112px, auto) minmax(0, 1fr) minmax(0, 0.95fr); 
             gap: 16px;
+            min-height: 100vh;
             height: 100vh;
-            padding: 20px;
+            padding: 20px 20px 20px 20px;
             box-sizing: border-box;
             overflow-y: auto;
             overflow-x: hidden;
-            align-content: start;
+            align-content: stretch;
         }
 
         .dashboard-grid.with-chatbot-dock {
-            padding-bottom: 110px;
+            padding-bottom: 180px;
         }
 
-        .col-span-3 { grid-column: span 3; }
+        .full-span { grid-column: 1 / -1 !important; }
 
         .dashboard-grid > * {
             min-width: 0;
             min-height: 0;
         }
         
-        #chart_0 { grid-column: span 2; }
+        #chart_0 { grid-column: span 1; }
         #chart_1 { grid-column: span 1; }
         #chart_2 { grid-column: span 1; }
         #chart_3 { grid-column: span 1; }
@@ -72,6 +73,14 @@
 
         .glass-panel:hover .expand-btn {
             opacity: 1;
+        }
+
+        .glass-panel.chart-empty-slot {
+            background: transparent !important;
+            backdrop-filter: none !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+            padding: 0 !important;
         }
 
         .expand-btn {
@@ -362,10 +371,9 @@
             border-color: #8b5cf6;
             box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.52), 0 12px 28px rgba(2, 132, 199, 0.32);
         }
-
         .filter-scroll {
-            overflow-x: auto;
-            white-space: nowrap;
+            overflow: visible;
+            white-space: normal;
             scrollbar-width: thin;
             scrollbar-color: #475569 #1e293b;
         }
@@ -701,6 +709,34 @@
     text-align: right;
 }
 
+.chatbot-close-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.2);
+    color: rgba(203, 213, 225, 0.8);
+    font-size: 10px;
+    line-height: 14px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.chatbot-dock:hover .chatbot-close-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.chatbot-close-btn:hover {
+    background: rgba(127, 29, 29, 0.42);
+    border-color: rgba(239, 68, 68, 0.45);
+    color: #fee2e2;
+}
+
 .custom-chart-popup {
     position: fixed;
     width: min(620px, calc(100vw - 30px));
@@ -733,6 +769,34 @@
     font-size: 13px;
     font-weight: 700;
     color: #f8fafc;
+}
+
+.popup-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.popup-action-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+.custom-replace-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.custom-replace-select {
+    flex: 1;
+    min-width: 0;
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 8px;
+    padding: 7px 9px;
+    color: #e2e8f0;
+    font-size: 11px;
 }
 
 .custom-chart-body {
@@ -1064,11 +1128,34 @@
             background: rgba(255, 255, 255, 0.02) !important;
             border: 1px solid var(--app-border);
         }
-
-
         #filter-container {
             background: rgba(18, 16, 24, 0.96) !important;
             border: 1px solid rgba(34, 197, 94, 0.22) !important;
+            display: flex;
+            align-items: flex-start;
+            flex-wrap: nowrap;
+            gap: 12px;
+        }
+
+        #filter-left-block {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+            min-width: fit-content;
+        }
+
+        #dynamic-filter-host {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        #dynamic-filter-controls {
+            display: flex;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 8px;
+            width: 100%;
         }
 
         .filter-chip {
@@ -1107,6 +1194,90 @@
             box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.28);
         }
 
+        .filter-dropdown {
+            position: relative;
+            min-width: 180px;
+        }
+
+        .filter-dropdown-toggle {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(34, 197, 94, 0.32);
+            color: #e9ddff;
+            border-radius: 8px;
+            font-size: 12px;
+            padding: 5px 10px;
+            outline: none;
+            cursor: pointer;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .filter-dropdown-menu {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            min-width: 230px;
+            max-width: min(360px, calc(100vw - 16px));
+            background: #17191f;
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+            padding: 8px;
+            z-index: 5000;
+            display: none;
+        }
+
+        .filter-dropdown-menu.open {
+            display: block;
+        }
+
+        .filter-dropdown-search {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            color: #e9ddff;
+            border-radius: 8px;
+            font-size: 12px;
+            padding: 6px 8px;
+            outline: none;
+            margin-bottom: 6px;
+        }
+
+        .filter-dropdown-options {
+            max-height: 210px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-dropdown-option {
+            border: 1px solid rgba(34, 197, 94, 0.18);
+            background: rgba(255, 255, 255, 0.02);
+            color: #ddd6fe;
+            border-radius: 8px;
+            padding: 6px 8px;
+            font-size: 12px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .filter-dropdown-option:hover,
+        .filter-dropdown-option.active {
+            border-color: rgba(74, 222, 128, 0.7);
+            background: rgba(34, 197, 94, 0.12);
+            color: #fff;
+        }
+
+        .filter-dropdown-empty {
+            color: #94a3b8;
+            font-size: 11px;
+            padding: 6px 4px;
+        }
+
         .filter-chip-remove {
             border: none;
             background: transparent;
@@ -1119,6 +1290,21 @@
 
         .filter-chip-remove:hover {
             color: #fda4af;
+        }
+
+        .filter-chip-search {
+            border: 1px solid rgba(34, 197, 94, 0.32);
+            background: rgba(255, 255, 255, 0.03);
+            color: #e9ddff;
+            border-radius: 8px;
+            font-size: 11px;
+            padding: 5px 8px;
+            cursor: pointer;
+        }
+
+        .filter-chip-search:hover {
+            border-color: rgba(74, 222, 128, 0.85);
+            color: #ffffff;
         }
 
         .filter-clear-btn {
@@ -1442,7 +1628,7 @@
 
     <div id="dashboard-screen" class="hidden dashboard-grid">
         
-        <div class="col-span-3 flex justify-between items-center border-b border-slate-800/50 pb-2">
+        <div class="full-span flex justify-between items-center border-b border-slate-800/50 pb-2">
             <div>
                 <h1 id="domain-title" class="text-3xl font-bold text-white">
                     <span id="dashboard-title-text" class="dashboard-title-text">AI Dashboard</span>
@@ -1455,7 +1641,7 @@
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500">|</span>
                         <button onclick="toggleLogs()" class="text-xs text-slate-500 hover:text-emerald-300 transition-colors">
-                            📋 View Logs
+                            View Logs
                         </button>
                     </div>
                 </div>
@@ -1468,8 +1654,8 @@
                 <button id="open-ai-chart-btn" onclick="toggleChatbotDock()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
                     AI Chart Generation
                 </button>
-                <button id="reset-dashboard-btn" onclick="resetDashboardToOriginal()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-amber-500 flex items-center gap-2">
-                    Reset Dashboard
+                <button id="reset-dashboard-btn" onclick="rearrangeDashboardLayout()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-amber-500 flex items-center gap-2">
+                    Rearrange Dashboard
                 </button>
                 <button onclick="location.reload()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
                     New Analysis
@@ -1477,21 +1663,23 @@
             </div>
         </div>
 
-        <div class="col-span-3 flex items-center gap-3 bg-slate-800/30 p-3 rounded-xl filter-scroll" id="filter-container">
-            <span class="text-xs font-bold text-slate-500 uppercase flex-shrink-0 mr-2">🎯 Filters:</span>
-            
-            <div class="date-input-wrapper flex-shrink-0" id="date-filter-container" style="display: none;">
-                <span class="text-lg">📅</span>
-                <input type="date" id="start-date" class="focus:outline-none cursor-pointer" onchange="handleDateChange()">
-                <span class="text-slate-500 text-xs">→</span>
-                <input type="date" id="end-date" class="focus:outline-none cursor-pointer" onchange="handleDateChange()">
+                <div class="full-span bg-slate-800/30 p-3 rounded-xl filter-scroll" id="filter-container">
+            <div id="filter-left-block">
+                <span class="text-xs font-bold text-slate-500 uppercase flex-shrink-0 mr-2">Filters:</span>
+                
+                <div class="date-input-wrapper flex-shrink-0" id="date-filter-container" style="display: none;">
+                    <select id="date-column-select" class="filter-chip-select date-column-select" onchange="handleDateColumnChange()"></select>
+                    <input type="date" id="start-date" class="focus:outline-none cursor-pointer" onchange="handleDateChange()">
+                    <span class="text-slate-500 text-xs">-></span>
+                    <input type="date" id="end-date" class="focus:outline-none cursor-pointer" onchange="handleDateChange()">
+                </div>
+                
+                <div class="w-px h-4 bg-slate-700 mx-2 flex-shrink-0" id="date-separator" style="display: none;"></div>
             </div>
-            
-            <div class="w-px h-4 bg-slate-700 mx-2 flex-shrink-0" id="date-separator" style="display: none;"></div>
-            
+            <div id="dynamic-filter-host"></div>
         </div>
 
-        <div class="col-span-3 grid grid-cols-4 gap-4" id="kpi-container">
+        <div class="full-span grid grid-cols-4 gap-4" id="kpi-container">
         </div>
 
         <div id="chart_0" class="glass-panel"></div>
@@ -1544,16 +1732,25 @@
         >
         <button id="chart-request-btn" class="chatbot-button" onclick="submitChatbotRequest()">Generate Chart</button>
         <div id="chart-request-status" class="chatbot-status"></div>
+        <button class="chatbot-close-btn" onclick="closeChatbotDock()" title="Close AI Chatbox">x</button>
     </div>
 
     <div id="custom-chart-popup" class="custom-chart-popup" style="display: none;">
         <div id="custom-chart-header" class="custom-chart-header">
             <div id="custom-chart-title" class="custom-chart-title">Custom Chart</div>
-            <button class="close-btn" onclick="closeCustomChartPopup()">Close</button>
+            <div class="popup-header-actions">
+                <button class="chatbot-button popup-action-btn" onclick="insertCustomChartFromPopup()">Insert</button>
+                <button class="chatbot-button popup-action-btn" onclick="enableCustomChartReplaceMode()">Replace</button>
+                <button class="close-btn" onclick="closeCustomChartPopup()">Close</button>
+            </div>
         </div>
         <div class="custom-chart-body">
             <div id="custom-chart-plot" class="custom-chart-plot"></div>
-            <div class="custom-chart-note">Drag this window by the header and drop it on any chart tile to replace that chart.</div>
+            <div id="custom-chart-replace-row" class="custom-replace-row" style="display:none;">
+                <select id="custom-chart-replace-select" class="custom-replace-select"></select>
+                <button class="chatbot-button popup-action-btn" onclick="applyCustomChartReplaceSelection()">Replace Selected</button>
+            </div>
+            <div class="custom-chart-note">Click Insert to add this chart, or click Replace to choose which chart to replace.</div>
             <div class="custom-chart-sql-row">
                 <div id="custom-chart-sql" class="custom-chart-sql"></div>
                 <button id="copy-custom-sql-btn" class="chatbot-button copy-sql-btn" onclick="copyCustomChartSql()">Copy SQL</button>
@@ -1563,11 +1760,19 @@
 
     <div id="custom-kpi-popup" class="custom-kpi-popup" style="display: none;">
         <div id="custom-kpi-header" class="custom-kpi-header">
-            <div class="custom-chart-title">KPI Replace</div>
-            <button class="close-btn" onclick="closeCustomKpiPopup()">Close</button>
+            <div id="custom-kpi-title" class="custom-chart-title">KPI</div>
+            <div class="popup-header-actions">
+                <button class="chatbot-button popup-action-btn" onclick="insertCustomKpiFromPopup()">Insert</button>
+                <button class="chatbot-button popup-action-btn" onclick="enableCustomKpiReplaceMode()">Replace</button>
+                <button class="close-btn" onclick="closeCustomKpiPopup()">Close</button>
+            </div>
         </div>
         <div class="custom-kpi-body" id="custom-kpi-body"></div>
-        <div class="custom-chart-note" style="padding: 0 10px 10px 10px;">Drag this popup to a KPI card to replace it.</div>
+        <div id="custom-kpi-replace-row" class="custom-replace-row" style="display:none; padding: 0 10px 10px 10px;">
+            <select id="custom-kpi-replace-select" class="custom-replace-select"></select>
+            <button class="chatbot-button popup-action-btn" onclick="applyCustomKpiReplaceSelection()">Replace Selected</button>
+        </div>
+        <div class="custom-chart-note" style="padding: 0 10px 10px 10px;">Click Insert to add this KPI, or click Replace to choose which KPI to replace.</div>
     </div>
 
     <!-- Modal for expanded chart -->
@@ -1575,7 +1780,7 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h2 id="modal-title" class="text-2xl font-bold text-white">Chart</h2>
-                <button class="close-btn" onclick="closeModal()">✕ Close</button>
+                <button class="close-btn" onclick="closeModal()">x Close</button>
             </div>
             <div class="modal-body" id="modal-chart-container">
             </div>
@@ -1586,8 +1791,8 @@
     <div id="logs-modal" class="modal-overlay" style="display: none;" onclick="closeLogs(event)">
         <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 900px;">
             <div class="modal-header">
-                <h2 class="text-xl font-bold text-white">📋 Backend Logs & Table Information</h2>
-                <button class="close-btn" onclick="closeLogs()">✕ Close</button>
+                <h2 class="text-xl font-bold text-white">Backend Logs & Table Information</h2>
+                <button class="close-btn" onclick="closeLogs()">x Close</button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <div id="logs-content" class="font-mono text-xs space-y-2">
@@ -1606,11 +1811,12 @@
         let customPopupKpi = null;
         let customKpiPopupDragging = false;
         let customKpiPopupOffset = { x: 0, y: 0 };
-        const chartSlotIds = ['chart_0', 'chart_1', 'chart_2', 'chart_3', 'chart_4'];
+        let chartSlotIds = ['chart_0', 'chart_1', 'chart_2', 'chart_3', 'chart_4'];
         let chartLibrary = [];
         let chartLibrarySeq = 0;
         let activeLibraryId = null;
         let customPopupSourceLibraryId = null;
+        let customPopupKpiSourceLibraryId = null;
         let pendingKpiReplaceLibraryId = null;
         let kpiSeq = 0;
         let isChartSidebarOpen = false;
@@ -1621,6 +1827,8 @@
         let widgetResizeState = null;
         let availableFilterDefs = [];
         let selectedFilterColumns = [];
+        let filterDropdownGlobalBound = false;
+        let lastAppliedFilterSignature = '';
         let originalDashboardState = null;
         let processAbortController = null;
         let processRequestToken = 0;
@@ -1630,7 +1838,7 @@
             activeFilters: {},
             selectedFilterColumns: []
         };
-        const RESERVED_FILTER_KEYS = new Set(['_start_date', '_end_date']);
+        const RESERVED_FILTER_KEYS = new Set(['_start_date', '_end_date', '_date_column']);
         const FIXED_THEME = {
             color: '#22c55e',
             gradientClass: 'from-emerald-400 to-green-500'
@@ -1640,21 +1848,194 @@
             return FIXED_THEME.color;
         }
 
+        function ensureChartSlots(requiredCount = 0) {
+            const dashboard = document.getElementById('dashboard-screen');
+            if (!dashboard) return;
+
+            const target = Math.max(0, Number(requiredCount) || 0);
+            while (chartSlotIds.length < target) {
+                const nextId = `chart_${chartSlotIds.length}`;
+                const el = document.createElement('div');
+                el.id = nextId;
+                el.className = 'glass-panel';
+                el.style.display = 'none';
+
+                const prevId = chartSlotIds.length ? chartSlotIds[chartSlotIds.length - 1] : null;
+                const prevEl = prevId ? document.getElementById(prevId) : null;
+                if (prevEl && prevEl.parentElement === dashboard) {
+                    prevEl.insertAdjacentElement('afterend', el);
+                } else {
+                    dashboard.appendChild(el);
+                }
+
+                chartSlotIds.push(nextId);
+            }
+        }
+
+        function _resolveChartSpan(chart, index, totalCount, rowSize = 4, posInRow = 0) {
+            // Fill every row completely based on number of charts in that row.
+            // 1 chart -> 4, 2 charts -> 2+2, 3 charts -> 2+1+1, 4 charts -> 1+1+1+1
+            if (rowSize <= 1) return 4;
+            if (rowSize == 2) return 2;
+            if (rowSize == 3) return posInRow == 0 ? 2 : 1;
+            return 1;
+        }
+
+        function _resolveChartMinHeight(chart, span, totalCount, index) {
+            const raw = Number(chart && chart._layoutMinH);
+            if (Number.isFinite(raw) && raw > 0) {
+                return Math.max(88, Math.round(raw));
+            }
+            if (index === 0 && span >= 2) return 142;
+            return 130;
+        }
+
+        function _buildChartRowsForCompaction(charts, maxPerRow = 4) {
+            const rows = [];
+            let idx = 0;
+
+            // Initial dashboard layout: row1 has 2 charts (chart_0 + one small), row2 has 3 for 5-chart dashboard.
+            if (charts.length >= 5) {
+                const firstItems = charts.slice(0, 2).map((chart, pos) => ({
+                    chart,
+                    index: pos,
+                    span: _resolveChartSpan(chart, pos, charts.length, 2, pos),
+                }));
+                rows.push({ start: 0, items: firstItems, count: firstItems.length, used: 4 });
+                idx = 2;
+            }
+
+            while (idx < charts.length) {
+                const remaining = charts.length - idx;
+                let take = Math.min(maxPerRow, remaining);
+                if ((remaining - take) == 1 && take > 2) {
+                    take -= 1;
+                }
+
+                const items = charts.slice(idx, idx + take).map((chart, pos) => ({
+                    chart,
+                    index: idx + pos,
+                    span: _resolveChartSpan(chart, idx + pos, charts.length, take, pos),
+                }));
+
+                rows.push({
+                    start: idx,
+                    items,
+                    count: take,
+                    used: items.reduce((s, it) => s + (it.span || 1), 0),
+                });
+                idx += take;
+            }
+            return rows;
+        }
+
+        function makeSpaceForInsertedChart(charts) {
+            if (!Array.isArray(charts) || charts.length === 0) return 0;
+
+            const maxPerRow = 4;
+            const rows = _buildChartRowsForCompaction(charts, maxPerRow);
+            if (!rows.length) return charts.length;
+
+            const availableRows = rows.filter(r => r.count < maxPerRow);
+            let targetRow = null;
+
+            if (rows.length >= 2 && rows[0].count === rows[1].count && rows[0].count < maxPerRow) {
+                targetRow = rows[0];
+            } else if (availableRows.length) {
+                targetRow = availableRows[0];
+                availableRows.forEach(r => {
+                    if (r.count < targetRow.count || (r.count == targetRow.count && r.start < targetRow.start)) {
+                        targetRow = r;
+                    }
+                });
+            }
+
+            if (!targetRow) {
+                // All existing rows are full -> append in a new row.
+                return charts.length;
+            }
+
+            // Reduce dimensions for the target row before insertion (larger charts reduced more).
+            targetRow.items.forEach(({ chart, index, span }) => {
+                const currentH = _resolveChartMinHeight(chart, span, charts.length, index);
+                const reduction = span >= 2 ? 24 : 14;
+                chart._layoutMinH = Math.max(88, currentH - reduction);
+            });
+
+            return targetRow.start + targetRow.count;
+        }
+
+        function applyAdaptiveInsertLayout(data, options = {}) {
+            const charts = Array.isArray(data?.charts) ? data.charts : [];
+            const rows = _buildChartRowsForCompaction(charts, 4);
+            const preferStored = options.preferStored !== false;
+
+            const spanByIndex = new Map();
+            rows.forEach((row) => {
+                const desired = row.items.map((item, pos) => {
+                    const fallbackSpan = _resolveChartSpan(item.chart, item.index, charts.length, row.count, pos);
+                    const storedSpanRaw = Number(item.chart && item.chart._layoutSpan);
+                    const storedSpan = Number.isFinite(storedSpanRaw) && storedSpanRaw > 0
+                        ? Math.round(storedSpanRaw)
+                        : null;
+                    const base = (preferStored && storedSpan) ? storedSpan : fallbackSpan;
+                    return Math.max(1, Math.min(4, base));
+                });
+
+                let used = desired.reduce((s, n) => s + n, 0);
+                while (used > 4) {
+                    let reduceIdx = -1;
+                    let reduceSpan = 0;
+                    for (let i = 0; i < desired.length; i++) {
+                        if (desired[i] > 1 && desired[i] > reduceSpan) {
+                            reduceSpan = desired[i];
+                            reduceIdx = i;
+                        }
+                    }
+                    if (reduceIdx < 0) break;
+                    desired[reduceIdx] -= 1;
+                    used -= 1;
+
+                    const chartToShrink = row.items[reduceIdx] && row.items[reduceIdx].chart;
+                    const currentH = Number(chartToShrink && chartToShrink._layoutMinH);
+                    if (Number.isFinite(currentH) && currentH > 0) {
+                        chartToShrink._layoutMinH = Math.max(88, Math.round(currentH - 10));
+                    }
+                }
+
+                row.items.forEach((item, pos) => {
+                    const span = desired[pos] || 1;
+                    if (item.chart) item.chart._layoutSpan = span;
+                    spanByIndex.set(item.index, span);
+                });
+            });
+
+            chartSlotIds.forEach((id, idx) => {
+                const panel = document.getElementById(id);
+                if (!panel || panel.style.display === 'none') return;
+                const chart = idx < charts.length ? charts[idx] : null;
+                if (!chart) return;
+
+                const span = spanByIndex.get(idx) || 1;
+                panel.style.gridColumn = `span ${span}`;
+                panel.style.minHeight = `${_resolveChartMinHeight(chart, span, charts.length, idx)}px`;
+            });
+        }
 
         const KPI_EMOJIS = {
-            "total": "📊", "revenue": "💵", "sales": "💰", "profit": "📈",
-            "loss": "📉", "count": "🔢", "records": "📄", "amount": "💲",
-            "spend": "💸", "customer": "👤", "order": "ðï¸", "product": "📦",
-            "cost": "💳", "price": "ð·ï¸", "quantity": "📊", "employee": "ð¨âð¼",
-            "campaign": "📢", "conversion": "✅", "growth": "📈"
+            "total": "\uD83D\uDCCA", "revenue": "\uD83D\uDCB5", "sales": "\uD83D\uDCB0", "profit": "\uD83D\uDCC8",
+            "loss": "\uD83D\uDCC9", "count": "\uD83D\uDD22", "records": "\uD83D\uDCC4", "amount": "\uD83D\uDCB2",
+            "spend": "\uD83D\uDCB8", "customer": "\uD83D\uDC64", "order": "\uD83D\uDED2", "product": "\uD83D\uDCE6",
+            "cost": "\uD83D\uDCB3", "price": "\uD83C\uDFF7\uFE0F", "quantity": "\uD83D\uDCCA", "employee": "\uD83D\uDC68\u200D\uD83D\uDCBC",
+            "campaign": "\uD83D\uDCE3", "conversion": "\u2705", "growth": "\uD83D\uDCC8"
         };
 
         function getEmojiForKPI(label) {
-            const lowerLabel = label.toLowerCase();
-            for (const [key, emoji] of Object.entries(KPI_EMOJIS)) {
-                if (lowerLabel.includes(key)) return emoji;
+            const lowerLabel = String(label || '').toLowerCase();
+            for (const [key, icon] of Object.entries(KPI_EMOJIS)) {
+                if (lowerLabel.includes(key)) return icon;
             }
-            return "📊";
+            return "\uD83D\uDCCA";
         }
 
         async function initDatabricksMode() {
@@ -1666,6 +2047,7 @@
             chartLibrarySeq = 0;
             activeLibraryId = null;
             customPopupSourceLibraryId = null;
+            customPopupKpiSourceLibraryId = null;
             originalDashboardState = null;
             renderChartLibrary();
             closeCustomChartPopup();
@@ -1684,6 +2066,7 @@
             chartLibrarySeq = 0;
             activeLibraryId = null;
             customPopupSourceLibraryId = null;
+            customPopupKpiSourceLibraryId = null;
             pendingKpiReplaceLibraryId = null;
             originalDashboardState = null;
 
@@ -1730,6 +2113,7 @@
                 activeFilters: {},
                 selectedFilterColumns: [],
             };
+            lastAppliedFilterSignature = getFilterSignature();
 
             const status = document.getElementById('chart-request-status');
             if (status) {
@@ -1789,9 +2173,21 @@
             const endDate = document.getElementById('end-date');
             const dateRange = currentData && currentData.date_range ? currentData.date_range : {};
 
-            if (startDate) startDate.value = activeFilters['_start_date'] || dateRange.min || '';
-            if (endDate) endDate.value = activeFilters['_end_date'] || dateRange.max || '';
+            if (startDate) {
+                startDate.value = activeFilters['_start_date'] || dateRange.min || '';
+                startDate.dataset.appliedValue = String(startDate.value || '');
+            }
+            if (endDate) {
+                endDate.value = activeFilters['_end_date'] || dateRange.max || '';
+                endDate.dataset.appliedValue = String(endDate.value || '');
+            }
 
+            const dateColSel = document.getElementById('date-column-select');
+            if (dateColSel) {
+                dateColSel.dataset.appliedValue = String(activeFilters['_date_column'] || dateColSel.value || '');
+            }
+
+            lastAppliedFilterSignature = getFilterSignature();
             setChartsLoadingOpacity(1);
         }
 
@@ -1862,13 +2258,19 @@
                     };
                 });
 
-                currentData = data;
+                const nextData = (isFilterRequest && currentData)
+                    ? mergeFilteredResponseIntoCurrentData(currentData, data)
+                    : data;
+
+                currentData = nextData;
                 dataSourceMode = 'databricks';
-                closeCustomChartPopup();
-                closeCustomKpiPopup();
+                if (!isFilterRequest) {
+                    closeCustomChartPopup();
+                    closeCustomKpiPopup();
+                }
                 document.getElementById('chart-request-status').textContent = '';
                 updateChatbotModeUI();
-                renderDashboard(data);
+                renderDashboard(nextData);
 
                 originalDashboardState = {
                     data: cloneDashboardPayload(currentData),
@@ -1879,6 +2281,7 @@
                     activeFilters: { ...activeFilters },
                     selectedFilterColumns: [...selectedFilterColumns],
                 };
+                lastAppliedFilterSignature = getFilterSignature();
                 setChartsLoadingOpacity(1);
             } catch (e) {
                 if (e && e.name === 'AbortError') {
@@ -1912,11 +2315,17 @@
 
             const dateBox = document.getElementById('date-filter-container');
             const dateSep = document.getElementById('date-separator');
+            const dateColumnSelect = document.getElementById('date-column-select');
             const startDate = document.getElementById('start-date');
             const endDate = document.getElementById('end-date');
 
             if (dateBox) dateBox.style.display = 'none';
             if (dateSep) dateSep.style.display = 'none';
+            if (dateColumnSelect) {
+                dateColumnSelect.innerHTML = '';
+                dateColumnSelect.value = '';
+                dateColumnSelect.dataset.appliedValue = '';
+            }
             if (startDate) startDate.value = '';
             if (endDate) endDate.value = '';
         }
@@ -1950,17 +2359,151 @@
             selectedFilterColumns = [...new Set(selectedFilterColumns)];
             renderEditableFilters();
         }
+        function closeAllFilterDropdowns(exceptMenu = null) {
+            document.querySelectorAll('.filter-dropdown-menu.open').forEach(menu => {
+                if (exceptMenu && menu === exceptMenu) return;
+                menu.classList.remove('open');
+            });
+        }
+
+        function createSearchableFilterDropdown({
+            placeholder = '',
+            options = [],
+            selectedValue = '',
+            onSelect = null,
+            searchPlaceholder = 'Search...'
+        } = {}) {
+            const root = document.createElement('div');
+            root.className = 'filter-dropdown';
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'filter-dropdown-toggle';
+
+            const menu = document.createElement('div');
+            menu.className = 'filter-dropdown-menu';
+
+            const searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.className = 'filter-dropdown-search';
+            searchInput.placeholder = searchPlaceholder;
+
+            const optionsBox = document.createElement('div');
+            optionsBox.className = 'filter-dropdown-options';
+
+            menu.appendChild(searchInput);
+            menu.appendChild(optionsBox);
+            root.appendChild(toggle);
+            root.appendChild(menu);
+
+            const positionMenu = () => {
+                const rect = toggle.getBoundingClientRect();
+                const menuWidth = Math.max(230, Math.ceil(rect.width));
+                const estimatedHeight = Math.min(320, Math.max(120, 42 + (options.length * 30)));
+
+                let left = rect.left;
+                if (left + menuWidth > window.innerWidth - 8) {
+                    left = Math.max(8, window.innerWidth - menuWidth - 8);
+                }
+                if (left < 8) left = 8;
+
+                let top = rect.bottom + 6;
+                if (top + estimatedHeight > window.innerHeight - 8) {
+                    top = Math.max(8, rect.top - estimatedHeight - 6);
+                }
+
+                menu.style.left = `${Math.round(left)}px`;
+                menu.style.top = `${Math.round(top)}px`;
+                menu.style.minWidth = `${menuWidth}px`;
+            };
+
+            const onViewportChange = () => {
+                if (menu.classList.contains('open')) positionMenu();
+            };
+            window.addEventListener('resize', onViewportChange);
+            window.addEventListener('scroll', onViewportChange, true);
+
+            let currentValue = selectedValue !== undefined && selectedValue !== null ? String(selectedValue) : '';
+
+            const getSelectedLabel = () => {
+                const found = options.find(opt => String(opt.value) === String(currentValue));
+                return found ? String(found.label) : String(placeholder || 'Select');
+            };
+
+            const renderOptionList = () => {
+                const q = String(searchInput.value || '').trim().toLowerCase();
+                optionsBox.innerHTML = '';
+                const filtered = options.filter(opt => String(opt.label || '').toLowerCase().includes(q));
+
+                if (!filtered.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'filter-dropdown-empty';
+                    empty.textContent = 'No matching options';
+                    optionsBox.appendChild(empty);
+                    return;
+                }
+
+                filtered.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'filter-dropdown-option';
+                    if (String(opt.value) === String(currentValue)) btn.classList.add('active');
+                    btn.textContent = String(opt.label);
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const nextVal = String(opt.value);
+                        const prevVal = String(currentValue);
+                        currentValue = nextVal;
+                        toggle.textContent = getSelectedLabel();
+                        menu.classList.remove('open');
+                        if (typeof onSelect === 'function') {
+                            onSelect(nextVal, prevVal, opt);
+                        }
+                    };
+                    optionsBox.appendChild(btn);
+                });
+            };
+
+            toggle.textContent = getSelectedLabel();
+            toggle.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const willOpen = !menu.classList.contains('open');
+                closeAllFilterDropdowns(willOpen ? menu : null);
+                if (willOpen) {
+                    menu.classList.add('open');
+                    searchInput.value = '';
+                    renderOptionList();
+                    positionMenu();
+                    setTimeout(() => searchInput.focus(), 0);
+                } else {
+                    menu.classList.remove('open');
+                }
+            };
+
+            searchInput.oninput = () => renderOptionList();
+            menu.addEventListener('click', (e) => e.stopPropagation());
+
+            if (!filterDropdownGlobalBound) {
+                document.addEventListener('click', () => closeAllFilterDropdowns());
+                filterDropdownGlobalBound = true;
+            }
+
+            renderOptionList();
+            return root;
+        }
 
         function renderEditableFilters() {
-            const filterBox = document.getElementById('filter-container');
-            if (!filterBox) return;
+            const filterHost = document.getElementById('dynamic-filter-host');
+            if (!filterHost) return;
 
             const old = document.getElementById('dynamic-filter-controls');
             if (old) old.remove();
 
             const controls = document.createElement('div');
             controls.id = 'dynamic-filter-controls';
-            controls.className = 'flex items-center gap-2 flex-wrap';
+            controls.className = 'items-start';
 
             selectedFilterColumns.forEach(column => {
                 const def = getFilterDef(column);
@@ -1968,8 +2511,8 @@
 
                 const label = def.label || column;
                 const values = Array.isArray(def.values) ? def.values : [];
-                const activeValue = activeFilters[column];
-                if (activeValue !== undefined && !values.map(String).includes(String(activeValue))) {
+                const activeValue = activeFilters[column] !== undefined ? String(activeFilters[column]) : '';
+                if (activeValue && !values.map(String).includes(activeValue)) {
                     delete activeFilters[column];
                 }
 
@@ -1980,24 +2523,19 @@
                 name.className = 'filter-chip-label';
                 name.textContent = label;
 
-                const sel = document.createElement('select');
-                sel.className = 'filter-chip-select';
-                sel.dataset.column = column;
-                sel.onchange = handleFilterChange;
-
-                const allOpt = document.createElement('option');
-                allOpt.value = '';
-                allOpt.textContent = `All ${label}`;
-                sel.appendChild(allOpt);
-
-                values.forEach(v => {
-                    const opt = document.createElement('option');
-                    opt.value = String(v);
-                    opt.textContent = String(v);
-                    sel.appendChild(opt);
+                const dropdown = createSearchableFilterDropdown({
+                    placeholder: `All ${label}`,
+                    options: [{ value: '', label: `All ${label}` }, ...values.map(v => ({ value: String(v), label: String(v) }))],
+                    selectedValue: activeFilters[column] !== undefined ? String(activeFilters[column]) : '',
+                    searchPlaceholder: `Search ${label}...`,
+                    onSelect: (nextVal, prevVal) => {
+                        if (String(nextVal) === String(prevVal)) return;
+                        if (!nextVal) delete activeFilters[column];
+                        else activeFilters[column] = nextVal;
+                        renderEditableFilters();
+                        updateUIState();
+                    }
                 });
-
-                sel.value = activeFilters[column] !== undefined ? String(activeFilters[column]) : '';
 
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'filter-chip-remove';
@@ -2006,35 +2544,27 @@
                 removeBtn.onclick = () => removeFilterColumn(column);
 
                 chip.appendChild(name);
-                chip.appendChild(sel);
+                chip.appendChild(dropdown);
                 chip.appendChild(removeBtn);
                 controls.appendChild(chip);
             });
 
-            const addSel = document.createElement('select');
-            addSel.className = 'filter-add-select';
-            addSel.innerHTML = '<option value="">+ Add Filter</option>';
-
-            availableFilterDefs
-                .filter(f => f && !selectedFilterColumns.includes(f.column))
-                .forEach(f => {
-                    const opt = document.createElement('option');
-                    opt.value = f.column;
-                    opt.textContent = f.label || f.column;
-                    addSel.appendChild(opt);
-                });
-
-            addSel.onchange = () => {
-                const col = addSel.value;
-                if (!col) return;
-                if (!selectedFilterColumns.includes(col)) {
-                    selectedFilterColumns.push(col);
+            const addCandidates = availableFilterDefs.filter(f => f && !selectedFilterColumns.includes(f.column));
+            const addDropdown = createSearchableFilterDropdown({
+                placeholder: '+ Add Filter',
+                options: addCandidates.map(f => ({ value: String(f.column), label: String(f.label || f.column) })),
+                selectedValue: '',
+                searchPlaceholder: 'Search filter columns...',
+                onSelect: (nextVal) => {
+                    const col = String(nextVal || '').trim();
+                    if (!col) return;
+                    if (!selectedFilterColumns.includes(col)) {
+                        selectedFilterColumns.push(col);
+                    }
+                    renderEditableFilters();
                 }
-                addSel.value = '';
-                renderEditableFilters();
-            };
-
-            controls.appendChild(addSel);
+            });
+            controls.appendChild(addDropdown);
 
             if (selectedFilterColumns.length > 0) {
                 const clearBtn = document.createElement('button');
@@ -2044,7 +2574,23 @@
                 controls.appendChild(clearBtn);
             }
 
-            filterBox.appendChild(controls);
+            filterHost.appendChild(controls);
+        }
+
+        function handleDateColumnChange() {
+            const dateColSel = document.getElementById('date-column-select');
+            if (!dateColSel) return;
+
+            const selected = String(dateColSel.value || '').trim();
+            const prevSelected = String(dateColSel.dataset.appliedValue || activeFilters['_date_column'] || '').trim();
+            if (selected === prevSelected) return;
+
+            dateColSel.dataset.appliedValue = selected;
+            if (selected) activeFilters['_date_column'] = selected;
+            else delete activeFilters['_date_column'];
+
+            // Intentionally no auto-reload on date-column selection alone.
+            // Reload happens when actual date values change.
         }
 
         function handleFilterChange(e) {
@@ -2083,19 +2629,45 @@
         }
 
         function handleDateChange() {
-            const start = document.getElementById('start-date').value;
-            const end = document.getElementById('end-date').value;
-            
+            const startEl = document.getElementById('start-date');
+            const endEl = document.getElementById('end-date');
+            if (!startEl || !endEl) return;
+
+            const start = String(startEl.value || '');
+            const end = String(endEl.value || '');
+            const prevStart = String(startEl.dataset.appliedValue || activeFilters['_start_date'] || '');
+            const prevEnd = String(endEl.dataset.appliedValue || activeFilters['_end_date'] || '');
+            if (start === prevStart && end === prevEnd) return;
+
+            startEl.dataset.appliedValue = start;
+            endEl.dataset.appliedValue = end;
+
             if (start) activeFilters['_start_date'] = start;
             else delete activeFilters['_start_date'];
-            
+
             if (end) activeFilters['_end_date'] = end;
             else delete activeFilters['_end_date'];
-            
+
             updateUIState();
         }
 
+        function getFilterSignature() {
+            const keys = Object.keys(activeFilters || {}).sort();
+            const normalized = {};
+            keys.forEach(k => {
+                const v = activeFilters[k];
+                normalized[k] = v === undefined || v === null ? '' : String(v);
+            });
+            return JSON.stringify({
+                filters: normalized,
+                selected: [...selectedFilterColumns].sort()
+            });
+        }
+
         function updateUIState() {
+            const nextSignature = getFilterSignature();
+            if (nextSignature === lastAppliedFilterSignature) return;
+            lastAppliedFilterSignature = nextSignature;
             setChartsLoadingOpacity(0.5);
             processFile('filters'); 
         }
@@ -2126,6 +2698,97 @@
 
         function cloneDashboardPayload(payload) {
             return JSON.parse(JSON.stringify(payload || {}));
+        }
+
+        function _copyArrayField(source, key) {
+            return Array.isArray(source && source[key])
+                ? JSON.parse(JSON.stringify(source[key]))
+                : [];
+        }
+
+        function _copyChartDataFields(targetChart, sourceChart) {
+            const keys = ['x', 'y', 'z', 'columns', 'rows', 'labels', 'parents', 'values', 'measure'];
+            keys.forEach(key => {
+                targetChart[key] = _copyArrayField(sourceChart, key);
+            });
+        }
+
+        function mergeFilteredResponseIntoCurrentData(existingData, filteredData) {
+            if (!filteredData) return cloneDashboardPayload(existingData || {});
+            if (!existingData) return cloneDashboardPayload(filteredData || {});
+
+            const merged = cloneDashboardPayload(existingData);
+
+            merged.domain = filteredData.domain || merged.domain;
+            merged.theme = filteredData.theme || merged.theme;
+            merged.filters = Array.isArray(filteredData.filters) ? cloneDashboardPayload(filteredData.filters) : (merged.filters || []);
+            const priorLogs = Array.isArray(merged.logs) ? [...merged.logs] : [];
+            const incomingLogs = Array.isArray(filteredData.logs) ? [...filteredData.logs] : [];
+            const combinedLogs = priorLogs.concat(incomingLogs);
+            const dedupedLogs = [];
+            for (let i = 0; i < combinedLogs.length; i++) {
+                const line = String(combinedLogs[i] ?? '');
+                if (!line) continue;
+                if (dedupedLogs.length > 0 && dedupedLogs[dedupedLogs.length - 1] === line) continue;
+                dedupedLogs.push(line);
+            }
+            merged.logs = dedupedLogs.slice(-1500);
+            merged.tokens_used = Number(filteredData.tokens_used || 0);
+            merged.date_range = filteredData.date_range || merged.date_range || {};
+            merged.date_columns = Array.isArray(filteredData.date_columns) ? [...filteredData.date_columns] : (merged.date_columns || []);
+            merged.selected_date_column = filteredData.selected_date_column || merged.selected_date_column || '';
+            merged.has_date_column = Boolean(filteredData.has_date_column);
+            merged.data_mode = filteredData.data_mode || merged.data_mode;
+            merged.source_table = filteredData.source_table || merged.source_table;
+            merged.session_id = filteredData.session_id || merged.session_id;
+
+            const incomingKpis = Array.isArray(filteredData.kpis) ? filteredData.kpis : [];
+            if (!Array.isArray(merged.kpis) || merged.kpis.length === 0) {
+                merged.kpis = incomingKpis.map(k => cloneKpi(k));
+            } else {
+                let kpiIdx = 0;
+                merged.kpis = merged.kpis.map(existingKpi => {
+                    const keep = cloneKpi(existingKpi);
+                    const source = incomingKpis[kpiIdx] || null;
+                    if (!source) return keep;
+                    kpiIdx += 1;
+                    if ((keep.label === undefined || keep.label === null || String(keep.label).trim() === '') && source.label) {
+                        keep.label = source.label;
+                    }
+                    keep.value = source.value;
+                    keep.sparkline = Array.isArray(source.sparkline) ? [...source.sparkline] : [];
+                    return keep;
+                });
+            }
+
+            const incomingCharts = Array.isArray(filteredData.charts) ? filteredData.charts : [];
+            if (!Array.isArray(merged.charts) || merged.charts.length === 0) {
+                merged.charts = incomingCharts.map((c, i) => {
+                    const next = cloneChart(c);
+                    next.id = next.id || `chart_${i}`;
+                    next.original = createChartSnapshot(next);
+                    return next;
+                });
+            } else {
+                let sourceIdx = 0;
+                merged.charts = merged.charts.map(existingChart => {
+                    const keep = cloneChart(existingChart);
+                    if (!keep || keep._removed) return keep;
+
+                    const source = incomingCharts[sourceIdx] || null;
+                    if (!source) return keep;
+                    sourceIdx += 1;
+
+                    _copyChartDataFields(keep, source);
+                    if (!keep.title && source.title) keep.title = source.title;
+                    if (!keep.xlabel && source.xlabel) keep.xlabel = source.xlabel;
+                    if (!keep.ylabel && source.ylabel) keep.ylabel = source.ylabel;
+                    keep.original = createChartSnapshot(keep);
+                    return keep;
+                });
+            }
+
+            return merged;
         }
 
         function ensureKpiId(kpi) {
@@ -2159,7 +2822,7 @@
         function applyWidgetLayoutToElement(el, widgetId) {
             if (!el || !widgetId) return;
             const layout = widgetLayouts[widgetId];
-            if (!layout) {
+            if (!layout || !layout.manual) {
                 el.style.transform = '';
                 el.style.width = '';
                 el.style.height = '';
@@ -2175,7 +2838,7 @@
 
         function saveWidgetSize(widgetId, el) {
             if (!widgetId || !el) return;
-            if (!widgetLayouts[widgetId]) widgetLayouts[widgetId] = { x: 0, y: 0 };
+            if (!widgetLayouts[widgetId] || !widgetLayouts[widgetId].manual) return;
             widgetLayouts[widgetId].w = el.offsetWidth;
             widgetLayouts[widgetId].h = el.offsetHeight;
         }
@@ -2362,6 +3025,7 @@
 
             widgetLayouts[widgetId] = {
                 ...(widgetLayouts[widgetId] || {}),
+                manual: true,
                 x: nextX,
                 y: nextY,
                 w: nextW,
@@ -2425,6 +3089,7 @@
             const nextY = baseY + dy;
 
             if (!widgetLayouts[widgetId]) widgetLayouts[widgetId] = {};
+            widgetLayouts[widgetId].manual = true;
             widgetLayouts[widgetId].x = nextX;
             widgetLayouts[widgetId].y = nextY;
 
@@ -2459,7 +3124,7 @@
         function updateChartsToggleButton() {
             const btn = document.getElementById('open-charts-btn');
             if (!btn) return;
-            btn.textContent = isChartSidebarOpen ? '📚 Close Charts' : '📚 Open Charts';
+            btn.textContent = isChartSidebarOpen ? 'Close Charts' : 'Open Charts';
         }
 
         function updateChatbotDockVisibility() {
@@ -2470,6 +3135,7 @@
 
             const showDock = isChatbotDockOpen && !dashboard.classList.contains('hidden');
             dock.style.display = showDock ? 'flex' : 'none';
+            dashboard.classList.remove('with-chatbot-dock');
             btn.textContent = isChatbotDockOpen ? 'Close AI Chart' : 'AI Chart Generation';
         }
 
@@ -2516,45 +3182,55 @@
             }
         }
 
-        function resetDashboardToOriginal() {
-            if (!originalDashboardState || !originalDashboardState.data) {
+        function closeChatbotDock() {
+            isChatbotDockOpen = false;
+            updateChatbotDockVisibility();
+        }
+
+        function rearrangeDashboardLayout() {
+            if (!currentData) {
                 const status = document.getElementById('chart-request-status');
-                if (status) status.textContent = 'No baseline snapshot available yet.';
+                if (status) status.textContent = 'No dashboard data available to rearrange.';
                 return;
             }
+
+            closeCustomChartPopup();
+            closeCustomKpiPopup();
+            closeEditMenus();
 
             Object.values(widgetResizeObservers || {}).forEach(ro => {
                 try { if (ro) ro.disconnect(); } catch (_) {}
             });
             widgetResizeObservers = {};
             widgetLayouts = {};
+            widgetDragState = null;
+            widgetResizeState = null;
 
-            chartLibrary = [];
-            chartLibrarySeq = 0;
-            activeLibraryId = null;
-            customPopupSourceLibraryId = null;
-            pendingKpiReplaceLibraryId = null;
-
-            closeCustomChartPopup();
-            closeCustomKpiPopup();
-            closeEditMenus();
-
-            activeFilters = { ...(originalDashboardState.activeFilters || {}) };
-            selectedFilterColumns = Array.isArray(originalDashboardState.selectedFilterColumns)
-                ? [...originalDashboardState.selectedFilterColumns]
+            const keptCharts = Array.isArray(currentData.charts)
+                ? currentData.charts
+                    .filter(c => c && !c._removed && hasRenderableChartData(c))
+                    .map(c => {
+                        const copy = cloneChart(c);
+                        delete copy._removed;
+                        return copy;
+                    })
                 : [];
-            currentData = cloneDashboardPayload(originalDashboardState.data);
+
+            const keptKpis = Array.isArray(currentData.kpis)
+                ? currentData.kpis
+                    .filter(k => k && (String(k.label || '').trim() || String(k.value || '').trim() || (Array.isArray(k.sparkline) && k.sparkline.length > 0)))
+                    .map(k => cloneKpi(k))
+                : [];
+
+            currentData.charts = keptCharts;
+            currentData.kpis = keptKpis;
 
             renderDashboard(currentData);
-            renderChartLibrary();
-
-            lastAppliedFilterState = {
-                activeFilters: { ...activeFilters },
-                selectedFilterColumns: [...selectedFilterColumns],
-            };
 
             const status = document.getElementById('chart-request-status');
-            if (status) status.textContent = 'Dashboard reset to original state.';
+            if (status) {
+                status.textContent = 'Dashboard rearranged using current charts and KPIs only.';
+            }
         }
 
         function toggleChartSidebar() {
@@ -2611,12 +3287,12 @@
                 item.className = `chart-library-item ${entry.id === activeLibraryId ? 'active' : ''}`;
                 const isKpi = entry.artifact === 'kpi';
                 const metaType = isKpi ? 'KPI' : chartTypeLabel(entry.type);
-                const useLabel = 'Use';
+                const useLabel = 'Insert';
                 const expandHandler = isKpi ? `openLibraryKpiModal('${entry.id}')` : `openLibraryChartModal('${entry.id}')`;
                 const useHandler = isKpi ? `useLibraryKpi('${entry.id}')` : `useLibraryChart('${entry.id}')`;
                 const replaceBtn = isKpi
                     ? `<button class="chart-library-btn" onclick="openLibraryKpiReplace('${entry.id}')">Replace</button>`
-                    : `<button class="chart-library-btn" onclick="openLibraryChartInPopup('${entry.id}')">Replace</button>`;
+                    : `<button class="chart-library-btn" onclick="openLibraryChartInPopup('${entry.id}', true)">Replace</button>`;
 
                 item.innerHTML = `
                     <div class="chart-library-title">${escapeHtml(entry.title)}</div>
@@ -2745,15 +3421,52 @@
             customPopupSourceLibraryId = null;
             closeCustomChartPopup();
             openCustomKpiPopup(entry);
+            enableCustomKpiReplaceMode();
             renderChartLibrary();
             refreshKpiReplaceTargets();
 
             const status = document.getElementById('chart-request-status');
             if (status) {
-                status.textContent = `Drag the KPI popup and drop it on a KPI card to replace it with "${entry.title}".`;
+                status.textContent = `Choose the KPI card to replace with "${entry.title}".`;
             }
         }
 
+
+        function insertChartWithoutGlobalRelayout(chartInput) {
+            if (!currentData) return null;
+            if (!Array.isArray(currentData.charts)) currentData.charts = [];
+
+            const nextChart = cloneChart(chartInput);
+            delete nextChart.id;
+            nextChart._layoutSpan = Number(nextChart._layoutSpan) > 0 ? Number(nextChart._layoutSpan) : 1;
+            nextChart._layoutMinH = Number(nextChart._layoutMinH) > 0 ? Number(nextChart._layoutMinH) : 120;
+            nextChart.original = createChartSnapshot(nextChart);
+
+            const emptyIdx = currentData.charts.findIndex(c => c && c._removed === true);
+            if (emptyIdx !== -1) {
+                const slotId = currentData.charts[emptyIdx].id || chartSlotIds[emptyIdx] || `chart_${emptyIdx}`;
+                nextChart.id = slotId;
+                currentData.charts[emptyIdx] = nextChart;
+                renderChartById(slotId);
+                return slotId;
+            }
+
+            currentData.charts.push(nextChart);
+            ensureChartSlots(currentData.charts.length);
+            const newIndex = currentData.charts.length - 1;
+            const slotId = chartSlotIds[newIndex] || `chart_${newIndex}`;
+            nextChart.id = slotId;
+
+            const slot = document.getElementById(slotId);
+            if (slot) {
+                slot.style.display = 'flex';
+                slot.style.gridColumn = slot.style.gridColumn || 'span 1';
+                if (!slot.style.minHeight) slot.style.minHeight = `${Math.max(88, nextChart._layoutMinH)}px`;
+            }
+
+            renderChartById(slotId);
+            return slotId;
+        }
         function useLibraryChart(libraryId) {
             const entry = chartLibrary.find(item => item.id === libraryId);
             if (!entry || entry.artifact === 'kpi' || !entry.chart || !currentData) return;
@@ -2767,26 +3480,12 @@
             customPopupSourceLibraryId = null;
             closeCustomKpiPopup();
 
-            if (currentData.charts.length >= chartSlotIds.length) {
-                openLibraryChartInPopup(libraryId);
-                const statusFull = document.getElementById('chart-request-status');
-                if (statusFull) {
-                    statusFull.textContent = 'All chart slots are full. Drag and drop to replace a chart.';
-                }
-                return;
-            }
-
-            const chartToAdd = cloneChart(entry.chart);
-            delete chartToAdd.id;
-            chartToAdd.original = createChartSnapshot(chartToAdd);
-            currentData.charts.push(chartToAdd);
-
-            renderDashboard(currentData);
+            insertChartWithoutGlobalRelayout(entry.chart);
             renderChartLibrary();
 
             const status = document.getElementById('chart-request-status');
             if (status) {
-                status.textContent = `Added "${entry.title}" to dashboard.`;
+                status.textContent = `Inserted "${entry.title}" on dashboard.`;
             }
         }
 
@@ -2803,27 +3502,17 @@
             closeCustomChartPopup();
             closeCustomKpiPopup();
 
-            const maxKpiSlots = 4;
-            if (currentData.kpis.length >= maxKpiSlots) {
-                openLibraryKpiReplace(libraryId);
-                const statusFull = document.getElementById('chart-request-status');
-                if (statusFull) {
-                    statusFull.textContent = 'All KPI slots are full. Drag and drop to replace a KPI card.';
-                }
-                return;
-            }
-
             const kpiToAdd = cloneKpi(entry.kpi);
             delete kpiToAdd._id;
             ensureKpiId(kpiToAdd);
             currentData.kpis.push(kpiToAdd);
 
-            renderDashboard(currentData);
+            renderKpisSection(currentData, getThemeColor());
             renderChartLibrary();
 
             const status = document.getElementById('chart-request-status');
             if (status) {
-                status.textContent = `Added KPI "${entry.title}" to dashboard.`;
+                status.textContent = `Inserted KPI "${entry.title}" on dashboard.`;
             }
         }
 
@@ -2859,7 +3548,7 @@
             }, 120);
         }
 
-        function openLibraryChartInPopup(libraryId) {
+        function openLibraryChartInPopup(libraryId, startReplaceMode = false) {
             const entry = chartLibrary.find(item => item.id === libraryId);
             if (!entry || entry.artifact === 'kpi') return;
 
@@ -2870,8 +3559,13 @@
             customPopupChart.original = createChartSnapshot(customPopupChart);
 
             openCustomChartPopup(entry.sql || '');
+            if (startReplaceMode) {
+                enableCustomChartReplaceMode();
+            }
             const status = document.getElementById('chart-request-status');
-            status.textContent = 'Drag popup onto a chart tile to replace it.';
+            status.textContent = startReplaceMode
+                ? 'Select a chart and click Replace Selected.'
+                : 'Click Insert to add this chart, or click Replace to choose a chart to replace.';
             renderChartLibrary();
         }
 
@@ -2896,8 +3590,16 @@
         function applyLibraryKpiToSlot(kpiId) {
             if (!currentData || !Array.isArray(currentData.kpis) || !pendingKpiReplaceLibraryId) return;
 
-            const entry = chartLibrary.find(item => item.id === pendingKpiReplaceLibraryId);
-            if (!entry || entry.artifact !== 'kpi' || !entry.kpi) return;
+            let sourceKpi = null;
+            if (customPopupKpi) {
+                sourceKpi = cloneKpi(customPopupKpi);
+            } else {
+                const entry = chartLibrary.find(item => item.id === pendingKpiReplaceLibraryId);
+                if (entry && entry.artifact === 'kpi' && entry.kpi) {
+                    sourceKpi = cloneKpi(entry.kpi);
+                }
+            }
+            if (!sourceKpi) return;
 
             const targetIndex = currentData.kpis.findIndex(k => ensureKpiId(k) === kpiId);
             if (targetIndex === -1) return;
@@ -2907,21 +3609,72 @@
                 addKpiToLibrary(replaced, { source: `Replaced ${kpiId}` });
             }
 
-            const replacement = cloneKpi(customPopupKpi || entry.kpi);
-            replacement._id = kpiId;
-            currentData.kpis[targetIndex] = replacement;
+            sourceKpi._id = kpiId;
+            currentData.kpis[targetIndex] = sourceKpi;
 
             pendingKpiReplaceLibraryId = null;
             customPopupKpi = null;
-            renderDashboard(currentData);
+            renderKpisSection(currentData, getThemeColor());
             closeCustomKpiPopup();
             refreshKpiReplaceTargets();
             renderChartLibrary();
 
             const status = document.getElementById('chart-request-status');
             if (status) {
-                status.textContent = `Replaced ${kpiId} from Chart Library.`;
+                status.textContent = `Replaced ${kpiId}. Previous KPI moved to Chart Library.`;
             }
+        }
+
+
+        function insertCustomKpiFromPopup() {
+            if (!currentData || !customPopupKpi) return;
+            if (!Array.isArray(currentData.kpis)) currentData.kpis = [];
+
+            const nextKpi = cloneKpi(customPopupKpi);
+            delete nextKpi._id;
+            ensureKpiId(nextKpi);
+            currentData.kpis.push(nextKpi);
+
+            renderKpisSection(currentData, getThemeColor());
+            renderChartLibrary();
+
+            const status = document.getElementById('chart-request-status');
+            if (status) status.textContent = `Inserted KPI "${nextKpi.label || 'Custom KPI'}" on dashboard.`;
+            closeCustomKpiPopup();
+        }
+
+        function populateKpiReplaceOptions() {
+            const sel = document.getElementById('custom-kpi-replace-select');
+            if (!sel) return;
+            sel.innerHTML = '';
+            const kpis = Array.isArray(currentData?.kpis) ? currentData.kpis : [];
+            kpis.forEach((k, idx) => {
+                const id = ensureKpiId(k);
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = `${idx + 1}. ${k.label || 'KPI'}`;
+                sel.appendChild(option);
+            });
+        }
+
+        function enableCustomKpiReplaceMode() {
+            if (!customPopupKpi) return;
+            pendingKpiReplaceLibraryId = customPopupKpiSourceLibraryId || '__custom_kpi_popup__';
+            const row = document.getElementById('custom-kpi-replace-row');
+            if (row) {
+                populateKpiReplaceOptions();
+                row.style.display = 'flex';
+            }
+            refreshKpiReplaceTargets();
+            const status = document.getElementById('chart-request-status');
+            if (status) status.textContent = 'Select a KPI card and click Replace Selected.';
+        }
+
+        function applyCustomKpiReplaceSelection() {
+            const sel = document.getElementById('custom-kpi-replace-select');
+            const targetId = sel ? String(sel.value || '').trim() : '';
+            if (!targetId) return;
+            applyLibraryKpiToSlot(targetId);
         }
 
         async function _postCustomArtifactRequest(promptText, artifactType = 'chart', clarificationChoice = null) {
@@ -3082,20 +3835,51 @@
 
                 if (Array.isArray(data.logs) && currentData) {
                     if (!Array.isArray(currentData.logs)) currentData.logs = [];
-                    currentData.logs.push('[CHATBOT] Custom chart LLM request');
                     data.logs.forEach(logLine => {
-                        currentData.logs.push(`[CHATBOT] ${logLine}`);
+                        currentData.logs.push(String(logLine || ''));
                     });
                 }
 
                 openLibraryChartInPopup(libraryEntry.id);
-                status.textContent = 'Chart saved to library. Drag popup onto a chart tile to replace it. Open View Logs to inspect LLM payload logs.';
+                status.textContent = 'Chart saved to library. Click Insert to add, or click Replace to choose a chart to replace. Open View Logs to inspect LLM payload logs.';
             } catch (error) {
                 status.textContent = 'Request failed.';
                 alert('Error: ' + error.message);
             } finally {
                 button.disabled = false;
             }
+        }
+
+        async function requestKpiWithClarification(promptText, statusEl) {
+            let clarificationChoice = null;
+            let mergedLogs = [];
+
+            for (let round = 0; round < 3; round++) {
+                const data = await _postCustomArtifactRequest(promptText, 'kpi', clarificationChoice);
+                if (Array.isArray(data.logs)) {
+                    mergedLogs = mergedLogs.concat(data.logs);
+                }
+
+                if (!data.needs_clarification) {
+                    data.logs = mergedLogs;
+                    return data;
+                }
+
+                const clarification = data.clarification || {};
+                if (statusEl) {
+                    statusEl.textContent = 'KPI clarification needed. Please choose the correct column.';
+                }
+
+                const choice = _askUserForClarificationChoice(clarification, statusEl);
+                if (!choice) return null;
+
+                clarificationChoice = choice;
+                if (statusEl) {
+                    statusEl.textContent = `Using '${choice.column}' for KPI term '${choice.keyword || 'term'}'. Regenerating...`;
+                }
+            }
+
+            throw new Error('Could not resolve KPI ambiguity after multiple attempts. Please mention the exact column name.');
         }
 
         async function submitCustomKpiRequest() {
@@ -3118,23 +3902,9 @@
             status.textContent = 'Generating KPI...';
 
             try {
-                const formData = new FormData();
-                formData.append('prompt', prompt);
-                formData.append('artifact_type', 'kpi');
-                if (currentData.session_id) {
-                    formData.append('session_id', currentData.session_id);
-                }
-
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                const res = await fetch('/api/custom-chart/', {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-CSRFToken': csrfToken }
-                });
-
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Failed to generate KPI');
+                const data = await requestKpiWithClarification(prompt, status);
+                if (!data) {
+                    return;
                 }
 
                 const generatedKpi = data.kpi || null;
@@ -3145,27 +3915,24 @@
                 const nextKpi = cloneKpi(generatedKpi);
                 ensureKpiId(nextKpi);
 
-                if (!Array.isArray(currentData.kpis)) {
-                    currentData.kpis = [];
-                }
-                currentData.kpis = [nextKpi, ...currentData.kpis].slice(0, 4);
-                addKpiToLibrary(nextKpi, {
+                const libraryEntry = addKpiToLibrary(nextKpi, {
                     source: 'Generated',
                     sql: data.generated_sql || ''
                 });
 
                 if (Array.isArray(data.logs) && currentData) {
                     if (!Array.isArray(currentData.logs)) currentData.logs = [];
-                    currentData.logs.push('[CHATBOT] Custom KPI LLM request');
                     data.logs.forEach(logLine => {
-                        currentData.logs.push(`[CHATBOT KPI] ${logLine}`);
+                        currentData.logs.push(String(logLine || ''));
                     });
                 }
 
-                renderDashboard(currentData);
+                if (libraryEntry) {
+                    openCustomKpiPopup(libraryEntry);
+                }
                 const statusEl = document.getElementById('chart-request-status');
                 if (statusEl) {
-                    statusEl.textContent = `KPI "${nextKpi.label || 'Custom KPI'}" added and saved to Chart Library.`;
+                    statusEl.textContent = `KPI saved to library. Click Insert to add, or click Replace to choose which KPI to replace.`;
                 }
             } catch (error) {
                 status.textContent = 'KPI request failed.';
@@ -3190,6 +3957,8 @@
             copyBtn.disabled = !sqlText;
             copyBtn.textContent = 'Copy SQL';
 
+            const replaceRow = document.getElementById('custom-chart-replace-row');
+            if (replaceRow) replaceRow.style.display = 'none';
             popup.style.display = 'flex';
             popup.style.left = `${Math.max(12, window.innerWidth - 660)}px`;
             popup.style.top = `${Math.max(12, window.innerHeight - 500)}px`;
@@ -3203,6 +3972,51 @@
             setTimeout(() => {
                 renderSingleChart(innerPlot, customPopupChart, color, true);
             }, 50);
+        }
+        function insertCustomChartFromPopup() {
+            if (!currentData || !customPopupChart) return;
+            if (!Array.isArray(currentData.charts)) currentData.charts = [];
+
+            const nextChart = cloneChart(customPopupChart);
+            insertChartWithoutGlobalRelayout(nextChart);
+            renderChartLibrary();
+
+            const status = document.getElementById('chart-request-status');
+            if (status) status.textContent = `Inserted "${nextChart.title || 'Custom Chart'}" on dashboard.`;
+            closeCustomChartPopup();
+        }
+
+        function populateChartReplaceOptions() {
+            const sel = document.getElementById('custom-chart-replace-select');
+            if (!sel) return;
+            sel.innerHTML = '';
+            const charts = Array.isArray(currentData?.charts) ? currentData.charts : [];
+            charts.forEach((c, idx) => {
+                if (!c) return;
+                const id = c.id || `chart_${idx}`;
+                const option = document.createElement('option');
+                option.value = id;
+                const title = c._removed ? 'Empty Slot' : (c.title || 'Chart');
+                option.textContent = `${id} - ${title}`;
+                sel.appendChild(option);
+            });
+        }
+
+        function enableCustomChartReplaceMode() {
+            if (!customPopupChart) return;
+            const row = document.getElementById('custom-chart-replace-row');
+            if (!row) return;
+            populateChartReplaceOptions();
+            row.style.display = 'flex';
+            const status = document.getElementById('chart-request-status');
+            if (status) status.textContent = 'Select a chart and click Replace Selected.';
+        }
+
+        function applyCustomChartReplaceSelection() {
+            const sel = document.getElementById('custom-chart-replace-select');
+            const targetId = sel ? String(sel.value || '').trim() : '';
+            if (!targetId) return;
+            applyCustomChartToSlot(targetId);
         }
 
         async function copyCustomChartSql() {
@@ -3240,6 +4054,8 @@
             popup.style.display = 'none';
             customPopupChart = null;
             customPopupSourceLibraryId = null;
+            const replaceRow = document.getElementById('custom-chart-replace-row');
+            if (replaceRow) replaceRow.style.display = 'none';
             highlightDropTarget(null);
         }
 
@@ -3248,8 +4064,10 @@
 
             const popup = document.getElementById('custom-kpi-popup');
             const body = document.getElementById('custom-kpi-body');
+            const title = document.getElementById('custom-kpi-title');
             const color = getThemeColor();
 
+            customPopupKpiSourceLibraryId = entry.id || null;
             customPopupKpi = cloneKpi(entry.kpi);
             const trendData = Array.isArray(customPopupKpi.sparkline) ? customPopupKpi.sparkline : [];
             const trendChange = calculateTrend(trendData);
@@ -3272,6 +4090,9 @@
                 </div>
             `;
 
+            if (title) title.textContent = customPopupKpi.label || 'KPI';
+            const replaceRow = document.getElementById('custom-kpi-replace-row');
+            if (replaceRow) replaceRow.style.display = 'none';
             popup.style.display = 'flex';
             popup.style.left = `${Math.max(12, window.innerWidth - 380)}px`;
             popup.style.top = `${Math.max(12, window.innerHeight - 300)}px`;
@@ -3290,6 +4111,9 @@
                 popup.classList.remove('dragging');
             }
             customPopupKpi = null;
+            customPopupKpiSourceLibraryId = null;
+            const replaceRow = document.getElementById('custom-kpi-replace-row');
+            if (replaceRow) replaceRow.style.display = 'none';
             customKpiPopupDragging = false;
             pendingKpiReplaceLibraryId = null;
             highlightKpiDropTarget(null);
@@ -3396,7 +4220,6 @@
                 else el.classList.remove('drop-target');
             });
         }
-
         function applyCustomChartToSlot(slotId) {
             if (!currentData || !currentData.charts || !customPopupChart) return;
 
@@ -3404,16 +4227,18 @@
             if (targetIndex === -1) return;
 
             const replaced = cloneChart(currentData.charts[targetIndex]);
-            if (replaced) {
+            if (replaced && hasRenderableChartData(replaced)) {
                 addChartToLibrary(replaced, { source: `Replaced ${slotId}` });
             }
 
             const replacement = cloneChart(customPopupChart);
             replacement.id = slotId;
+            replacement._layoutSpan = replaced && Number(replaced._layoutSpan) > 0 ? Number(replaced._layoutSpan) : (Number(replacement._layoutSpan) || 1);
+            replacement._layoutMinH = replaced && Number(replaced._layoutMinH) > 0 ? Number(replaced._layoutMinH) : (Number(replacement._layoutMinH) || 120);
             replacement.original = createChartSnapshot(replacement);
 
             currentData.charts[targetIndex] = replacement;
-            renderDashboard(currentData);
+            renderChartById(slotId);
             renderChartLibrary();
             closeCustomChartPopup();
 
@@ -3545,10 +4370,10 @@
 
             try {
                 Plotly.newPlot(containerId, [trace], layout, config).then(() => {
-                    console.log(`✅ Sparkline ${containerId} created successfully`);
+                    console.log(`Sparkline ${containerId} created successfully`);
                 });
             } catch (error) {
-                console.error(`â Error creating sparkline ${containerId}:`, error);
+                console.error(`Error creating sparkline ${containerId}:`, error);
             }
         }
 
@@ -3625,45 +4450,53 @@
 
         function renderLogs() {
             if (!currentData || !currentData.logs) return;
-            
+
             const logsContainer = document.getElementById('logs-content');
             logsContainer.innerHTML = '';
-            
-            currentData.logs.forEach(log => {
+
+            const llmLines = (Array.isArray(currentData.logs) ? currentData.logs : []).filter(line => {
+                const s = String(line || '');
+                return s.includes('[LLM REQUEST]') || s.includes('[LLM RESPONSE]') || s.includes('[LLM ERROR]');
+            });
+
+            llmLines.forEach(log => {
+                const line = String(log || '');
                 const logDiv = document.createElement('div');
                 logDiv.className = 'p-2 rounded';
-                
+
                 // Color code based on log type
-                if (log.includes('✅')) {
+                if (line.includes('SUCCESS') || line.includes('completed') || line.includes('[LLM RESPONSE]')) {
                     logDiv.className += ' bg-green-900/20 text-green-400';
-                } else if (log.includes('â') || log.includes('â ï¸')) {
+                } else if (line.includes('ERROR') || line.includes('Error') || line.includes('Exception') || line.includes('FAILED')) {
                     logDiv.className += ' bg-red-900/20 text-red-400';
-                } else if (log.includes('📋') || log.includes('📊')) {
+                } else if (line.includes('[LLM REQUEST]') || line.includes('[CHATBOT]') || line.includes('REQUEST')) {
                     logDiv.className += ' bg-violet-900/20 text-violet-400';
-                } else if (log.includes('└─')) {
+                } else if (line.includes('└─') || line.includes('->')) {
                     logDiv.className += ' bg-slate-800/50 text-slate-400 ml-4';
                 } else {
                     logDiv.className += ' bg-slate-800/30 text-slate-300';
                 }
-                
-                logDiv.textContent = log;
+
+                logDiv.textContent = line;
+                logDiv.style.whiteSpace = 'pre-wrap';
+                logDiv.style.wordBreak = 'break-word';
                 logsContainer.appendChild(logDiv);
             });
-            
+
             // Add master table preview
             if (currentData.master_preview && currentData.master_preview.columns) {
                 const previewSection = document.createElement('div');
                 previewSection.className = 'mt-6 p-4 bg-slate-800/50 rounded-lg';
-                
+
                 const previewTitle = document.createElement('div');
                 previewTitle.className = 'text-sm font-bold text-violet-400 mb-3';
-                previewTitle.textContent = '📊 Master Table Preview (First 3 Rows)';
+                previewTitle.textContent = 'Master Table Preview (First 3 Rows)';
                 previewSection.appendChild(previewTitle);
-                
+
                 const table = document.createElement('table');
                 table.className = 'w-full text-xs border-collapse';
                 table.style.borderSpacing = '0';
-                
+
                 // Header
                 const thead = document.createElement('thead');
                 const headerRow = document.createElement('tr');
@@ -3675,7 +4508,7 @@
                 });
                 thead.appendChild(headerRow);
                 table.appendChild(thead);
-                
+
                 // Body
                 const tbody = document.createElement('tbody');
                 currentData.master_preview.rows.forEach((row, idx) => {
@@ -3690,7 +4523,7 @@
                     tbody.appendChild(tr);
                 });
                 table.appendChild(tbody);
-                
+
                 previewSection.appendChild(table);
                 logsContainer.appendChild(previewSection);
             }
@@ -3847,12 +4680,39 @@
                 xaxisConfig.tick0 = 0;
                 xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 15 : 8));
             } else if (chartType === 'line') {
-                xaxisConfig.tickangle = -45;
-                xaxisConfig.tickformat = '%b %Y';
-                xaxisConfig.nticks = isModal ? 12 : 6;
-                const monthHint = `${chart.title || ''} ${chart.xlabel || ''}`.toLowerCase();
-                if (monthHint.includes('month') || monthHint.includes('yyyy_mm')) {
+                const rawX = Array.isArray(chart.x) ? chart.x.slice(0, 160) : [];
+                const dateHintCount = rawX.reduce((count, v) => {
+                    const s = String(v ?? '').trim().toLowerCase();
+                    if (!s) return count;
+                    if (/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/.test(s)) return count + 1;
+                    if (/[\-/:t]/.test(s)) return count + 1;
+                    if (/^\d{6}$/.test(s)) {
+                        const y = parseInt(s.slice(0, 4), 10);
+                        const m = parseInt(s.slice(4, 6), 10);
+                        if (y >= 1900 && y <= 2100 && m >= 1 && m <= 12) return count + 1;
+                    }
+                    if (/^\d{8}$/.test(s)) {
+                        const y = parseInt(s.slice(0, 4), 10);
+                        const m = parseInt(s.slice(4, 6), 10);
+                        const d = parseInt(s.slice(6, 8), 10);
+                        if (y >= 1900 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) return count + 1;
+                    }
+                    return count;
+                }, 0);
+
+                const lineHasDateAxis = rawX.length > 0 && dateHintCount >= Math.max(2, Math.floor(rawX.length * 0.3));
+                if (lineHasDateAxis) {
+                    xaxisConfig.tickangle = -45;
+                    xaxisConfig.tickformat = '%b %Y';
+                    xaxisConfig.nticks = isModal ? 12 : 6;
+                } else {
                     xaxisConfig.type = 'category';
+                    xaxisConfig.tickangle = (chart.x && chart.x.length > 8) ? -45 : 0;
+                    if (chart.x && chart.x.length > 20) {
+                        xaxisConfig.tickmode = 'linear';
+                        xaxisConfig.tick0 = 0;
+                        xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 16 : 8));
+                    }
                 }
             } else if (chartType === 'heatmap') {
                 xaxisConfig.tickfont.size = isModal ? 10 : 7;
@@ -3923,7 +4783,7 @@
         function createEmptyChartState(chartId, fallbackTitle = 'Chart') {
             return {
                 id: chartId,
-                title: `${fallbackTitle} (Removed)`,
+                title: '',
                 type: 'bar',
                 xlabel: '',
                 ylabel: '',
@@ -3938,9 +4798,9 @@
                 measure: [],
                 original: null,
                 showDataLabels: false,
+                _removed: true,
             };
         }
-
         function removeChart(chartId) {
             if (!currentData || !Array.isArray(currentData.charts)) return;
             const idx = currentData.charts.findIndex(c => c.id === chartId);
@@ -3951,15 +4811,13 @@
                 addChartToLibrary(existing, { source: `Removed ${chartId}` });
             }
 
-            currentData.charts.splice(idx, 1);
-            delete widgetLayouts[chartId];
-
-            renderDashboard(currentData);
+            currentData.charts[idx] = createEmptyChartState(chartId);
+            renderChartById(chartId);
             renderChartLibrary();
 
             const status = document.getElementById('chart-request-status');
             if (status) {
-                status.textContent = `${chartId} removed.`;
+                status.textContent = `${chartId} removed. Slot left blank.`;
             }
         }
 
@@ -3977,7 +4835,7 @@
             delete widgetLayouts[kpiId];
             if (pendingKpiReplaceLibraryId) pendingKpiReplaceLibraryId = null;
 
-            renderDashboard(currentData);
+            renderKpisSection(currentData, getThemeColor());
             renderChartLibrary();
 
             const status = document.getElementById('chart-request-status');
@@ -4077,6 +4935,13 @@
             if (!chart || !el) return;
 
             el.style.display = 'flex';
+            if (chart && chart._removed) {
+                el.classList.add('chart-empty-slot');
+                el.innerHTML = '';
+                return;
+            }
+
+            el.classList.remove('chart-empty-slot');
             const color = getThemeColor();
             el.innerHTML = getChartShellHtml(chartId);
 
@@ -4358,14 +5223,15 @@
 
                 const replacement = cloneChart(generatedChart);
                 replacement.id = chartId;
+                replacement._layoutSpan = replaced && Number(replaced._layoutSpan) > 0 ? Number(replaced._layoutSpan) : (Number(replacement._layoutSpan) || 1);
+                replacement._layoutMinH = replaced && Number(replaced._layoutMinH) > 0 ? Number(replaced._layoutMinH) : (Number(replacement._layoutMinH) || 120);
                 replacement.original = createChartSnapshot(replacement);
                 currentData.charts[targetIndex] = replacement;
 
                 if (Array.isArray(data.logs) && currentData) {
                     if (!Array.isArray(currentData.logs)) currentData.logs = [];
-                    currentData.logs.push(`[CHART EDIT] AI edit request for ${chartId}`);
                     data.logs.forEach(logLine => {
-                        currentData.logs.push(`[CHART EDIT] ${logLine}`);
+                        currentData.logs.push(String(logLine || ''));
                     });
                 }
 
@@ -4444,27 +5310,66 @@
             }
 
             // Date Range Filter
-            if (data.has_date_column && data.date_range.min && data.date_range.max) {
-                document.getElementById('date-filter-container').style.display = 'flex';
-                document.getElementById('date-separator').style.display = 'block';
-                
-                const startDate = document.getElementById('start-date');
-                const endDate = document.getElementById('end-date');
-                
-                startDate.min = data.date_range.min;
-                startDate.max = data.date_range.max;
-                endDate.min = data.date_range.min;
-                endDate.max = data.date_range.max;
-                
-                if (!activeFilters['_start_date']) {
-                    startDate.value = data.date_range.min;
+            const dateContainer = document.getElementById('date-filter-container');
+            const dateSeparator = document.getElementById('date-separator');
+            const startDate = document.getElementById('start-date');
+            const endDate = document.getElementById('end-date');
+            const dateColumnSelect = document.getElementById('date-column-select');
+            const dateColumns = Array.isArray(data.date_columns) ? data.date_columns : [];
+
+            if (data.has_date_column && dateColumns.length > 0) {
+                if (dateContainer) dateContainer.style.display = 'flex';
+                if (dateSeparator) dateSeparator.style.display = 'block';
+
+                const selectedDateColumn = String(data.selected_date_column || activeFilters['_date_column'] || dateColumns[0]);
+                if (dateColumnSelect) {
+                    dateColumnSelect.innerHTML = '';
+                    dateColumns.forEach(col => {
+                        const option = document.createElement('option');
+                        option.value = String(col);
+                        option.textContent = String(col);
+                        dateColumnSelect.appendChild(option);
+                    });
+                    dateColumnSelect.value = dateColumns.includes(selectedDateColumn) ? selectedDateColumn : String(dateColumns[0]);
+                    dateColumnSelect.dataset.appliedValue = String(dateColumnSelect.value || '');
                 }
-                if (!activeFilters['_end_date']) {
-                    endDate.value = data.date_range.max;
+                activeFilters['_date_column'] = dateColumnSelect ? String(dateColumnSelect.value || dateColumns[0]) : String(selectedDateColumn);
+
+                const minDate = data.date_range && data.date_range.min ? String(data.date_range.min) : '';
+                const maxDate = data.date_range && data.date_range.max ? String(data.date_range.max) : '';
+
+                if (startDate && endDate) {
+                    if (minDate && maxDate) {
+                        startDate.min = minDate;
+                        startDate.max = maxDate;
+                        endDate.min = minDate;
+                        endDate.max = maxDate;
+
+                        const nextStart = activeFilters['_start_date'] ? String(activeFilters['_start_date']) : minDate;
+                        const nextEnd = activeFilters['_end_date'] ? String(activeFilters['_end_date']) : maxDate;
+                        startDate.value = nextStart;
+                        endDate.value = nextEnd;
+                        startDate.dataset.appliedValue = nextStart;
+                        endDate.dataset.appliedValue = nextEnd;
+                        activeFilters['_start_date'] = nextStart;
+                        activeFilters['_end_date'] = nextEnd;
+                    } else {
+                        startDate.removeAttribute('min');
+                        startDate.removeAttribute('max');
+                        endDate.removeAttribute('min');
+                        endDate.removeAttribute('max');
+                        const nextStart = activeFilters['_start_date'] ? String(activeFilters['_start_date']) : '';
+                        const nextEnd = activeFilters['_end_date'] ? String(activeFilters['_end_date']) : '';
+                        startDate.value = nextStart;
+                        endDate.value = nextEnd;
+                        startDate.dataset.appliedValue = nextStart;
+                        endDate.dataset.appliedValue = nextEnd;
+                    }
                 }
             } else {
-                document.getElementById('date-filter-container').style.display = 'none';
-                document.getElementById('date-separator').style.display = 'none';
+                if (dateContainer) dateContainer.style.display = 'none';
+                if (dateSeparator) dateSeparator.style.display = 'none';
+                delete activeFilters['_date_column'];
                 delete activeFilters['_start_date'];
                 delete activeFilters['_end_date'];
             }
@@ -4473,15 +5378,52 @@
             refreshFilterDefinitions(data.filters || []);
 
             // KPIs with Sparklines
+            renderKpisSection(data, color);
+
+            // Charts
+            if (!Array.isArray(data.charts)) data.charts = [];
+            ensureChartSlots(Math.max(5, data.charts.length));
+
+            chartSlotIds.forEach(id => {
+                const slot = document.getElementById(id);
+                if (slot) {
+                    slot.style.display = 'none';
+                    slot.style.transform = '';
+                    slot.style.width = '';
+                    slot.style.height = '';
+                    slot.style.gridColumn = 'span 1';
+                    slot.innerHTML = '';
+                }
+            });
+
+            data.charts.forEach((c, i) => {
+                if (i >= chartSlotIds.length) return;
+                const id = chartSlotIds[i];
+                const slot = document.getElementById(id);
+                if (!slot) return;
+                c.id = id;
+                slot.style.display = 'flex';
+                renderChartById(id);
+            });
+
+            applyAdaptiveInsertLayout(data, { preferStored: true });
+            renderChartLibrary();
+            updateDashboardSidebarLayout();
+        }
+
+        function renderKpisSection(data, color) {
             const kpiBox = document.getElementById('kpi-container');
+            if (!kpiBox) return;
             kpiBox.innerHTML = '';
 
             if (!Array.isArray(data.kpis)) data.kpis = [];
+            const kpiCols = Math.max(4, data.kpis.length || 0);
+            kpiBox.style.gridTemplateColumns = `repeat(${kpiCols}, minmax(220px, 1fr))`;
+            kpiBox.style.overflowX = data.kpis.length > 4 ? 'auto' : 'hidden';
+            kpiBox.style.overflowY = 'hidden';
             data.kpis.forEach(k => ensureKpiId(k));
 
-            console.log('Creating KPI cards for', data.kpis.length, 'KPIs');
-
-            data.kpis.forEach((k, idx) => {
+            data.kpis.forEach((k) => {
                 const kpiId = ensureKpiId(k);
                 const sparklineId = `sparkline_${kpiId}`;
                 const trendData = k.sparkline || [];
@@ -4513,7 +5455,6 @@
                 initWidgetInteractionsForElement(kpiDiv, kpiId, 'kpi');
             });
 
-            // Create sparklines after DOM is ready
             setTimeout(() => {
                 data.kpis.forEach((k) => {
                     const kpiId = ensureKpiId(k);
@@ -4524,40 +5465,11 @@
                     if (!container) return;
                     if (trendData.length === 0) return;
 
-                    const trendChange = calculateTrend(trendData);
-                    const isPositive = trendChange >= 0;
-                    const trendColor = '#8b5cf6';
-                    createSparkline(sparklineId, trendData, trendColor);
+                    createSparkline(sparklineId, trendData, '#8b5cf6');
                 });
             }, 180);
 
-            // Charts
-            const chartIds = ['chart_0', 'chart_1', 'chart_2', 'chart_3', 'chart_4'];
-
-            chartIds.forEach(id => {
-                const slot = document.getElementById(id);
-                if (slot) {
-                    slot.style.display = 'none';
-                    slot.style.transform = '';
-                    slot.style.width = '';
-                    slot.style.height = '';
-                    slot.innerHTML = '';
-                }
-            });
-
-            data.charts.forEach((c, i) => {
-                if (i >= chartIds.length) return;
-                const id = chartIds[i];
-                const slot = document.getElementById(id);
-                if (!slot) return;
-                c.id = id;
-                slot.style.display = 'flex';
-                console.log(`Rendering chart ${i}:`, c.type, c);
-                renderChartById(id);
-            });
-
-            renderChartLibrary();
-            updateDashboardSidebarLayout();
+            refreshKpiReplaceTargets();
         }
 
         function adjustColor(color, amount) {
@@ -4578,6 +5490,23 @@
 
 
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
