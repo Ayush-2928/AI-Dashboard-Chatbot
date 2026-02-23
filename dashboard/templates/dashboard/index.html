@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2205,6 +2205,34 @@
             processAbortController.abort();
         }
 
+        function buildFilterRefreshWidgetsPayload() {
+            const payload = { kpis: [], charts: [] };
+            if (!currentData || typeof currentData !== 'object') return payload;
+
+            const kpis = Array.isArray(currentData.kpis) ? currentData.kpis : [];
+            payload.kpis = kpis.map(k => ({
+                _id: ensureKpiId(k),
+                label: String((k && k.label) || ''),
+                sql: String((k && (k.sql || k.value_sql)) || ''),
+                trend_sql: String((k && k.trend_sql) || ''),
+            }));
+
+            const charts = Array.isArray(currentData.charts) ? currentData.charts : [];
+            payload.charts = charts
+                .filter(c => c && !c._removed)
+                .map((c, idx) => ({
+                    id: String(c.id || `chart_${idx}`),
+                    title: String(c.title || `Chart ${idx + 1}`),
+                    type: String(c.type || 'bar'),
+                    xlabel: String(c.xlabel || ''),
+                    ylabel: String(c.ylabel || ''),
+                    sql: String(c.sql || ''),
+                    showDataLabels: Boolean(c.showDataLabels),
+                }));
+
+            return payload;
+        }
+
         async function processFile(reason = 'manual') {
             dataSourceMode = 'databricks';
             const isFilterRequest = reason === 'filters';
@@ -2224,11 +2252,15 @@
 
             const formData = new FormData();
             formData.append('filters', JSON.stringify(activeFilters));
+            if (isFilterRequest) {
+                formData.append('widgets', JSON.stringify(buildFilterRefreshWidgetsPayload()));
+            }
 
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const processUrl = isFilterRequest ? '/api/reapply-filters/' : '/api/process/';
 
             try {
-                const res = await fetch('/api/process/', {
+                let res = await fetch(processUrl, {
                     method: 'POST',
                     body: formData,
                     headers: {'X-CSRFToken': csrfToken},
@@ -2752,11 +2784,14 @@
                     const source = incomingKpis[kpiIdx] || null;
                     if (!source) return keep;
                     kpiIdx += 1;
+                    if (source._refresh_failed) return keep;
                     if ((keep.label === undefined || keep.label === null || String(keep.label).trim() === '') && source.label) {
                         keep.label = source.label;
                     }
                     keep.value = source.value;
                     keep.sparkline = Array.isArray(source.sparkline) ? [...source.sparkline] : [];
+                    if (source.sql !== undefined) keep.sql = source.sql;
+                    if (source.trend_sql !== undefined) keep.trend_sql = source.trend_sql;
                     return keep;
                 });
             }
@@ -2778,8 +2813,10 @@
                     const source = incomingCharts[sourceIdx] || null;
                     if (!source) return keep;
                     sourceIdx += 1;
+                    if (source._refresh_failed) return keep;
 
                     _copyChartDataFields(keep, source);
+                    if (source.sql !== undefined) keep.sql = source.sql;
                     if (!keep.title && source.title) keep.title = source.title;
                     if (!keep.xlabel && source.xlabel) keep.xlabel = source.xlabel;
                     if (!keep.ylabel && source.ylabel) keep.ylabel = source.ylabel;
@@ -3398,7 +3435,7 @@
                         <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${escapeHtml(entry.kpi.label || 'KPI')}</div>
                         <div class="text-3xl font-bold text-white mt-1 mb-1">${escapeHtml(entry.kpi.value || '0')}</div>
                         <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
-                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}%
+                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}% last 6 months
                         </div>
                     </div>
                     <div class="sparkline-container" id="${sparkId}"></div>
@@ -3408,7 +3445,7 @@
             modal.style.display = 'flex';
             setTimeout(() => {
                 const trendColor = '#8b5cf6';
-                createSparkline(sparkId, trendData.length ? trendData : [0, 0, 0, 0, 0, 0, 0], trendColor);
+                createSparkline(sparkId, trendData.length ? trendData : [0, 0, 0, 0, 0, 0], trendColor);
             }, 80);
         }
 
@@ -3825,6 +3862,8 @@
                     throw new Error('No chart returned by backend');
                 }
 
+                generatedChart.sql = data.generated_sql || generatedChart.sql || '';
+
                 const libraryEntry = addChartToLibrary(generatedChart, {
                     source: 'Generated',
                     sql: data.generated_sql || ''
@@ -3914,6 +3953,10 @@
 
                 const nextKpi = cloneKpi(generatedKpi);
                 ensureKpiId(nextKpi);
+                if (data.generated_sql && typeof data.generated_sql === 'object') {
+                    nextKpi.sql = String(data.generated_sql.value_sql || nextKpi.sql || '');
+                    nextKpi.trend_sql = String(data.generated_sql.trend_sql || nextKpi.trend_sql || '');
+                }
 
                 const libraryEntry = addKpiToLibrary(nextKpi, {
                     source: 'Generated',
@@ -4083,7 +4126,7 @@
                         <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${escapeHtml(customPopupKpi.label || 'KPI')}</div>
                         <div class="text-2xl font-bold text-white mt-1 mb-1">${escapeHtml(customPopupKpi.value || '0')}</div>
                         <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
-                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}%
+                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}% last 6 months
                         </div>
                     </div>
                     <div class="sparkline-container" id="${sparkId}"></div>
@@ -4099,7 +4142,7 @@
 
             refreshKpiReplaceTargets();
             setTimeout(() => {
-                const data = trendData.length ? trendData : [0, 0, 0, 0, 0, 0, 0];
+                const data = trendData.length ? trendData : [0, 0, 0, 0, 0, 0];
                 createSparkline(sparkId, data, trendColor);
             }, 40);
         }
@@ -4471,7 +4514,7 @@
                     logDiv.className += ' bg-red-900/20 text-red-400';
                 } else if (line.includes('[LLM REQUEST]') || line.includes('[CHATBOT]') || line.includes('REQUEST')) {
                     logDiv.className += ' bg-violet-900/20 text-violet-400';
-                } else if (line.includes('└─') || line.includes('->')) {
+                } else if (line.includes('+-') || line.includes('->')) {
                     logDiv.className += ' bg-slate-800/50 text-slate-400 ml-4';
                 } else {
                     logDiv.className += ' bg-slate-800/30 text-slate-300';
@@ -5345,8 +5388,10 @@
                         endDate.min = minDate;
                         endDate.max = maxDate;
 
-                        const nextStart = activeFilters['_start_date'] ? String(activeFilters['_start_date']) : minDate;
-                        const nextEnd = activeFilters['_end_date'] ? String(activeFilters['_end_date']) : maxDate;
+                        const serverStart = data.applied_start_date ? String(data.applied_start_date) : '';
+                        const serverEnd = data.applied_end_date ? String(data.applied_end_date) : '';
+                        const nextStart = activeFilters['_start_date'] ? String(activeFilters['_start_date']) : (serverStart || minDate);
+                        const nextEnd = activeFilters['_end_date'] ? String(activeFilters['_end_date']) : (serverEnd || maxDate);
                         startDate.value = nextStart;
                         endDate.value = nextEnd;
                         startDate.dataset.appliedValue = nextStart;
@@ -5358,8 +5403,10 @@
                         startDate.removeAttribute('max');
                         endDate.removeAttribute('min');
                         endDate.removeAttribute('max');
-                        const nextStart = activeFilters['_start_date'] ? String(activeFilters['_start_date']) : '';
-                        const nextEnd = activeFilters['_end_date'] ? String(activeFilters['_end_date']) : '';
+                        const serverStart = data.applied_start_date ? String(data.applied_start_date) : '';
+                        const serverEnd = data.applied_end_date ? String(data.applied_end_date) : '';
+                        const nextStart = activeFilters['_start_date'] ? String(activeFilters['_start_date']) : serverStart;
+                        const nextEnd = activeFilters['_end_date'] ? String(activeFilters['_end_date']) : serverEnd;
                         startDate.value = nextStart;
                         endDate.value = nextEnd;
                         startDate.dataset.appliedValue = nextStart;
@@ -5445,7 +5492,7 @@
                         <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${k.label}</div>
                         <div class="text-2xl font-bold text-white mt-1 mb-1">${k.value}</div>
                         <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
-                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}%
+                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}% in the last 6 months
                         </div>
                     </div>
                     <div class="sparkline-container" id="${sparklineId}"></div>
@@ -5490,6 +5537,7 @@
 
 
 </html>
+
 
 
 

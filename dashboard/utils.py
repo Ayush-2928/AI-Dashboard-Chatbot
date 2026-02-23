@@ -4,6 +4,7 @@ import os
 import re
 import time
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
 from dotenv import load_dotenv
 from django.http import HttpResponse
@@ -57,6 +58,7 @@ STRICT_SQL_GUARDRAILS = config_strict_sql_guardrails_enabled()
 AI_SQL_MAX_LIMIT = config_ai_sql_max_limit()
 
 DATABRICKS_LOGICAL_VIEW_NAME = "analysis_view"
+KPI_TREND_POINTS = 6
 
 
 def _is_databricks_mode_active():
@@ -65,6 +67,55 @@ def _is_databricks_mode_active():
 
 def _llm_include_sample_rows():
     return config_llm_include_sample_rows()
+
+
+def _default_dashboard_months():
+    raw = os.getenv("DASHBOARD_DEFAULT_MONTHS", "12")
+    try:
+        return max(1, int(raw))
+    except Exception:
+        return 12
+
+
+def _compute_default_date_window(max_date_hint=None, months=None):
+    n_months = months or _default_dashboard_months()
+    end_ts = pd.to_datetime(max_date_hint, errors="coerce") if max_date_hint else pd.NaT
+    if pd.isna(end_ts):
+        end_ts = pd.Timestamp.utcnow().normalize()
+    else:
+        end_ts = pd.Timestamp(end_ts).normalize()
+
+    start_ts = (end_ts - pd.DateOffset(months=n_months)) + pd.Timedelta(days=1)
+    return str(start_ts.date()), str(end_ts.date())
+
+
+def _apply_default_date_filters(active_filters_json, date_column, date_range_override=None, logs=None):
+    filters = _parse_active_filters_json(active_filters_json)
+    if not date_column:
+        return json.dumps(filters), "", ""
+
+    start_raw = str(filters.get("_start_date") or "").strip()
+    end_raw = str(filters.get("_end_date") or "").strip()
+
+    # Respect explicit user-provided date bounds.
+    if start_raw or end_raw:
+        if not filters.get("_date_column"):
+            filters["_date_column"] = date_column
+        return json.dumps(filters), start_raw, end_raw
+
+    max_hint = None
+    if isinstance(date_range_override, dict):
+        max_hint = date_range_override.get("max")
+
+    start_d, end_d = _compute_default_date_window(max_date_hint=max_hint)
+    filters["_date_column"] = date_column
+    filters["_start_date"] = start_d
+    filters["_end_date"] = end_d
+
+    if logs is not None:
+        logs.append(f"[FILTER] Default date window applied: {start_d} to {end_d} (last {_default_dashboard_months()} months)")
+
+    return json.dumps(filters), start_d, end_d
 
 
 def _redact_sensitive_text(text):
@@ -181,6 +232,109 @@ def _is_date_dtype(dtype):
     return "date" in d or "timestamp" in d or "time" in d
 
 
+
+def _select_invoice_entity_key(schema_columns):
+    best_col = None
+    best_score = -10_000
+
+    for col_name, col_type in (schema_columns or []):
+        name = str(col_name or "").strip()
+        if not name:
+            continue
+
+        n = name.lower()
+        has_invoice = "invoice" in n
+        has_bill = "bill" in n
+        if not (has_invoice or has_bill):
+            continue
+
+        score = 0
+        if has_invoice:
+            score += 120
+        if has_bill:
+            score += 70
+
+        if any(tok in n for tok in ["number", "num", "_no", "no_", "code"]):
+            score += 90
+        if n.endswith("_id") or n == "id" or "_id_" in n:
+            score += 50
+        if "header" in n:
+            score += 20
+
+        if any(tok in n for tok in ["detail", "item", "line", "row"]):
+            score -= 140
+        if any(tok in n for tok in ["guid", "rid"]):
+            score -= 140
+        if any(tok in n for tok in ["material", "product", "sku"]):
+            score -= 80
+
+        if _is_text_dtype(col_type):
+            score += 10
+        elif _is_numeric_dtype(col_type):
+            score += 5
+
+        if score > best_score:
+            best_score = score
+            best_col = name
+
+    if best_score < 40:
+        return None
+    return best_col
+
+
+def _is_invoice_count_intent(label_text="", sql_text="", prompt_text=""):
+    text = f"{label_text} {sql_text} {prompt_text}".lower()
+    has_invoice = any(tok in text for tok in ["invoice", "invoices"])
+    if not has_invoice:
+        return False
+
+    count_like_tokens = [
+        "count",
+        "distinct",
+        "number",
+        "how many",
+        "no of",
+        "no.",
+    ]
+    return any(tok in text for tok in count_like_tokens)
+
+
+def _normalize_invoice_count_kpi_plan(kpi_obj, schema_columns, table_name, date_column=None, prompt_text="", logs=None, entity_col=None):
+    if not isinstance(kpi_obj, dict):
+        return None
+
+    out = dict(kpi_obj)
+    label_text = str(out.get("label", "")).strip()
+    sql_text = str(out.get("sql") or out.get("value_sql") or "").strip()
+
+    if not _is_invoice_count_intent(label_text=label_text, sql_text=sql_text, prompt_text=prompt_text):
+        return out
+
+    chosen_col = entity_col or _select_invoice_entity_key(schema_columns)
+    if not chosen_col:
+        if logs is not None:
+            logs.append(f"[WARN] KPI guard could not identify invoice entity key for '{label_text or 'Invoice Count'}'")
+        return out
+
+    chosen_ident = _quote_identifier(chosen_col)
+    out["sql"] = f"SELECT COUNT(DISTINCT {chosen_ident}) FROM {table_name}"
+    out["value_sql"] = out["sql"]
+
+    if date_column:
+        date_ident = _quote_identifier(date_column)
+        out["trend_sql"] = (
+            f"SELECT CAST({date_ident} AS DATE) AS x, "
+            f"COUNT(DISTINCT {chosen_ident}) AS y "
+            f"FROM {table_name} GROUP BY 1 ORDER BY 1"
+        )
+    else:
+        out["trend_sql"] = ""
+
+    if logs is not None:
+        logs.append(
+            f"[GUARD] KPI '{label_text or 'Invoice Count'}' normalized to COUNT(DISTINCT {chosen_col})"
+        )
+    return out
 def _score_databricks_table_name(table_name, prefer_fact=True):
     name = str(table_name or "").strip().lower()
     if not name:
@@ -390,24 +544,36 @@ def _resolve_selected_date_column(active_filters_json, date_columns):
     return lookup.get(selected_raw.lower(), date_columns[0])
 
 
-def _build_databricks_where_clause(active_filters_json, available_columns, date_column=None):
+def _build_databricks_where_clause(active_filters_json, available_columns, date_column=None, column_type_lookup=None):
     filters = _parse_active_filters_json(active_filters_json)
     if not filters:
         return "", 0
 
     available = {str(c).lower(): c for c in available_columns}
+    col_types = column_type_lookup if isinstance(column_type_lookup, dict) else {}
     where_clauses = []
 
     start_date = filters.get("_start_date")
     end_date = filters.get("_end_date")
     if date_column:
         date_ident = _quote_identifier(date_column)
+        date_dtype = str(col_types.get(str(date_column).lower(), "")).lower()
+        date_is_native = ("date" in date_dtype) or ("timestamp" in date_dtype)
+
         if start_date:
             safe = str(start_date).replace("'", "''")
-            where_clauses.append(f"CAST({date_ident} AS DATE) >= CAST('{safe}' AS DATE)")
+            if date_is_native:
+                where_clauses.append(f"{date_ident} >= DATE '{safe}'")
+            else:
+                where_clauses.append(f"CAST({date_ident} AS DATE) >= DATE '{safe}'")
+
         if end_date:
             safe = str(end_date).replace("'", "''")
-            where_clauses.append(f"CAST({date_ident} AS DATE) <= CAST('{safe}' AS DATE)")
+            if date_is_native:
+                # Inclusive end-date while preserving partition pruning opportunities.
+                where_clauses.append(f"{date_ident} < DATE_ADD(DATE '{safe}', 1)")
+            else:
+                where_clauses.append(f"CAST({date_ident} AS DATE) <= DATE '{safe}'")
 
     for col, val in filters.items():
         if col in {"_start_date", "_end_date", "_date_column"}:
@@ -594,7 +760,8 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
     {master_schema_context}
 
     STEP 1: FILTERS -> 3 categorical columns for filtering.
-    STEP 2: CHARTS -> 6 SQL queries (including heatmap if applicable).
+    STEP 2: KPIS -> EXACTLY 4 KPI SQL queries (each must have label, sql, trend_sql).
+    STEP 3: CHARTS -> 6 SQL queries (including heatmap if applicable).
 
     CRITICAL DATA GRAIN RULE:
     - {logical_table_name} is transaction-level (one row per transaction/event).
@@ -618,6 +785,8 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
 
     TITLE REQUIREMENTS:
     - Titles must clearly mention the metric and dimension.
+    KPI REQUIREMENTS:
+    - Return EXACTLY 4 KPIs in the kpis array.
 
     RETURN JSON:
     {{
@@ -639,6 +808,83 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
     ], json_mode=True, debug_logs=debug_logs, context="Generate Viz Config")
     return (json.loads(res) if res else None), tokens
 
+
+def generate_additional_kpis(master_schema_context, existing_kpis, needed_count, debug_logs=None, logical_table_name="master_view"):
+    try:
+        needed = int(needed_count or 0)
+    except Exception:
+        needed = 0
+    if needed <= 0:
+        return [], 0
+
+    existing = existing_kpis if isinstance(existing_kpis, list) else []
+    existing_json = json.dumps(existing, ensure_ascii=False)
+
+    prompt = f"""
+    You are a BI Expert. We already have KPI specs for '{logical_table_name}':
+    {existing_json}
+
+    DATA CONTEXT:
+    {master_schema_context}
+
+    TASK:
+    - Generate EXACTLY {needed} ADDITIONAL KPI specs.
+    - These must be different from existing KPIs in metric meaning (not just renamed duplicates).
+
+    RULES:
+    1. Return ONLY JSON.
+    2. SQL must be SELECT/WITH only and use only {logical_table_name}.
+    3. Each KPI must include: label, sql, trend_sql.
+    4. trend_sql must return aliases exactly x, y.
+    5. For unique entity counts, use COUNT(DISTINCT entity_key), not COUNT(*).
+    6. Avoid duplicate labels and duplicate SQL semantics.
+
+    RETURN JSON:
+    {{
+      "kpis": [
+        {{ "label": "KPI 1", "sql": "SELECT ... FROM {logical_table_name}", "trend_sql": "SELECT ... AS x, ... AS y FROM {logical_table_name} ..." }}
+      ]
+    }}
+    """
+
+    res, tokens = call_ai_with_retry(
+        [{"role": "user", "content": prompt}],
+        json_mode=True,
+        debug_logs=debug_logs,
+        context="Generate Additional KPIs",
+    )
+
+    if not res:
+        return [], tokens
+
+    try:
+        parsed = json.loads(res)
+    except Exception:
+        return [], tokens
+
+    raw_kpis = parsed.get("kpis") if isinstance(parsed, dict) else None
+    if not isinstance(raw_kpis, list):
+        return [], tokens
+
+    cleaned = []
+    seen_labels = set(str(k.get("label", "")).strip().lower() for k in existing if isinstance(k, dict))
+    for k in raw_kpis:
+        if not isinstance(k, dict):
+            continue
+        label = str(k.get("label", "")).strip()
+        sql = str(k.get("sql", "")).strip()
+        trend_sql = str(k.get("trend_sql", "")).strip()
+        if not label or not sql:
+            continue
+        key = label.lower()
+        if key in seen_labels:
+            continue
+        seen_labels.add(key)
+        cleaned.append({"label": label, "sql": sql, "trend_sql": trend_sql})
+        if len(cleaned) >= needed:
+            break
+
+    return cleaned, tokens
 ALLOWED_CUSTOM_CHART_TYPES = {"bar", "line", "scatter", "pie", "heatmap", "table", "treemap", "waterfall"}
 FORBIDDEN_SQL_KEYWORDS = {
     "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE",
@@ -1420,11 +1666,66 @@ def _coerce_categorical_line_to_bar(c_data, chart_type, max_points=24):
     c_data["y"] = [y for _, y in pairs]
     c_data["type"] = "bar"
     return "bar"
+def _rebucket_numeric_distribution(x_values, y_values, title="", xlabel="", ylabel="", max_points=60, max_bins=20):
+    try:
+        x_vals = list(x_values or [])
+        y_vals = list(y_values or [])
+    except Exception:
+        return x_values, y_values, False
 
+    if not x_vals or not y_vals or len(x_vals) != len(y_vals):
+        return x_values, y_values, False
 
+    if _series_looks_datetime(x_vals):
+        return x_values, y_values, False
 
+    x_num = pd.to_numeric(pd.Series(x_vals), errors="coerce")
+    valid_ratio = float(x_num.notna().mean()) if len(x_num) else 0.0
+    if valid_ratio < 0.9:
+        return x_values, y_values, False
 
-def _extract_kpi_sparkline_from_df(df, target_points=7):
+    unique_count = int(x_num.nunique(dropna=True))
+    hint = f"{title} {xlabel} {ylabel}".lower()
+    distribution_hint = any(tok in hint for tok in ["distribution", "hist", "frequency"])
+
+    if unique_count <= max_points and not distribution_hint:
+        return x_values, y_values, False
+
+    y_num = pd.to_numeric(pd.Series(y_vals), errors="coerce").fillna(0.0)
+    valid_mask = x_num.notna() & y_num.notna()
+    if int(valid_mask.sum()) < 3:
+        return x_values, y_values, False
+
+    xv = x_num[valid_mask].astype(float).to_numpy()
+    yv = y_num[valid_mask].astype(float).to_numpy()
+
+    x_min = float(np.nanmin(xv))
+    x_max = float(np.nanmax(xv))
+    if not np.isfinite(x_min) or not np.isfinite(x_max) or x_min == x_max:
+        return x_values, y_values, False
+
+    bin_count = min(int(max_bins), max(8, int(np.sqrt(max(unique_count, 1)))))
+    bin_count = max(2, bin_count)
+
+    edges = np.linspace(x_min, x_max, bin_count + 1)
+    hist, edges = np.histogram(xv, bins=edges, weights=yv)
+
+    labels = []
+    values = []
+    for i in range(len(hist)):
+        v = float(hist[i])
+        if abs(v) < 1e-12:
+            continue
+        lo = float(edges[i])
+        hi = float(edges[i + 1])
+        labels.append(f"{lo:,.2f} to {hi:,.2f}")
+        values.append(v)
+
+    if not labels:
+        return x_values, y_values, False
+
+    return labels, values, True
+def _extract_kpi_sparkline_from_df(df, target_points=KPI_TREND_POINTS):
     if df is None or df.empty or df.shape[1] < 2:
         return []
 
@@ -1563,13 +1864,22 @@ def _build_custom_chart_payload(plan, df):
     else:
         if len(df.columns) >= 2:
             chart_data["x"] = df["x"].tolist() if "x" in df else df.iloc[:, 0].tolist()
-            chart_data["y"] = df["y"].tolist() if "y" in df else df.iloc[:, 1].tolist()
+            y_series = df["y"] if "y" in df else df.iloc[:, 1]
+            chart_data["y"] = pd.to_numeric(y_series, errors="coerce").fillna(0).astype(float).tolist()
             if chart_type == "line":
                 chart_data["x"], chart_data["y"] = _normalize_and_aggregate_line_series(
                     chart_data["x"], chart_data["y"], chart_data.get("title", ""), chart_data.get("xlabel", "")
                 )
             else:
                 chart_data["x"] = _normalize_month_axis_labels(chart_data["x"], chart_data.get("title", ""), chart_data.get("xlabel", ""))
+
+            chart_data["x"], chart_data["y"], _ = _rebucket_numeric_distribution(
+                chart_data.get("x", []),
+                chart_data.get("y", []),
+                title=chart_data.get("title", ""),
+                xlabel=chart_data.get("xlabel", ""),
+                ylabel=chart_data.get("ylabel", ""),
+            )
 
     return chart_data
 
@@ -1697,7 +2007,7 @@ def _build_custom_kpi_payload(plan, value_raw, sparkline_data):
             base = float(value_raw)
         except Exception:
             base = 0.0
-        sparkline_data = [base] * 7
+        sparkline_data = [base] * KPI_TREND_POINTS
 
     return {
         "label": label,
@@ -1724,13 +2034,22 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
         schema_context = source_model["schema_context"]
         schema_columns = source_model["schema_columns"]
         column_names = [c for c, _ in schema_columns]
+        column_type_lookup = {str(c).lower(): str(t) for c, t in schema_columns}
         date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
         date_column = _resolve_selected_date_column(active_filters_json, date_cols)
 
-        where_sql, filter_count = _build_databricks_where_clause(
+        effective_filters_json, applied_start_date, applied_end_date = _apply_default_date_filters(
             active_filters_json,
+            date_column,
+            date_range_override=date_range_override,
+            logs=log,
+        )
+
+        where_sql, filter_count = _build_databricks_where_clause(
+            effective_filters_json,
             column_names,
             date_column=date_column,
+            column_type_lookup=column_type_lookup,
         )
         if filter_count > 0:
             llm_logs.append(f"[FILTER] Applied {filter_count} filter(s) in Databricks mode")
@@ -1769,6 +2088,15 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
                 table_name=DATABRICKS_LOGICAL_VIEW_NAME,
             )
 
+        ai_plan = _normalize_invoice_count_kpi_plan(
+            ai_plan,
+            schema_columns,
+            DATABRICKS_LOGICAL_VIEW_NAME,
+            date_column=date_column,
+            prompt_text=prompt_for_kpi,
+            logs=llm_logs,
+        )
+
         value_sql = str(ai_plan.get("value_sql") or ai_plan.get("sql") or "").strip()
         value_sql = value_sql.replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME)
         value_sql, guardrail_notes = _apply_sql_security_and_cost_guardrails(value_sql)
@@ -1780,6 +2108,14 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
                 schema_columns,
                 user_prompt,
                 table_name=DATABRICKS_LOGICAL_VIEW_NAME,
+            )
+            ai_plan = _normalize_invoice_count_kpi_plan(
+                ai_plan,
+                schema_columns,
+                DATABRICKS_LOGICAL_VIEW_NAME,
+                date_column=date_column,
+                prompt_text=prompt_for_kpi,
+                logs=llm_logs,
             )
             value_sql = str(ai_plan.get("value_sql") or "").strip()
 
@@ -1816,7 +2152,7 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
                         context="Custom KPI Trend",
                     )
                     if not trend_df.empty:
-                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=7)
+                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
                 except Exception as e:
                     llm_logs.append(f"[WARN] KPI trend query failed: {str(e)}")
 
@@ -1825,9 +2161,11 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
                 base = float(value_raw)
             except Exception:
                 base = 0.0
-            sparkline_data = [base] * 7
+            sparkline_data = [base] * KPI_TREND_POINTS
 
         kpi_payload = _build_custom_kpi_payload(ai_plan, value_raw, sparkline_data)
+        kpi_payload["sql"] = executed_value_sql
+        kpi_payload["trend_sql"] = executed_trend_sql or trend_sql
         return {
             "kpi": kpi_payload,
             "generated_sql": {
@@ -1845,10 +2183,8 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
 def execute_dashboard_logic_databricks(
     active_filters_json=None,
     session_id=None,
-    plan_override=None,
     filters_override=None,
     date_range_override=None,
-    cached_source_table=None,
 ):
     log = []
     total_tokens = 0
@@ -1871,16 +2207,25 @@ def execute_dashboard_logic_databricks(
         schema_context = source_model["schema_context"]
         schema_columns = source_model["schema_columns"]
         column_names = [c for c, _ in schema_columns]
+        column_type_lookup = {str(c).lower(): str(t) for c, t in schema_columns}
 
         date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
         text_cols = [c for c, t in schema_columns if _is_text_dtype(t)]
         num_cols = [c for c, t in schema_columns if _is_numeric_dtype(t)]
         date_column = _resolve_selected_date_column(active_filters_json, date_cols)
 
-        where_sql, filter_count = _build_databricks_where_clause(
+        effective_filters_json, applied_start_date, applied_end_date = _apply_default_date_filters(
             active_filters_json,
+            date_column,
+            date_range_override=date_range_override,
+            logs=log,
+        )
+
+        where_sql, filter_count = _build_databricks_where_clause(
+            effective_filters_json,
             column_names,
             date_column=date_column,
+            column_type_lookup=column_type_lookup,
         )
         if filter_count > 0:
             log.append(f"[FILTER] Applied {filter_count} filter(s) in Databricks mode")
@@ -1920,30 +2265,30 @@ def execute_dashboard_logic_databricks(
                 f"[SECURITY] Databricks SQL guardrails active (SELECT/WITH only, forbidden keywords blocked, max LIMIT={AI_SQL_MAX_LIMIT})"
             )
 
-        cache_source_matches = (
-            not cached_source_table or str(cached_source_table).strip().lower() == str(source_table_base).strip().lower()
+        plan, tokens = generate_viz_config(
+            schema_context,
+            debug_logs=log,
+            logical_table_name=DATABRICKS_LOGICAL_VIEW_NAME,
         )
-        if cached_source_table and not cache_source_matches:
-            log.append(
-                f"[CACHE] Ignoring cached plan/filters because source changed "
-                f"({cached_source_table} -> {source_table_base})"
-            )
+        total_tokens += tokens
 
-        plan = None
-        if cache_source_matches and isinstance(plan_override, dict) and bool(plan_override):
-            try:
-                plan = json.loads(json.dumps(plan_override))
-                log.append("[CACHE] Reusing cached visualization plan")
-            except Exception:
-                plan = None
+        if isinstance(plan, dict):
+            plan_kpis = plan.get("kpis", [])
+            if not isinstance(plan_kpis, list):
+                plan_kpis = []
+            if len(plan_kpis) < 4:
+                needed_kpis = 4 - len(plan_kpis)
+                extra_kpis, extra_tokens = generate_additional_kpis(
+                    schema_context,
+                    plan_kpis,
+                    needed_kpis,
+                    debug_logs=log,
+                    logical_table_name=DATABRICKS_LOGICAL_VIEW_NAME,
+                )
+                total_tokens += extra_tokens
+                if extra_kpis:
+                    plan["kpis"] = plan_kpis + extra_kpis
 
-        if not plan:
-            plan, tokens = generate_viz_config(
-                schema_context,
-                debug_logs=log,
-                logical_table_name=DATABRICKS_LOGICAL_VIEW_NAME,
-            )
-            total_tokens += tokens
         if not plan:
             metric_col = num_cols[0] if num_cols else None
             dim_col = text_cols[0] if text_cols else None
@@ -1975,6 +2320,8 @@ def execute_dashboard_logic_databricks(
             "date_range": date_range,
             "date_columns": date_cols,
             "selected_date_column": date_column,
+            "applied_start_date": applied_start_date,
+            "applied_end_date": applied_end_date,
             "has_date_column": bool(date_cols),
             "tokens_used": total_tokens,
             "master_preview": None,
@@ -1994,7 +2341,7 @@ def execute_dashboard_logic_databricks(
                 log.append(f"[WARN] Could not load Databricks preview rows: {str(e)}")
 
         cached_filters = []
-        if cache_source_matches and isinstance(filters_override, list):
+        if isinstance(filters_override, list):
             for f in filters_override:
                 if not isinstance(f, dict):
                     continue
@@ -2058,7 +2405,7 @@ def execute_dashboard_logic_databricks(
             if not kpi_sql:
                 raise ValueError("Empty KPI SQL")
 
-            df, _ = _execute_databricks_user_sql(
+            df, executed_value_sql = _execute_databricks_user_sql(
                 connection,
                 kpi_sql,
                 source_table_base,
@@ -2074,11 +2421,12 @@ def execute_dashboard_logic_databricks(
                 val = 0 if pd.isna(raw_val) else raw_val
 
             sparkline_data = []
+            executed_trend_sql = ""
             if trend_sql:
                 trend_sql = str(trend_sql).replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME).strip()
                 if trend_sql:
                     try:
-                        trend_df, _ = _execute_databricks_user_sql(
+                        trend_df, executed_trend_sql = _execute_databricks_user_sql(
                             connection,
                             trend_sql,
                             source_table_base,
@@ -2088,7 +2436,7 @@ def execute_dashboard_logic_databricks(
                             context=f"{context_prefix} Trend {label_text}",
                         )
                         if not trend_df.empty and trend_df.shape[1] >= 2:
-                            sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=7)
+                            sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
                     except Exception as e:
                         log.append(f"[WARN] KPI trend query failed for {label_text}: {str(e)}")
 
@@ -2097,12 +2445,14 @@ def execute_dashboard_logic_databricks(
                     base_val = float(val)
                 except Exception:
                     base_val = 0.0
-                sparkline_data = [max(0.0, base_val)] * 7
+                sparkline_data = [max(0.0, base_val)] * KPI_TREND_POINTS
 
             return {
                 "label": label_text,
                 "value": _format_kpi_display_value(val),
                 "sparkline": [float(v) for v in sparkline_data],
+                "sql": executed_value_sql,
+                "trend_sql": executed_trend_sql or trend_sql or "",
             }
 
         filtered_row_count = 0
@@ -2116,8 +2466,26 @@ def execute_dashboard_logic_databricks(
                 filtered_row_count = int(count_df.iloc[0].get("c") or 0)
         except Exception as e:
             log.append(f"[WARN] Could not compute filtered row count for KPI fallback: {str(e)}")
+        invoice_entity_col = _select_invoice_entity_key(schema_columns)
+        if invoice_entity_col:
+            log.append(f"[GUARD] Invoice entity key selected: {invoice_entity_col}")
 
-        kpis = plan.get("kpis", [])
+        def _enforce_invoice_count_kpi(kpi_obj):
+            return _normalize_invoice_count_kpi_plan(
+                kpi_obj,
+                schema_columns,
+                DATABRICKS_LOGICAL_VIEW_NAME,
+                date_column=date_column,
+                logs=log,
+                entity_col=invoice_entity_col,
+            )
+
+        kpis = []
+        for _k in (plan.get("kpis", []) or []):
+            norm = _enforce_invoice_count_kpi(_k)
+            if norm is not None:
+                kpis.append(norm)
+
         valid_kpis = []
         used_labels = set()
 
@@ -2158,7 +2526,6 @@ def execute_dashboard_logic_databricks(
                     fallback_metric_col = matched
                     break
 
-        entity_count_col = next((c for c in column_names if str(c).lower() in {"invoicenumber", "billdetailedrid", "inv_item_guid", "retaileruid"}), None)
         fallback_kpis = [
             {
                 "label": "Record Count",
@@ -2167,9 +2534,9 @@ def execute_dashboard_logic_databricks(
             },
             {
                 "label": "Distinct Invoices",
-                "sql": f"SELECT COUNT(DISTINCT {_quote_identifier(entity_count_col)}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
-                "trend_sql": f"SELECT CAST({_quote_identifier(date_column)} AS DATE) AS x, COUNT(DISTINCT {_quote_identifier(entity_count_col)}) AS y FROM {DATABRICKS_LOGICAL_VIEW_NAME} GROUP BY 1 ORDER BY 1" if date_column else "",
-            } if entity_count_col else None,
+                "sql": f"SELECT COUNT(DISTINCT {_quote_identifier(invoice_entity_col)}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
+                "trend_sql": f"SELECT CAST({_quote_identifier(date_column)} AS DATE) AS x, COUNT(DISTINCT {_quote_identifier(invoice_entity_col)}) AS y FROM {DATABRICKS_LOGICAL_VIEW_NAME} GROUP BY 1 ORDER BY 1" if date_column else "",
+            } if invoice_entity_col else None,
             {
                 "label": f"Total {fallback_metric_col.replace('_', ' ').title()}",
                 "sql": f"SELECT SUM({_quote_identifier(fallback_metric_col)}) FROM {DATABRICKS_LOGICAL_VIEW_NAME}",
@@ -2240,12 +2607,20 @@ def execute_dashboard_logic_databricks(
 
         while len(valid_kpis) < 4:
             if filtered_row_count <= 0:
-                valid_kpis.append({"label": "No Data", "value": "-", "sparkline": [0.0] * 7})
+                valid_kpis.append({
+                    "label": "No Data",
+                    "value": "-",
+                    "sparkline": [0.0] * KPI_TREND_POINTS,
+                    "sql": "",
+                    "trend_sql": "",
+                })
             else:
                 valid_kpis.append({
                     "label": f"Rows (Filtered) {len(valid_kpis)+1}",
                     "value": _format_kpi_display_value(filtered_row_count),
-                    "sparkline": [float(filtered_row_count)] * 7,
+                    "sparkline": [float(filtered_row_count)] * KPI_TREND_POINTS,
+                    "sql": "",
+                    "trend_sql": "",
                 })
 
         output["kpis"] = valid_kpis[:4]
@@ -2294,7 +2669,7 @@ def execute_dashboard_logic_databricks(
                     fallback_ylabel = "Count"
 
                 try:
-                    fallback_df, _ = _execute_databricks_user_sql(
+                    fallback_df, fallback_executed_sql = _execute_databricks_user_sql(
                         connection,
                         fallback_sql,
                         source_table_base,
@@ -2315,6 +2690,7 @@ def execute_dashboard_logic_databricks(
                     c_data["title"] = fallback_title
                     c_data["xlabel"] = dim_col.replace('_', ' ').title()
                     c_data["ylabel"] = fallback_ylabel
+                    c_data["sql"] = fallback_executed_sql
                     log.append(f"[INFO] Chart {chart_index} fallback applied ({reason_label}) using {dim_col}")
                     return True
                 except Exception as fallback_err:
@@ -2335,6 +2711,7 @@ def execute_dashboard_logic_databricks(
                 "type": chart_type,
                 "xlabel": chart.get("xlabel", ""),
                 "ylabel": chart.get("ylabel", ""),
+                "sql": "",
                 "x": [],
                 "y": [],
                 "z": [],
@@ -2351,7 +2728,7 @@ def execute_dashboard_logic_databricks(
 
             try:
                 chart_sql = str(chart.get("sql", "")).replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME)
-                df, _ = _execute_databricks_user_sql(
+                df, executed_chart_sql = _execute_databricks_user_sql(
                     connection,
                     chart_sql,
                     source_table_base,
@@ -2360,6 +2737,7 @@ def execute_dashboard_logic_databricks(
                     logs=log,
                     context=f"Chart {i}",
                 )
+                c_data["sql"] = executed_chart_sql
 
                 if not df.empty:
                     df.columns = [str(c).lower() for c in df.columns]
@@ -2400,6 +2778,17 @@ def execute_dashboard_logic_databricks(
                                 c_data["x"] = [str(v) for v in c_data.get("x", [])]
                             else:
                                 c_data["x"] = _normalize_month_axis_labels(c_data["x"], c_data.get("title", ""), c_data.get("xlabel", ""))
+
+                            c_data["x"], c_data["y"], rebucketed = _rebucket_numeric_distribution(
+                                c_data.get("x", []),
+                                c_data.get("y", []),
+                                title=c_data.get("title", ""),
+                                xlabel=c_data.get("xlabel", ""),
+                                ylabel=c_data.get("ylabel", ""),
+                            )
+                            if rebucketed:
+                                log.append(f"[INFO] Chart {i} rebucketed numeric distribution for readability")
+
                             chart_has_data = bool(c_data["x"]) and bool(c_data["y"])
                 else:
                     failure_reason = "No Data"
@@ -2423,6 +2812,7 @@ def execute_dashboard_logic_databricks(
                 "type": "bar",
                 "xlabel": "",
                 "ylabel": "",
+                "sql": "",
                 "x": [],
                 "y": [],
                 "z": [],
@@ -2435,7 +2825,6 @@ def execute_dashboard_logic_databricks(
             })
 
         output["__cache"] = {
-            "plan": plan,
             "filters": output.get("filters", []),
             "source_table": source_table_base,
             "date_range": output.get("date_range"),
@@ -2445,6 +2834,376 @@ def execute_dashboard_logic_databricks(
     finally:
         connection.close()
 
+
+
+
+
+def execute_dashboard_filter_refresh_databricks(
+    active_filters_json=None,
+    widget_state=None,
+    session_id=None,
+    filters_override=None,
+    date_range_override=None,
+):
+    log = []
+    if not session_id:
+        session_id = str(uuid.uuid4())
+
+    widget_state = widget_state if isinstance(widget_state, dict) else {}
+    kpi_specs = widget_state.get("kpis", [])
+    if not isinstance(kpi_specs, list):
+        kpi_specs = []
+    chart_specs = widget_state.get("charts", [])
+    if not isinstance(chart_specs, list):
+        chart_specs = []
+
+    connection = get_databricks_connection()
+    try:
+        source_model = _build_databricks_virtual_source(
+            connection,
+            include_sample_rows=False,
+            logs=log,
+        )
+        source_table_base = source_model["base_table"]
+        source_table_query = source_model["query_source"]
+        schema_columns = source_model["schema_columns"]
+        column_names = [c for c, _ in schema_columns]
+        column_type_lookup = {str(c).lower(): str(t) for c, t in schema_columns}
+        date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
+        date_column = _resolve_selected_date_column(active_filters_json, date_cols)
+
+        effective_filters_json, applied_start_date, applied_end_date = _apply_default_date_filters(
+            active_filters_json,
+            date_column,
+            date_range_override=date_range_override,
+            logs=log,
+        )
+
+
+        where_sql, filter_count = _build_databricks_where_clause(
+            effective_filters_json,
+            column_names,
+            date_column=date_column,
+            column_type_lookup=column_type_lookup,
+        )
+        if filter_count > 0:
+            log.append(f"[FILTER] Applied {filter_count} filter(s) in Databricks mode")
+
+        date_range = {"min": None, "max": None}
+        cached_date_range_used = False
+        if isinstance(date_range_override, dict):
+            min_override = date_range_override.get("min")
+            max_override = date_range_override.get("max")
+            if min_override not in (None, "") or max_override not in (None, ""):
+                date_range = {
+                    "min": str(min_override) if min_override not in (None, "") else None,
+                    "max": str(max_override) if max_override not in (None, "") else None,
+                }
+                cached_date_range_used = True
+                log.append("[CACHE] Reusing cached date range")
+
+        if date_column and not cached_date_range_used:
+            date_ident = _quote_identifier(date_column)
+            try:
+                range_df = fetch_dataframe(
+                    connection,
+                    f"SELECT MIN(CAST({date_ident} AS DATE)) AS min_date, MAX(CAST({date_ident} AS DATE)) AS max_date FROM {source_table_query}",
+                    readonly=True,
+                )
+                if not range_df.empty:
+                    min_val = range_df.iloc[0].get("min_date")
+                    max_val = range_df.iloc[0].get("max_date")
+                    if pd.notna(min_val):
+                        date_range["min"] = str(min_val)
+                    if pd.notna(max_val):
+                        date_range["max"] = str(max_val)
+            except Exception as e:
+                log.append(f"[WARN] Could not compute date range: {str(e)}")
+
+        output = {
+            "domain": "General",
+            "theme": FIXED_DASHBOARD_THEME,
+            "filters": [],
+            "kpis": [],
+            "charts": [],
+            "logs": log,
+            "date_range": date_range,
+            "date_columns": date_cols,
+            "selected_date_column": date_column,
+            "applied_start_date": applied_start_date,
+            "applied_end_date": applied_end_date,
+            "has_date_column": bool(date_cols),
+            "tokens_used": 0,
+            "master_preview": None,
+            "data_mode": "databricks",
+            "source_table": source_table_base,
+            "session_id": session_id,
+        }
+
+        cached_filters = []
+        if isinstance(filters_override, list):
+            for f in filters_override:
+                if not isinstance(f, dict):
+                    continue
+                col = str(f.get("column", "")).strip()
+                if not col:
+                    continue
+                vals = f.get("values", [])
+                if not isinstance(vals, list):
+                    vals = []
+                cleaned_vals = [str(v) for v in vals if str(v).strip()]
+                if not cleaned_vals:
+                    continue
+                cached_filters.append({
+                    "label": str(f.get("label") or col.replace('_', ' ').title()),
+                    "column": col,
+                    "values": cleaned_vals,
+                })
+        if cached_filters:
+            output["filters"] = cached_filters
+            log.append(f"[CACHE] Reusing cached filter definitions ({len(cached_filters)})")
+
+        # Build a unique query plan first, then execute in parallel.
+        unique_queries = {}
+
+        def _register_query(sql_text, context):
+            sql_key = str(sql_text or "").strip()
+            if not sql_key:
+                return ""
+            if sql_key not in unique_queries:
+                unique_queries[sql_key] = {
+                    "sql": sql_key,
+                    "context": context,
+                }
+            return sql_key
+
+        kpi_runtime = []
+        for idx, spec in enumerate(kpi_specs):
+            if not isinstance(spec, dict):
+                continue
+            label = str(spec.get("label") or f"KPI {idx+1}").strip() or f"KPI {idx+1}"
+            value_sql = str(spec.get("sql") or spec.get("value_sql") or "").strip()
+            trend_sql = str(spec.get("trend_sql") or "").strip()
+            value_sql = value_sql.replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME)
+            trend_sql = trend_sql.replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME)
+
+            if not value_sql:
+                raw_spark = spec.get("sparkline")
+                if not isinstance(raw_spark, list) or not raw_spark:
+                    raw_spark = [0.0] * KPI_TREND_POINTS
+                output["kpis"].append({
+                    "label": label,
+                    "value": str(spec.get("value") or "-"),
+                    "sparkline": [float(v) for v in raw_spark],
+                    "sql": "",
+                    "trend_sql": trend_sql,
+                })
+                continue
+
+            value_key = _register_query(value_sql, f"Filter KPI {label}")
+            trend_key = _register_query(trend_sql, f"Filter KPI Trend {label}") if trend_sql else ""
+            kpi_runtime.append({
+                "label": label,
+                "value_key": value_key,
+                "trend_key": trend_key,
+                "trend_sql": trend_sql,
+                "source_spec": spec,
+            })
+
+        chart_runtime = []
+        for idx, spec in enumerate(chart_specs):
+            if not isinstance(spec, dict):
+                continue
+            chart_id = str(spec.get("id") or f"chart_{idx}")
+            chart_type = str(spec.get("type") or "bar").lower()
+            if chart_type not in ALLOWED_CUSTOM_CHART_TYPES:
+                chart_type = "bar"
+            chart_sql = str(spec.get("sql") or "").strip()
+            chart_sql = chart_sql.replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME)
+
+            if not chart_sql:
+                output["charts"].append({
+                    "id": chart_id,
+                    "title": str(spec.get("title") or f"Chart {idx+1}"),
+                    "type": chart_type,
+                    "xlabel": str(spec.get("xlabel") or ""),
+                    "ylabel": str(spec.get("ylabel") or ""),
+                    "sql": "",
+                    "x": list(spec.get("x") or []),
+                    "y": list(spec.get("y") or []),
+                    "z": list(spec.get("z") or []),
+                    "columns": spec.get("columns") if isinstance(spec.get("columns"), list) else [],
+                    "rows": spec.get("rows") if isinstance(spec.get("rows"), list) else [],
+                    "labels": spec.get("labels") if isinstance(spec.get("labels"), list) else [],
+                    "parents": spec.get("parents") if isinstance(spec.get("parents"), list) else [],
+                    "values": list(spec.get("values") or []),
+                    "measure": spec.get("measure") if isinstance(spec.get("measure"), list) else [],
+                    "showDataLabels": bool(spec.get("showDataLabels", False)),
+                })
+                continue
+
+            query_key = _register_query(chart_sql, f"Filter Chart {chart_id}")
+            chart_runtime.append({
+                "chart_id": chart_id,
+                "title": str(spec.get("title") or f"Chart {idx+1}"),
+                "type": chart_type,
+                "xlabel": str(spec.get("xlabel") or ""),
+                "ylabel": str(spec.get("ylabel") or ""),
+                "showDataLabels": bool(spec.get("showDataLabels", False)),
+                "query_key": query_key,
+            })
+
+        def _execute_single_filter_query(job_sql, job_context):
+            local_logs = []
+            local_con = get_databricks_connection()
+            try:
+                df, executed_sql = _execute_databricks_user_sql(
+                    local_con,
+                    job_sql,
+                    source_table_base,
+                    query_source=source_table_query,
+                    where_sql=where_sql,
+                    logs=local_logs,
+                    context=job_context,
+                )
+                return {
+                    "ok": True,
+                    "df": df,
+                    "executed_sql": executed_sql,
+                    "logs": local_logs,
+                    "error": "",
+                }
+            except Exception as e:
+                return {
+                    "ok": False,
+                    "df": pd.DataFrame(),
+                    "executed_sql": job_sql,
+                    "logs": local_logs,
+                    "error": str(e),
+                }
+            finally:
+                try:
+                    local_con.close()
+                except Exception:
+                    pass
+
+        query_results = {}
+        if unique_queries:
+            max_workers = _safe_int_env("DATABRICKS_FILTER_MAX_WORKERS", 4)
+            max_workers = max(1, min(max_workers, len(unique_queries)))
+            log.append(f"[PERF] Filter refresh query fanout={len(unique_queries)} workers={max_workers}")
+
+            if max_workers == 1:
+                for key, meta in unique_queries.items():
+                    res = _execute_single_filter_query(meta["sql"], meta["context"])
+                    query_results[key] = res
+                    for line in res.get("logs", []):
+                        log.append(line)
+                    if not res.get("ok"):
+                        log.append(f"[WARN] Filter query failed ({meta['context']}): {res.get('error')}")
+            else:
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    future_map = {
+                        executor.submit(_execute_single_filter_query, meta["sql"], meta["context"]): (key, meta)
+                        for key, meta in unique_queries.items()
+                    }
+                    for future in as_completed(future_map):
+                        key, meta = future_map[future]
+                        try:
+                            res = future.result()
+                        except Exception as e:
+                            res = {
+                                "ok": False,
+                                "df": pd.DataFrame(),
+                                "executed_sql": meta["sql"],
+                                "logs": [],
+                                "error": str(e),
+                            }
+                        query_results[key] = res
+                        for line in res.get("logs", []):
+                            log.append(line)
+                        if not res.get("ok"):
+                            log.append(f"[WARN] Filter query failed ({meta['context']}): {res.get('error')}")
+
+        # Build KPI outputs in the same order as provided widget state.
+        for item in kpi_runtime:
+            label = item["label"]
+            value_res = query_results.get(item["value_key"], None)
+            if not value_res or not value_res.get("ok"):
+                output["kpis"].append({
+                    "label": label,
+                    "_refresh_failed": True,
+                    "sql": item.get("value_key", ""),
+                    "trend_sql": item.get("trend_sql", ""),
+                })
+                continue
+
+            value_df = value_res.get("df")
+            value_raw = _extract_first_scalar(value_df, default=0.0)
+
+            sparkline_data = []
+            trend_sql_out = item.get("trend_sql", "")
+            if item.get("trend_key"):
+                trend_res = query_results.get(item["trend_key"], None)
+                if trend_res and trend_res.get("ok"):
+                    trend_df = trend_res.get("df")
+                    if trend_df is not None and not trend_df.empty:
+                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
+                    trend_sql_out = trend_res.get("executed_sql") or trend_sql_out
+
+            if not sparkline_data:
+                try:
+                    base = float(value_raw)
+                except Exception:
+                    base = 0.0
+                sparkline_data = [base] * KPI_TREND_POINTS
+
+            output["kpis"].append({
+                "label": label,
+                "value": _format_kpi_display_value(value_raw),
+                "sparkline": [float(v) for v in sparkline_data],
+                "sql": value_res.get("executed_sql") or "",
+                "trend_sql": trend_sql_out,
+            })
+
+        # Build chart outputs in order.
+        for item in chart_runtime:
+            chart_res = query_results.get(item["query_key"], None)
+            if not chart_res or not chart_res.get("ok"):
+                output["charts"].append({
+                    "id": item["chart_id"],
+                    "title": item["title"],
+                    "type": item["type"],
+                    "xlabel": item["xlabel"],
+                    "ylabel": item["ylabel"],
+                    "sql": item["query_key"],
+                    "_refresh_failed": True,
+                    "showDataLabels": item["showDataLabels"],
+                })
+                continue
+
+            df = chart_res.get("df")
+            plan = {
+                "title": item["title"],
+                "type": item["type"],
+                "xlabel": item["xlabel"],
+                "ylabel": item["ylabel"],
+            }
+            c_data = _build_custom_chart_payload(plan, df)
+            c_data["id"] = item["chart_id"]
+            c_data["sql"] = chart_res.get("executed_sql") or ""
+            c_data["showDataLabels"] = item["showDataLabels"]
+            output["charts"].append(c_data)
+
+        output["__cache"] = {
+            "filters": output.get("filters", []),
+            "source_table": source_table_base,
+            "date_range": output.get("date_range"),
+            "selected_date_column": output.get("selected_date_column"),
+        }
+        return output
+    finally:
+        connection.close()
 
 def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_json='{}', clarification_choice=None):
     connection = get_databricks_connection()
@@ -2464,6 +3223,7 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
         schema_context = source_model["schema_context"]
         schema_columns = source_model["schema_columns"]
         column_names = [c for c, _ in schema_columns]
+        column_type_lookup = {str(c).lower(): str(t) for c, t in schema_columns}
         date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
         date_column = _resolve_selected_date_column(active_filters_json, date_cols)
 
@@ -2471,6 +3231,7 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
             active_filters_json,
             column_names,
             date_column=date_column,
+            column_type_lookup=column_type_lookup,
         )
         if filter_count > 0:
             llm_logs.append(f"[FILTER] Applied {filter_count} filter(s) in Databricks mode")
@@ -2536,6 +3297,7 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
         )
 
         chart_payload = _build_custom_chart_payload(ai_plan, df)
+        chart_payload["sql"] = executed_sql
         return {
             "chart": chart_payload,
             "generated_sql": executed_sql,
@@ -2545,6 +3307,14 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
         }
     finally:
         connection.close()
+
+
+
+
+
+
+
+
 
 
 

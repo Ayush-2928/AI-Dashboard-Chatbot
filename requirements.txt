@@ -1,10 +1,9 @@
-Django>=4.2
-pandas>=2.0.0
-numpy<2.0.0
-duckdb>=0.9.0
-openai>=1.0.0
-python-dotenv>=1.0.0
-openpyxl>=3.1.0
-requests>=2.31.0
-plotly>=5.18.0
-openpyxl
+# Requires Python >=3.11,<3.14
+# Recommended Python: 3.11.x
+Django==5.2.7
+pandas==2.3.3
+numpy==2.3.3
+openai==2.1.0
+python-dotenv==1.1.1
+plotly==6.3.1
+databricks-sql-connector
