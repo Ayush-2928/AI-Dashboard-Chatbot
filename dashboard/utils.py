@@ -472,6 +472,12 @@ def _safe_int_env(name, default):
         return default
 
 
+
+def _safe_bool_env(name, default=False):
+    raw = os.getenv(name)
+    if raw is None:
+        return bool(default)
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 def _databricks_query_row_cap():
     raw = os.getenv("DATABRICKS_QUERY_ROW_CAP", "0")
     try:
@@ -679,6 +685,117 @@ def _execute_databricks_user_sql(connection, user_sql, source_table, where_sql="
     return df, guarded_sql
 
 
+
+def _execute_databricks_batch_widget_queries(connection, jobs, source_table, where_sql="", query_source=None, logs=None, context="Batch Query"):
+    sanitized_jobs = []
+    row_cap = _databricks_query_row_cap()
+
+    for job in (jobs or []):
+        if not isinstance(job, dict):
+            continue
+        key = str(job.get("key") or "").strip()
+        sql_text = str(job.get("sql") or "").strip()
+        ctx = str(job.get("context") or context)
+        if not key or not sql_text:
+            continue
+
+        normalized_sql = _normalize_databricks_sql_references(
+            sql_text,
+            source_table,
+            view_name=DATABRICKS_LOGICAL_VIEW_NAME,
+        )
+        dialect_sql = _normalize_databricks_sql_dialect(normalized_sql)
+        guarded_sql, notes = _apply_sql_security_and_cost_guardrails(dialect_sql)
+
+        if logs is not None:
+            if dialect_sql != normalized_sql:
+                logs.append(f"[SECURITY] {ctx}: Normalized SQL types for Databricks dialect (VARCHAR -> STRING)")
+            for note in notes:
+                logs.append(f"[SECURITY] {ctx}: {note}")
+
+        sanitized_jobs.append({"key": key, "sql": guarded_sql, "context": ctx})
+
+    if not sanitized_jobs:
+        return {}
+
+    base_source = query_source if query_source else source_table
+    base_select = f"SELECT * FROM {base_source}"
+    if where_sql:
+        base_select += f" WHERE {where_sql}"
+
+    if row_cap > 0:
+        base_select = f"SELECT * FROM ({base_select}) __base_capped LIMIT {row_cap}"
+        if logs is not None:
+            logs.append(f"[PERF] {context}: Applying Databricks row cap DATABRICKS_QUERY_ROW_CAP={row_cap}")
+
+    cte_parts = [f"{DATABRICKS_LOGICAL_VIEW_NAME} AS ({base_select})"]
+    union_parts = []
+    qid_to_key = {}
+
+    for idx, job in enumerate(sanitized_jobs):
+        alias = f"__q{idx}"
+        qid = f"q{idx}"
+        qid_to_key[qid] = job["key"]
+        cte_parts.append(f"{alias} AS ({job['sql']})")
+        union_parts.append(f"SELECT '{qid}' AS __qid, to_json(struct(*)) AS __row FROM {alias}")
+
+    batch_sql = "WITH " + ", ".join(cte_parts) + " " + " UNION ALL ".join(union_parts)
+    if logs is not None:
+        logs.append(f"[PERF] {context}: single-query batch size={len(sanitized_jobs)}")
+
+    raw_df = fetch_dataframe(connection, batch_sql, readonly=True)
+
+    grouped = {job["key"]: [] for job in sanitized_jobs}
+    parsed_rows = 0
+    matched_rows = 0
+
+    if raw_df is not None and not raw_df.empty:
+        raw_df.columns = [str(c).strip().lower() for c in raw_df.columns]
+        for _, row in raw_df.iterrows():
+            qid = str(row.get("__qid", "")).strip()
+            row_blob = row.get("__row")
+            if not qid or qid not in qid_to_key:
+                continue
+
+            target_key = qid_to_key[qid]
+            if row_blob is None or (isinstance(row_blob, float) and pd.isna(row_blob)):
+                continue
+
+            if isinstance(row_blob, dict):
+                parsed = row_blob
+            else:
+                try:
+                    parsed = json.loads(row_blob if isinstance(row_blob, str) else str(row_blob))
+                except Exception:
+                    parsed = {}
+
+            if isinstance(parsed, dict):
+                grouped[target_key].append(parsed)
+                parsed_rows += 1
+                matched_rows += 1
+
+        if len(raw_df) > 0 and matched_rows == 0:
+            raise ValueError("Batch query returned rows but no widget ids matched; falling back")
+        if len(raw_df) > 0 and parsed_rows == 0:
+            raise ValueError("Batch query returned rows but parser could not decode any payload rows")
+
+    results = {}
+    for job in sanitized_jobs:
+        records = grouped.get(job["key"], [])
+        df = pd.DataFrame(records) if records else pd.DataFrame()
+        if not df.empty:
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            if len(numeric_cols) > 0:
+                df.loc[:, numeric_cols] = df.loc[:, numeric_cols].fillna(0)
+        results[job["key"]] = {
+            "ok": True,
+            "df": df,
+            "executed_sql": job["sql"],
+            "logs": [],
+            "error": "",
+        }
+
+    return results
 def _default_custom_chart_plan_from_columns(schema_columns, user_prompt, table_name="final_view"):
     text_cols = [c for c, t in schema_columns if _is_text_dtype(t)]
     num_cols = [c for c, t in schema_columns if _is_numeric_dtype(t)]
@@ -3089,42 +3206,71 @@ def execute_dashboard_filter_refresh_databricks(
 
         query_results = {}
         if unique_queries:
-            max_workers = _safe_int_env("DATABRICKS_FILTER_MAX_WORKERS", 4)
-            max_workers = max(1, min(max_workers, len(unique_queries)))
-            log.append(f"[PERF] Filter refresh query fanout={len(unique_queries)} workers={max_workers}")
+            use_single_query = _safe_bool_env("DATABRICKS_FILTER_SINGLE_QUERY", True)
+            if use_single_query and len(unique_queries) > 1:
+                batch_jobs = [
+                    {"key": key, "sql": meta["sql"], "context": meta["context"]}
+                    for key, meta in unique_queries.items()
+                ]
+                try:
+                    query_results = _execute_databricks_batch_widget_queries(
+                        connection,
+                        batch_jobs,
+                        source_table_base,
+                        where_sql=where_sql,
+                        query_source=source_table_query,
+                        logs=log,
+                        context="Filter Refresh Batch",
+                    )
+                except Exception as e:
+                    log.append(f"[WARN] Filter single-query execution failed; falling back to fanout: {str(e)}")
+                    query_results = {}
 
-            if max_workers == 1:
-                for key, meta in unique_queries.items():
-                    res = _execute_single_filter_query(meta["sql"], meta["context"])
-                    query_results[key] = res
-                    for line in res.get("logs", []):
-                        log.append(line)
-                    if not res.get("ok"):
-                        log.append(f"[WARN] Filter query failed ({meta['context']}): {res.get('error')}")
-            else:
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    future_map = {
-                        executor.submit(_execute_single_filter_query, meta["sql"], meta["context"]): (key, meta)
-                        for key, meta in unique_queries.items()
-                    }
-                    for future in as_completed(future_map):
-                        key, meta = future_map[future]
-                        try:
-                            res = future.result()
-                        except Exception as e:
-                            res = {
-                                "ok": False,
-                                "df": pd.DataFrame(),
-                                "executed_sql": meta["sql"],
-                                "logs": [],
-                                "error": str(e),
-                            }
+            if query_results:
+                has_non_empty = any(
+                    bool(res.get("ok")) and isinstance(res.get("df"), pd.DataFrame) and (not res.get("df").empty)
+                    for res in query_results.values()
+                )
+                if not has_non_empty:
+                    log.append("[WARN] Filter single-query returned no rows for all widgets; falling back to fanout")
+                    query_results = {}
+
+            if not query_results:
+                max_workers = _safe_int_env("DATABRICKS_FILTER_MAX_WORKERS", 4)
+                max_workers = max(1, min(max_workers, len(unique_queries)))
+                log.append(f"[PERF] Filter refresh query fanout={len(unique_queries)} workers={max_workers}")
+
+                if max_workers == 1:
+                    for key, meta in unique_queries.items():
+                        res = _execute_single_filter_query(meta["sql"], meta["context"])
                         query_results[key] = res
                         for line in res.get("logs", []):
                             log.append(line)
                         if not res.get("ok"):
-                            log.append(f"[WARN] Filter query failed ({meta['context']}): {res.get('error')}")
-
+                            log.append("[WARN] Filter query failed ({0}): {1}".format(meta["context"], res.get("error")))
+                else:
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        future_map = {
+                            executor.submit(_execute_single_filter_query, meta["sql"], meta["context"]): (key, meta)
+                            for key, meta in unique_queries.items()
+                        }
+                        for future in as_completed(future_map):
+                            key, meta = future_map[future]
+                            try:
+                                res = future.result()
+                            except Exception as e:
+                                res = {
+                                    "ok": False,
+                                    "df": pd.DataFrame(),
+                                    "executed_sql": meta["sql"],
+                                    "logs": [],
+                                    "error": str(e),
+                                }
+                            query_results[key] = res
+                            for line in res.get("logs", []):
+                                log.append(line)
+                            if not res.get("ok"):
+                                log.append("[WARN] Filter query failed ({0}): {1}".format(meta["context"], res.get("error")))
         # Build KPI outputs in the same order as provided widget state.
         for item in kpi_runtime:
             label = item["label"]
@@ -3307,6 +3453,8 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
         }
     finally:
         connection.close()
+
+
 
 
 

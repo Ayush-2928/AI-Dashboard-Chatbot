@@ -1322,6 +1322,35 @@
             color: #ffe4e6;
         }
 
+        .filter-apply-btn {
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(34, 197, 94, 0.45);
+            color: #dcfce7;
+            background: rgba(20, 83, 45, 0.42);
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .filter-apply-btn:hover {
+            border-color: rgba(74, 222, 128, 0.92);
+            background: rgba(22, 101, 52, 0.58);
+            color: #ffffff;
+        }
+
+        .filter-apply-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+            border-color: rgba(148, 163, 184, 0.28);
+            background: rgba(30, 41, 59, 0.5);
+            color: #94a3b8;
+        }
+
+        .filter-apply-btn.pending {
+            box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.45);
+        }
+
         #date-filter-container {
             background: rgba(23, 18, 34, 0.74) !important;
             border: 1px solid rgba(34, 197, 94, 0.32) !important;
@@ -1829,6 +1858,7 @@
         let selectedFilterColumns = [];
         let filterDropdownGlobalBound = false;
         let lastAppliedFilterSignature = '';
+        let hasPendingFilterChanges = false;
         let originalDashboardState = null;
         let processAbortController = null;
         let processRequestToken = 0;
@@ -2114,7 +2144,8 @@
                 selectedFilterColumns: [],
             };
             lastAppliedFilterSignature = getFilterSignature();
-
+            hasPendingFilterChanges = false;
+            refreshApplyFiltersButton();
             const status = document.getElementById('chart-request-status');
             if (status) {
                 status.textContent = 'Empty dashboard ready. Use AI Chart Generation to add charts/KPIs.';
@@ -2152,6 +2183,7 @@
                     stopBtn.textContent = 'Stop Loading';
                 }
             }
+            refreshApplyFiltersButton();
         }
 
         function setChartsLoadingOpacity(value) {
@@ -2188,6 +2220,8 @@
             }
 
             lastAppliedFilterSignature = getFilterSignature();
+            hasPendingFilterChanges = false;
+            refreshApplyFiltersButton();
             setChartsLoadingOpacity(1);
         }
 
@@ -2314,6 +2348,8 @@
                     selectedFilterColumns: [...selectedFilterColumns],
                 };
                 lastAppliedFilterSignature = getFilterSignature();
+                hasPendingFilterChanges = false;
+                refreshApplyFiltersButton();
                 setChartsLoadingOpacity(1);
             } catch (e) {
                 if (e && e.name === 'AbortError') {
@@ -2606,7 +2642,15 @@
                 controls.appendChild(clearBtn);
             }
 
+            const applyBtn = document.createElement('button');
+            applyBtn.id = 'apply-filters-btn';
+            applyBtn.className = 'filter-apply-btn';
+            applyBtn.textContent = 'Apply Filters';
+            applyBtn.onclick = applyFiltersNow;
+            controls.appendChild(applyBtn);
+
             filterHost.appendChild(controls);
+            refreshApplyFiltersButton();
         }
 
         function handleDateColumnChange() {
@@ -2621,8 +2665,7 @@
             if (selected) activeFilters['_date_column'] = selected;
             else delete activeFilters['_date_column'];
 
-            // Intentionally no auto-reload on date-column selection alone.
-            // Reload happens when actual date values change.
+            updateUIState();
         }
 
         function handleFilterChange(e) {
@@ -2641,9 +2684,8 @@
             selectedFilterColumns = selectedFilterColumns.filter(c => c !== column);
             delete activeFilters[column];
             renderEditableFilters();
-            if (hadActiveValue) {
-                updateUIState();
-            }
+            if (hadActiveValue) updateUIState();
+            else refreshApplyFiltersButton();
         }
 
         function clearAllEditableFilters() {
@@ -2655,9 +2697,8 @@
                 }
             });
             renderEditableFilters();
-            if (hadActiveValues) {
-                updateUIState();
-            }
+            if (hadActiveValues) updateUIState();
+            else refreshApplyFiltersButton();
         }
 
         function handleDateChange() {
@@ -2690,18 +2731,27 @@
                 const v = activeFilters[k];
                 normalized[k] = v === undefined || v === null ? '' : String(v);
             });
-            return JSON.stringify({
-                filters: normalized,
-                selected: [...selectedFilterColumns].sort()
-            });
+            return JSON.stringify({ filters: normalized });
         }
 
         function updateUIState() {
             const nextSignature = getFilterSignature();
-            if (nextSignature === lastAppliedFilterSignature) return;
-            lastAppliedFilterSignature = nextSignature;
+            hasPendingFilterChanges = (nextSignature !== lastAppliedFilterSignature);
+            refreshApplyFiltersButton();
+        }
+
+        function refreshApplyFiltersButton() {
+            const btn = document.getElementById('apply-filters-btn');
+            if (!btn) return;
+            const canApply = hasPendingFilterChanges && !isFilterLoading;
+            btn.disabled = !canApply;
+            btn.classList.toggle('pending', hasPendingFilterChanges);
+        }
+
+        function applyFiltersNow() {
+            if (!hasPendingFilterChanges || isFilterLoading) return;
             setChartsLoadingOpacity(0.5);
-            processFile('filters'); 
+            processFile('filters');
         }
 
         function createChartSnapshot(chart) {
@@ -5537,6 +5587,13 @@
 
 
 </html>
+
+
+
+
+
+
+
 
 
 
