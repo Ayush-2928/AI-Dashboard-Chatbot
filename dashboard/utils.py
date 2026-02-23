@@ -886,6 +886,7 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
     - Transaction metrics (revenue, quantity, totals, trends) can aggregate directly on {logical_table_name}.
     - Master attributes (rating, age, salary, static price, static score, etc.) MUST be deduplicated by entity key before AVG or similar stats.
     - For unique entity counts, use COUNT(DISTINCT <detected_entity_key>), not COUNT(*).
+    - AW Code represents distributor code which is being used exhaustively in out business. 
     - Dedup pattern example:
       SELECT region, AVG(performance_rating)
       FROM (

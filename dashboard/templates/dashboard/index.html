@@ -1651,7 +1651,7 @@
             </div>
         </div>
         <div id="loader" class="hidden mt-6 flex items-center gap-3 loader-caption text-sm">
-            <div class="loader"></div> Connecting to Databricks....
+            <div class="loader"></div> Creating Dashboard
         </div>
     </div>
 
@@ -1665,7 +1665,7 @@
                 <div class="flex items-center gap-4 mt-1">
                     <div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-violet-500 pulse-dot"></span>
-                        <p class="text-xs text-slate-500"><span id="session-source-label">Live Databricks Session</span></p>
+                        <p class="text-xs text-slate-500"><span id="session-source-label"></span></p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500">|</span>
@@ -1678,10 +1678,10 @@
 
             <div class="flex items-center gap-3 flex-wrap justify-end">
                 <button id="open-charts-btn" onclick="toggleChartSidebar()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
-                    Open Charts
+                    Archived Charts
                 </button>
                 <button id="open-ai-chart-btn" onclick="toggleChatbotDock()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
-                    AI Chart Generation
+                    Chart Generation
                 </button>
                 <button id="reset-dashboard-btn" onclick="rearrangeDashboardLayout()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-amber-500 flex items-center gap-2">
                     Rearrange Dashboard

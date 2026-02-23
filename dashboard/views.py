@@ -210,7 +210,9 @@ def custom_chart(request):
         artifact_type = 'chart'
 
     try:
-        filters_json = request.session.get('active_filters_json', '{}')
+        filters_json = request.POST.get('filters')
+        if not filters_json:
+            filters_json = request.session.get('active_filters_json', '{}')
         clarification_choice = request.POST.get('clarification_choice')
         clarification_payload = None
         if clarification_choice:
@@ -241,4 +243,5 @@ def custom_chart(request):
         return JsonResponse(result)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
 
