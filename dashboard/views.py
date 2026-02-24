@@ -222,17 +222,22 @@ def custom_chart(request):
             except Exception:
                 clarification_payload = None
 
+        force_ambiguity_fallback_raw = (request.POST.get('force_ambiguity_fallback') or '').strip().lower()
+        force_ambiguity_fallback = force_ambiguity_fallback_raw in {'1', 'true', 'yes', 'on'}
+
         if artifact_type == 'kpi':
             result = generate_custom_kpi_from_prompt_databricks(
                 prompt,
                 active_filters_json=filters_json,
                 clarification_choice=clarification_payload,
+                allow_ambiguity_fallback=force_ambiguity_fallback,
             )
         else:
             result = generate_custom_chart_from_prompt_databricks(
                 prompt,
                 active_filters_json=filters_json,
                 clarification_choice=clarification_payload,
+                allow_ambiguity_fallback=force_ambiguity_fallback,
             )
 
         llm_logs = _extract_llm_logs(result.get('logs', []))

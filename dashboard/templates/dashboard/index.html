@@ -3843,7 +3843,7 @@
             applyLibraryKpiToSlot(targetId);
         }
 
-        async function _postCustomArtifactRequest(promptText, artifactType = 'chart', clarificationChoice = null) {
+        async function _postCustomArtifactRequest(promptText, artifactType = 'chart', clarificationChoice = null, forceAmbiguityFallback = false) {
             const formData = new FormData();
             formData.append('prompt', String(promptText || ''));
             formData.append('artifact_type', artifactType);
@@ -3852,6 +3852,9 @@
             }
             if (clarificationChoice) {
                 formData.append('clarification_choice', JSON.stringify(clarificationChoice));
+            }
+            if (forceAmbiguityFallback) {
+                formData.append('force_ambiguity_fallback', 'true');
             }
 
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -3958,6 +3961,24 @@
                 }
             }
 
+            if (statusEl) {
+                statusEl.textContent = 'Ambiguity unresolved. Trying final fallback with AI best guess...';
+            }
+            try {
+                const fallbackData = await _postCustomArtifactRequest(promptText, 'chart', null, true);
+                if (Array.isArray(fallbackData.logs)) {
+                    mergedLogs = mergedLogs.concat(fallbackData.logs);
+                }
+                if (!fallbackData.needs_clarification) {
+                    fallbackData.logs = mergedLogs;
+                    return fallbackData;
+                }
+            } catch (fallbackErr) {
+                if (statusEl) {
+                    statusEl.textContent = 'Fallback failed. Please mention exact column.';
+                }
+            }
+
             throw new Error('Could not resolve ambiguity after multiple attempts. Please mention the exact column in your prompt.');
         }
 
@@ -4044,6 +4065,24 @@
                 clarificationChoice = choice;
                 if (statusEl) {
                     statusEl.textContent = `Using '${choice.column}' for KPI term '${choice.keyword || 'term'}'. Regenerating...`;
+                }
+            }
+
+            if (statusEl) {
+                statusEl.textContent = 'KPI ambiguity unresolved. Trying final fallback with AI best guess...';
+            }
+            try {
+                const fallbackData = await _postCustomArtifactRequest(promptText, 'kpi', null, true);
+                if (Array.isArray(fallbackData.logs)) {
+                    mergedLogs = mergedLogs.concat(fallbackData.logs);
+                }
+                if (!fallbackData.needs_clarification) {
+                    fallbackData.logs = mergedLogs;
+                    return fallbackData;
+                }
+            } catch (fallbackErr) {
+                if (statusEl) {
+                    statusEl.textContent = 'KPI fallback failed. Please mention exact column.';
                 }
             }
 

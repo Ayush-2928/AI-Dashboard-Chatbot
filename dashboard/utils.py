@@ -1412,7 +1412,7 @@ CUSTOM_CHART_DISAMBIGUATION_STOPWORDS = {
     "month", "months", "weekly", "daily", "year", "years", "trend", "total", "count",
     "sum", "average", "avg", "min", "max", "top", "bottom", "highest", "lowest",
     "sales", "revenue", "invoice", "invoices", "amount", "quantity", "value", "values",
-    "net", "gross", "bill", "billing", "monthwise", "mom", "number", "numbers", "distinct", "unique", "code", "codes", "how", "many",
+    "net", "gross", "bill", "billing", "monthwise", "mom", "number", "numbers", "distinct", "unique","how", "many",
 }
 
 
@@ -2249,7 +2249,7 @@ def _build_custom_kpi_payload(plan, value_raw, sparkline_data):
     }
 
 
-def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json='{}', clarification_choice=None, date_range_override=None):
+def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json='{}', clarification_choice=None, date_range_override=None, allow_ambiguity_fallback=False):
     connection = get_databricks_connection()
     llm_logs = []
     try:
@@ -2288,15 +2288,20 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
             llm_logs.append(f"[FILTER] Applied {filter_count} filter(s) in Databricks mode")
 
         normalized_choice = _normalize_custom_chart_clarification_choice(clarification_choice, schema_columns)
-        ambiguity = _detect_custom_chart_ambiguity(
-            connection,
-            user_prompt,
-            schema_columns,
-            source_table_query,
-            where_sql=where_sql,
-            clarification_choice=normalized_choice,
-            logs=llm_logs,
-        )
+        ambiguity = None
+        if not allow_ambiguity_fallback:
+            ambiguity = _detect_custom_chart_ambiguity(
+                connection,
+                user_prompt,
+                schema_columns,
+                source_table_query,
+                where_sql=where_sql,
+                clarification_choice=normalized_choice,
+                logs=llm_logs,
+            )
+        else:
+            llm_logs.append("[FALLBACK] Ambiguity fallback enabled for custom KPI: letting LLM choose best match")
+
         if ambiguity:
             return {
                 "needs_clarification": True,
@@ -3467,7 +3472,7 @@ def execute_dashboard_filter_refresh_databricks(
     finally:
         connection.close()
 
-def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_json='{}', clarification_choice=None):
+def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_json='{}', clarification_choice=None, allow_ambiguity_fallback=False):
     connection = get_databricks_connection()
     llm_logs = []
     try:
@@ -3499,15 +3504,20 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
             llm_logs.append(f"[FILTER] Applied {filter_count} filter(s) in Databricks mode")
 
         normalized_choice = _normalize_custom_chart_clarification_choice(clarification_choice, schema_columns)
-        ambiguity = _detect_custom_chart_ambiguity(
-            connection,
-            user_prompt,
-            schema_columns,
-            source_table_query,
-            where_sql=where_sql,
-            clarification_choice=normalized_choice,
-            logs=llm_logs,
-        )
+        ambiguity = None
+        if not allow_ambiguity_fallback:
+            ambiguity = _detect_custom_chart_ambiguity(
+                connection,
+                user_prompt,
+                schema_columns,
+                source_table_query,
+                where_sql=where_sql,
+                clarification_choice=normalized_choice,
+                logs=llm_logs,
+            )
+        else:
+            llm_logs.append("[FALLBACK] Ambiguity fallback enabled for custom chart: letting LLM choose best match")
+
         if ambiguity:
             return {
                 "needs_clarification": True,
