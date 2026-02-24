@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -15,22 +15,24 @@
             color: #e2e8f0; 
             font-family: 'Outfit', system-ui, -apple-system, sans-serif; 
             margin: 0; padding: 0;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
         
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            grid-template-rows: auto minmax(60px, auto) minmax(112px, auto) minmax(0, 1fr) minmax(0, 0.95fr); 
+            grid-template-rows: auto auto auto;
+            grid-auto-rows: minmax(168px, auto);
             gap: 16px;
             min-height: 100vh;
-            height: 100vh;
+            height: auto;
             padding: 20px 20px 20px 20px;
             box-sizing: border-box;
-            overflow-y: auto;
+            overflow: visible;
             overflow-x: hidden;
-            align-content: stretch;
+            align-content: start;
         }
 
         .dashboard-grid.with-chatbot-dock {
@@ -94,7 +96,7 @@
             border-radius: 8px;
             padding: 6px 10px;
             cursor: pointer;
-            font-size: 11px;
+            font-size: 13px;
             opacity: 0;
             transition: all 0.2s ease;
             backdrop-filter: blur(10px);
@@ -208,7 +210,7 @@
 
 .edit-toggle,
 .reset-toggle {
-    font-size: 11px;
+    font-size: 13px;
     min-width: 58px;
     height: 30px;
     padding: 0 10px;
@@ -226,7 +228,7 @@
     overflow-y: auto;
     background: rgba(15, 23, 42, 0.98);
     border: 1px solid rgba(148, 163, 184, 0.25);
-    border-radius: 10px;
+    border-radius: 12px;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
     padding: 8px;
     display: none;
@@ -258,7 +260,7 @@
     border: 1px solid rgba(100, 116, 139, 0.6);
     border-radius: 6px;
     color: #e2e8f0;
-    font-size: 11px;
+    font-size: 13px;
     padding: 5px 6px;
 }
 
@@ -299,7 +301,7 @@
             transition: box-shadow 0.3s ease;
             position: relative;
             overflow: visible;
-            min-height: 98px;
+            min-height: 92px;
             min-width: 220px;
             resize: none;
             cursor: default;
@@ -319,18 +321,6 @@
             box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
         }
 
-        .kpi-emoji {
-            font-size: 18px;
-            margin-bottom: 4px;
-            display: inline-block;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-        }
-
         .sparkline-container {
             height: 60px;
             position: relative;
@@ -341,13 +331,13 @@
         .trend-badge {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            padding: 3px 8px;
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 700;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 800;
             line-height: 1.15;
-            margin-top: 4px;
+            margin-top: 6px;
             max-width: fit-content;
             white-space: nowrap;
         }
@@ -384,12 +374,12 @@
 
         .filter-scroll::-webkit-scrollbar-track {
             background: #1e293b;
-            border-radius: 10px;
+            border-radius: 12px;
         }
 
         .filter-scroll::-webkit-scrollbar-thumb {
             background: #475569;
-            border-radius: 10px;
+            border-radius: 12px;
         }
 
         .loader {
@@ -470,7 +460,7 @@
 
         .filter-loading-note {
             color: #94a3b8;
-            font-size: 11px;
+            font-size: 13px;
         }
 
         .filter-loading-stop {
@@ -478,7 +468,7 @@
             background: rgba(127, 29, 29, 0.28);
             color: #fecaca;
             border-radius: 8px;
-            font-size: 11px;
+            font-size: 13px;
             padding: 7px 10px;
             cursor: pointer;
         }
@@ -592,7 +582,7 @@
             background: rgba(239, 68, 68, 0.2);
             color: #ef4444;
             border: 1px solid #ef4444;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 8px 16px;
             cursor: pointer;
             font-size: 12px;
@@ -611,7 +601,7 @@
             gap: 8px;
             background: rgba(30, 41, 59, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 8px 12px;
             transition: all 0.2s ease;
         }
@@ -659,7 +649,7 @@
 .chatbot-mode {
     background: rgba(30, 41, 59, 0.85);
     border: 1px solid rgba(148, 163, 184, 0.3);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 10px 10px;
     color: #e2e8f0;
     font-size: 12px;
@@ -674,7 +664,7 @@
     flex: 1;
     background: rgba(30, 41, 59, 0.85);
     border: 1px solid rgba(148, 163, 184, 0.3);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 10px 12px;
     color: #e2e8f0;
     font-size: 13px;
@@ -689,7 +679,7 @@
     background: linear-gradient(90deg, #8b5cf6, #7c3aed);
     border: none;
     color: white;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 10px 14px;
     font-size: 12px;
     font-weight: 700;
@@ -704,7 +694,7 @@
 
 .chatbot-status {
     color: #c4b5fd;
-    font-size: 11px;
+    font-size: 13px;
     min-width: 170px;
     text-align: right;
 }
@@ -779,7 +769,7 @@
 
 .popup-action-btn {
     padding: 6px 10px;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .custom-replace-row {
@@ -796,7 +786,7 @@
     border-radius: 8px;
     padding: 7px 9px;
     color: #e2e8f0;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .custom-chart-body {
@@ -815,7 +805,7 @@
 
 .custom-chart-note {
     color: #94a3b8;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .custom-chart-sql {
@@ -870,8 +860,8 @@
 }
 
 .copy-sql-btn {
-    padding: 8px 10px;
-    font-size: 11px;
+    padding: 10px 14px;
+    font-size: 13px;
 }
 
 
@@ -912,7 +902,7 @@
 }
 
 .chart-sidebar-subtitle {
-    font-size: 11px;
+    font-size: 13px;
     color: #94a3b8;
 }
 
@@ -921,7 +911,7 @@
     border-radius: 8px;
     background: rgba(30, 41, 59, 0.8);
     color: #cbd5e1;
-    font-size: 11px;
+    font-size: 13px;
     padding: 6px 8px;
     cursor: pointer;
 }
@@ -967,7 +957,7 @@
 .chart-library-item {
     background: rgba(30, 41, 59, 0.7);
     border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 8px;
     display: flex;
     flex-direction: column;
@@ -1015,9 +1005,9 @@
 
 .chart-library-empty {
     color: #64748b;
-    font-size: 11px;
+    font-size: 13px;
     border: 1px dashed rgba(148, 163, 184, 0.25);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 12px;
     text-align: center;
 }
@@ -1133,7 +1123,7 @@
             border: 1px solid rgba(34, 197, 94, 0.22) !important;
             display: flex;
             align-items: flex-start;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             gap: 12px;
         }
 
@@ -1146,8 +1136,8 @@
         }
 
         #dynamic-filter-host {
-            flex: 1 1 auto;
-            min-width: 0;
+            flex: 1 1 520px;
+            min-width: 320px;
         }
 
         #dynamic-filter-controls {
@@ -1164,7 +1154,7 @@
             gap: 8px;
             background: rgba(23, 18, 34, 0.74);
             border: 1px solid rgba(34, 197, 94, 0.32);
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 4px 8px;
         }
 
@@ -1223,7 +1213,7 @@
             max-width: min(360px, calc(100vw - 16px));
             background: #17191f;
             border: 1px solid rgba(34, 197, 94, 0.35);
-            border-radius: 10px;
+            border-radius: 12px;
             box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
             padding: 8px;
             z-index: 5000;
@@ -1274,7 +1264,7 @@
 
         .filter-dropdown-empty {
             color: #94a3b8;
-            font-size: 11px;
+            font-size: 13px;
             padding: 6px 4px;
         }
 
@@ -1297,7 +1287,7 @@
             background: rgba(255, 255, 255, 0.03);
             color: #e9ddff;
             border-radius: 8px;
-            font-size: 11px;
+            font-size: 13px;
             padding: 5px 8px;
             cursor: pointer;
         }
@@ -1628,6 +1618,30 @@
             box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.45), 0 12px 28px rgba(76, 29, 149, 0.35) !important;
         }
 
+    
+.chart-insert-hint {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 1350;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 12px;
+    padding: 10px 14px;
+    box-shadow: 0 12px 24px rgba(2, 6, 23, 0.42);
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.chart-insert-hint.show {
+    opacity: 1;
+    transform: translateY(0);
+}
     </style>
 </head>
 <body>
@@ -1643,7 +1657,7 @@
             <p class="mb-6 text-sm startup-subtitle">Databricks-powered command center.</p>
             <div class="flex flex-col items-center gap-3">
                 <button onclick="initDatabricksMode()" class="font-bold py-3 px-8 rounded-full transition-all shadow-lg hover:shadow-xl text-sm primary-cta">
-                    Open AI Dashboard 
+                    Create Dashboard 
                 </button>
                 <button onclick="initEmptyDashboard()" class="font-semibold py-2 px-6 rounded-full transition-all text-xs secondary-cta">
                     Generate Empty Dashboard 
@@ -2067,6 +2081,57 @@
             }
             return "\uD83D\uDCCA";
         }
+        function getKpiTrendWindowLabel(trendData = []) {
+            const startRaw = String(activeFilters?._start_date || '').trim();
+            const endRaw = String(activeFilters?._end_date || '').trim();
+            const start = startRaw ? new Date(startRaw) : null;
+            const end = endRaw ? new Date(endRaw) : null;
+
+            if (start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end >= start) {
+                const dayMs = 24 * 60 * 60 * 1000;
+                const days = Math.max(1, Math.floor((end - start) / dayMs) + 1);
+                const months = Math.max(1, Math.ceil(days / 30.4375));
+
+                if (months >= 2 || days >= 45) {
+                    return `${months} month${months === 1 ? '' : 's'}`;
+                }
+                return `${days} day${days === 1 ? '' : 's'}`;
+            }
+
+            const points = Array.isArray(trendData)
+                ? trendData.map(v => Number(v)).filter(v => Number.isFinite(v)).length
+                : 0;
+            if (points >= 2) return `${points} periods`;
+            return 'current period';
+        }
+
+        function formatKpiTrendBadge(trendChange, trendLabel) {
+            const n = Number(trendChange);
+            const safe = Number.isFinite(n) ? n : 0;
+            const sign = safe >= 0 ? '+' : '-';
+            const label = String(trendLabel || 'current period');
+            return `${sign}${Math.abs(safe).toFixed(1)}% in ${label}`;
+        }
+
+        let chartInsertHintTimer = null;
+        function showChartInsertHint(message) {
+            let el = document.getElementById('chart-insert-hint');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'chart-insert-hint';
+                el.className = 'chart-insert-hint';
+                document.body.appendChild(el);
+            }
+            el.textContent = String(message || 'Scroll to see your added chart');
+            el.classList.add('show');
+            if (chartInsertHintTimer) {
+                clearTimeout(chartInsertHintTimer);
+            }
+            chartInsertHintTimer = setTimeout(() => {
+                el.classList.remove('show');
+            }, 2600);
+        }
+
 
         async function initDatabricksMode() {
             dataSourceMode = 'databricks';
@@ -3474,18 +3539,17 @@
             const trendData = Array.isArray(entry.kpi.sparkline) ? entry.kpi.sparkline : [];
             const trendChange = calculateTrend(trendData);
             const isPositive = trendChange >= 0;
-            const emoji = getEmojiForKPI(entry.kpi.label || 'KPI');
+            const trendWindowLabel = getKpiTrendWindowLabel(trendData);
             const sparkId = `library-kpi-spark-${Date.now()}`;
 
             modalTitle.textContent = `${entry.title} (KPI)`;
             modalContainer.innerHTML = `
                 <div class="kpi-card" style="border-left-color:${color}; max-width: 440px; margin: 10px auto; resize:none; transform:none; min-height: 130px;">
                     <div class="kpi-card-content">
-                        <div class="kpi-emoji">${emoji}</div>
-                        <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${escapeHtml(entry.kpi.label || 'KPI')}</div>
+<div class="text-[10px] uppercase text-slate-300 font-bold tracking-wider">${escapeHtml(entry.kpi.label || 'KPI')}</div>
                         <div class="text-3xl font-bold text-white mt-1 mb-1">${escapeHtml(entry.kpi.value || '0')}</div>
                         <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
-                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}% last 6 months
+                            ${formatKpiTrendBadge(trendChange, trendWindowLabel)}
                         </div>
                     </div>
                     <div class="sparkline-container" id="${sparkId}"></div>
@@ -3531,29 +3595,44 @@
 
             const emptyIdx = currentData.charts.findIndex(c => c && c._removed === true);
             if (emptyIdx !== -1) {
-                const slotId = currentData.charts[emptyIdx].id || chartSlotIds[emptyIdx] || `chart_${emptyIdx}`;
+                const slotId = currentData.charts[emptyIdx].id || chartSlotIds[emptyIdx] || ('chart_' + emptyIdx);
                 nextChart.id = slotId;
                 currentData.charts[emptyIdx] = nextChart;
                 renderChartById(slotId);
                 return slotId;
             }
 
+            const visibleBefore = currentData.charts.filter(c => c && c._removed !== true).length;
+            const rowOneTwoCapacity = 5;
+            const forcedToRow3 = visibleBefore >= rowOneTwoCapacity;
+
             currentData.charts.push(nextChart);
             ensureChartSlots(currentData.charts.length);
             const newIndex = currentData.charts.length - 1;
-            const slotId = chartSlotIds[newIndex] || `chart_${newIndex}`;
+            const slotId = chartSlotIds[newIndex] || ('chart_' + newIndex);
             nextChart.id = slotId;
 
             const slot = document.getElementById(slotId);
             if (slot) {
                 slot.style.display = 'flex';
                 slot.style.gridColumn = slot.style.gridColumn || 'span 1';
-                if (!slot.style.minHeight) slot.style.minHeight = `${Math.max(88, nextChart._layoutMinH)}px`;
+                if (!slot.style.minHeight) slot.style.minHeight = (Math.max(88, nextChart._layoutMinH) + 'px');
             }
 
             renderChartById(slotId);
+
+            if (forcedToRow3) {
+                const dashboard = document.getElementById('dashboard-screen');
+                if (dashboard) {
+                    dashboard.style.overflowY = 'auto';
+                    dashboard.style.overflowX = 'hidden';
+                }
+                showChartInsertHint('Scroll to see your added chart');
+            }
+
             return slotId;
         }
+
         function useLibraryChart(libraryId) {
             const entry = chartLibrary.find(item => item.id === libraryId);
             if (!entry || entry.artifact === 'kpi' || !entry.chart || !currentData) return;
@@ -4165,18 +4244,17 @@
             const trendData = Array.isArray(customPopupKpi.sparkline) ? customPopupKpi.sparkline : [];
             const trendChange = calculateTrend(trendData);
             const isPositive = trendChange >= 0;
+            const trendWindowLabel = getKpiTrendWindowLabel(trendData);
             const trendColor = '#8b5cf6';
-            const emoji = getEmojiForKPI(customPopupKpi.label || 'KPI');
             const sparkId = `custom-kpi-spark-${Date.now()}`;
 
             body.innerHTML = `
                 <div class="kpi-card" style="border-left-color:${color}; min-height: 120px; min-width: 260px; transform:none;">
                     <div class="kpi-card-content">
-                        <div class="kpi-emoji">${emoji}</div>
-                        <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${escapeHtml(customPopupKpi.label || 'KPI')}</div>
-                        <div class="text-2xl font-bold text-white mt-1 mb-1">${escapeHtml(customPopupKpi.value || '0')}</div>
+<div class="text-[10px] uppercase text-slate-300 font-bold tracking-wider">${escapeHtml(customPopupKpi.label || 'KPI')}</div>
+                        <div class="text-[1.65rem] leading-none font-extrabold text-white mt-1 mb-1">${escapeHtml(customPopupKpi.value || '0')}</div>
                         <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
-                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}% last 6 months
+                            ${formatKpiTrendBadge(trendChange, trendWindowLabel)}
                         </div>
                     </div>
                     <div class="sparkline-container" id="${sparkId}"></div>
@@ -4419,7 +4497,7 @@
             
             const trace = {
                 y: data,
-                x: [0, 1, 2, 3, 4, 5, 6],
+                x: data.map((_, i) => i),
                 type: 'scatter',
                 mode: 'lines',
                 line: { 
@@ -5526,7 +5604,7 @@
                 const trendData = k.sparkline || [];
                 const trendChange = calculateTrend(trendData);
                 const isPositive = trendChange >= 0;
-                const emoji = getEmojiForKPI(k.label);
+                const trendWindowLabel = getKpiTrendWindowLabel(trendData);
 
                 const kpiDiv = document.createElement('div');
                 kpiDiv.className = `kpi-card ${pendingKpiReplaceLibraryId ? 'kpi-replace-target' : ''}`;
@@ -5538,11 +5616,10 @@
                     <button class="widget-remove-btn" onclick="event.stopPropagation(); removeKpi('${kpiId}')" title="Remove KPI">x</button>
                     <div class="widget-drag-handle" onmousedown="startWidgetDrag(event, '${kpiId}')">Move</div>
                     <div class="kpi-card-content">
-                        <div class="kpi-emoji">${emoji}</div>
-                        <div class="text-[9px] uppercase text-slate-400 font-bold tracking-wider">${k.label}</div>
-                        <div class="text-2xl font-bold text-white mt-1 mb-1">${k.value}</div>
+<div class="text-[10px] uppercase text-slate-300 font-bold tracking-wider">${k.label}</div>
+                        <div class="text-[1.65rem] leading-none font-extrabold text-white mt-1 mb-1">${k.value}</div>
                         <div class="trend-badge ${isPositive ? 'trend-up' : 'trend-down'}">
-                            ${isPositive ? '+' : '-'}${Math.abs(trendChange).toFixed(1)}% in the last 6 months
+                            ${formatKpiTrendBadge(trendChange, trendWindowLabel)}
                         </div>
                     </div>
                     <div class="sparkline-container" id="${sparklineId}"></div>
@@ -5587,6 +5664,20 @@
 
 
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

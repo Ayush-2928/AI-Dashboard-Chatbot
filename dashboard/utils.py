@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 import json
 import os
 import re
@@ -1843,7 +1843,7 @@ def _rebucket_numeric_distribution(x_values, y_values, title="", xlabel="", ylab
         return x_values, y_values, False
 
     return labels, values, True
-def _extract_kpi_sparkline_from_df(df, target_points=KPI_TREND_POINTS):
+def _extract_kpi_sparkline_from_df(df, target_points=None):
     if df is None or df.empty or df.shape[1] < 2:
         return []
 
@@ -1883,13 +1883,13 @@ def _extract_kpi_sparkline_from_df(df, target_points=KPI_TREND_POINTS):
     values = [float(v) for v in work["y"].tolist()]
     if not values:
         return []
-
-    if len(values) >= target_points:
-        values = values[-target_points:]
-    else:
-        # Left-pad with oldest value to keep sequence shape deterministic.
-        values = [values[0]] * (target_points - len(values)) + values
-
+    if target_points is not None:
+        try:
+            tp = int(target_points)
+        except Exception:
+            tp = 0
+        if tp > 0 and len(values) > tp:
+            values = values[-tp:]
     # Guard against edge outliers (first/last partial-period artifacts).
     if len(values) >= 4:
         core = values[1:]
@@ -2270,7 +2270,7 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
                         context="Custom KPI Trend",
                     )
                     if not trend_df.empty:
-                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
+                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df)
                 except Exception as e:
                     llm_logs.append(f"[WARN] KPI trend query failed: {str(e)}")
 
@@ -2554,7 +2554,7 @@ def execute_dashboard_logic_databricks(
                             context=f"{context_prefix} Trend {label_text}",
                         )
                         if not trend_df.empty and trend_df.shape[1] >= 2:
-                            sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
+                            sparkline_data = _extract_kpi_sparkline_from_df(trend_df)
                     except Exception as e:
                         log.append(f"[WARN] KPI trend query failed for {label_text}: {str(e)}")
 
@@ -3295,7 +3295,7 @@ def execute_dashboard_filter_refresh_databricks(
                 if trend_res and trend_res.get("ok"):
                     trend_df = trend_res.get("df")
                     if trend_df is not None and not trend_df.empty:
-                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
+                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df)
                     trend_sql_out = trend_res.get("executed_sql") or trend_sql_out
 
             if not sparkline_data:
@@ -3454,6 +3454,8 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
         }
     finally:
         connection.close()
+
+
 
 
 
