@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 import json
 import os
 import re
@@ -1412,7 +1412,7 @@ CUSTOM_CHART_DISAMBIGUATION_STOPWORDS = {
     "month", "months", "weekly", "daily", "year", "years", "trend", "total", "count",
     "sum", "average", "avg", "min", "max", "top", "bottom", "highest", "lowest",
     "sales", "revenue", "invoice", "invoices", "amount", "quantity", "value", "values",
-    "net", "gross", "bill", "billing", "monthwise", "mom",
+    "net", "gross", "bill", "billing", "monthwise", "mom", "number", "numbers", "distinct", "unique", "code", "codes", "how", "many",
 }
 
 
@@ -1601,6 +1601,9 @@ def _detect_custom_chart_ambiguity(
         term_l = str(term).strip().lower()
         if not term_l:
             continue
+        # Ignore generic metric words; only clarify meaningful business terms.
+        if term_l in CUSTOM_CHART_DISAMBIGUATION_STOPWORDS:
+            continue
         if chosen_keyword and term_l == chosen_keyword and chosen_column:
             continue
 
@@ -1621,6 +1624,8 @@ def _detect_custom_chart_ambiguity(
     for term in value_terms:
         term_l = str(term).strip().lower()
         if len(term_l) < 3:
+            continue
+        if term_l in CUSTOM_CHART_DISAMBIGUATION_STOPWORDS:
             continue
         if chosen_keyword and term_l == chosen_keyword and chosen_column:
             continue
@@ -2244,7 +2249,7 @@ def _build_custom_kpi_payload(plan, value_raw, sparkline_data):
     }
 
 
-def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json='{}', clarification_choice=None):
+def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json='{}', clarification_choice=None, date_range_override=None):
     connection = get_databricks_connection()
     llm_logs = []
     try:
@@ -2270,7 +2275,7 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
             active_filters_json,
             date_column,
             date_range_override=date_range_override,
-            logs=log,
+            logs=llm_logs,
         )
 
         where_sql, filter_count = _build_databricks_where_clause(
