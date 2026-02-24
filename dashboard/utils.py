@@ -801,7 +801,7 @@ def _default_custom_chart_plan_from_columns(schema_columns, user_prompt, table_n
     num_cols = [c for c, t in schema_columns if _is_numeric_dtype(t)]
     date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
 
-    wants_line = any(token in user_prompt.lower() for token in ["trend", "line", "over time", "monthly", "daily"])
+    wants_line = any(token in user_prompt.lower() for token in ["trend", "line", "over time", "monthly", "daily", "weekly", "week", "weekwise"])
 
     if date_cols and num_cols and wants_line:
         d_col = _quote_identifier(date_cols[0])
@@ -886,7 +886,6 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
     - Transaction metrics (revenue, quantity, totals, trends) can aggregate directly on {logical_table_name}.
     - Master attributes (rating, age, salary, static price, static score, etc.) MUST be deduplicated by entity key before AVG or similar stats.
     - For unique entity counts, use COUNT(DISTINCT <detected_entity_key>), not COUNT(*).
-    - AW Code represents distributor code which is being used exhaustively in out business. 
     - Dedup pattern example:
       SELECT region, AVG(performance_rating)
       FROM (
@@ -1258,7 +1257,7 @@ def _default_custom_chart_plan(con, user_prompt):
         if "DATE" in dtype or "TIMESTAMP" in dtype:
             date_cols.append(col)
 
-    wants_line = any(token in user_prompt.lower() for token in ["trend", "line", "over time", "monthly", "daily"])
+    wants_line = any(token in user_prompt.lower() for token in ["trend", "line", "over time", "monthly", "daily", "weekly", "week", "weekwise"])
 
     if date_cols and num_cols and wants_line:
         d_col = date_cols[0]
@@ -1332,9 +1331,10 @@ def generate_custom_chart_plan(final_schema_context, user_prompt, debug_logs=Non
        - waterfall: x, y (optional measure)
     5. For category charts, include LIMIT 30 or less.
     6. Use safe casts where useful (CAST(col AS VARCHAR) for categories, CAST(date AS DATE) for dates).
-    7. final_view is transaction-level. For transactional metrics use final_view directly.
-    8. For master/entity attributes (rating, age, salary, static price, scores, etc.), deduplicate by entity key before AVG-style aggregations.
-    9. For unique entity questions, use COUNT(DISTINCT <detected_entity_key>) instead of COUNT(*).
+    7. If the user explicitly asks for weeks/weekly on x-axis, use weekly grain (for example DATE_TRUNC('week', date_col)) and set xlabel to Week.
+    8. final_view is transaction-level. For transactional metrics use final_view directly.
+    9. For master/entity attributes (rating, age, salary, static price, scores, etc.), deduplicate by entity key before AVG-style aggregations.
+    10. For unique entity questions, use COUNT(DISTINCT <detected_entity_key>) instead of COUNT(*).
 
     JSON format:
     {{
@@ -1356,6 +1356,52 @@ def generate_custom_chart_plan(final_schema_context, user_prompt, debug_logs=Non
     except Exception:
         parsed = None
     return parsed, tokens
+
+
+def _detect_requested_time_grain(user_prompt):
+    text = str(user_prompt or "").lower()
+    if any(tok in text for tok in ["weekwise", "weekly", " per week", " by week", " week ", "week-on-week", "wow", "w/w"]):
+        return "week"
+    if any(tok in text for tok in ["monthwise", "monthly", " per month", " by month", " month ", "mom", "m/m"]):
+        return "month"
+    if any(tok in text for tok in ["daily", " per day", " by day", " day "]):
+        return "day"
+    return ""
+
+
+def _enforce_requested_time_grain_on_chart_plan(ai_plan, user_prompt, preferred_date_col=None):
+    if not isinstance(ai_plan, dict):
+        return ai_plan
+
+    grain = _detect_requested_time_grain(user_prompt)
+    if grain != "week":
+        return ai_plan
+
+    sql = str(ai_plan.get("sql") or "").strip()
+    if not sql:
+        return ai_plan
+
+    updated_sql = re.sub(r"(?i)date_trunc\s*\(\s*'month'\s*,", "DATE_TRUNC('week',", sql)
+    updated_sql = re.sub(r'(?i)date_trunc\s*\(\s*"month"\s*,', "DATE_TRUNC('week',", updated_sql)
+
+    has_week_bucket = re.search(r"(?i)date_trunc\s*\(\s*'week'\s*,", updated_sql) is not None
+    if (not has_week_bucket) and preferred_date_col:
+        week_x_expr = f"DATE_TRUNC('week', CAST({_quote_identifier(preferred_date_col)} AS DATE)) AS x"
+        updated_sql = re.sub(
+            r"(?is)\bselect\b\s*.+?\bas\s+x\s*,\s*(.+?)\bas\s+y\s+\bfrom\b",
+            lambda m: f"SELECT {week_x_expr}, {m.group(1).strip()} AS y FROM",
+            updated_sql,
+            count=1,
+        )
+
+    ai_plan["sql"] = updated_sql
+    xlabel = str(ai_plan.get("xlabel") or "")
+    if not xlabel or "month" in xlabel.lower():
+        ai_plan["xlabel"] = "Week"
+    title = str(ai_plan.get("title") or "")
+    if "month" in title.lower():
+        ai_plan["title"] = re.sub(r"(?i)month(ly)?", "Weekly", title)
+    return ai_plan
 
 
 
@@ -1639,12 +1685,73 @@ def _to_month_label_if_possible(value):
     return None
 
 
-def _normalize_month_axis_labels(values, title='', xlabel=''):
+def _is_compact_month_code(value):
+    if value is None:
+        return False
+    text = str(value).strip()
+    if not text:
+        return False
+    if '-' in text or '/' in text or ':' in text or 'T' in text:
+        return False
+    if re.fullmatch(r"\d+\.0+", text):
+        text = text.split('.', 1)[0]
+    digits = re.sub(r"[^0-9]", "", text)
+    if len(digits) != 6:
+        return False
+    year = int(digits[:4])
+    month = int(digits[4:6])
+    return 1900 <= year <= 2100 and 1 <= month <= 12
+
+
+def _to_week_label_if_possible(value):
+    if value is None:
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+
+    ts = None
+    try:
+        ts_candidate = pd.Timestamp(value)
+        if not pd.isna(ts_candidate):
+            raw = str(value).strip()
+            if ('-' in raw) or ('/' in raw) or (':' in raw) or hasattr(value, 'year') or (len(re.sub(r"[^0-9]", "", raw)) >= 8):
+                ts = ts_candidate
+    except Exception:
+        ts = None
+
+    if ts is None:
+        return None
+
+    week_in_month = ((int(ts.day) - 1) // 7) + 1
+    return f"Week {week_in_month} {ts.strftime('%b %Y')}"
+
+
+def _normalize_month_axis_labels(values, title='' , xlabel=''):
     if not values:
         return values
 
     hint = f"{title} {xlabel}".lower()
+    week_hint = ('week' in hint) or ('weekly' in hint) or ('weekwise' in hint)
+    if week_hint:
+        week_converted = []
+        week_count = 0
+        for v in values:
+            week_label = _to_week_label_if_possible(v)
+            if week_label is not None:
+                week_converted.append(week_label)
+                week_count += 1
+            else:
+                week_converted.append(v)
+        if week_count >= max(2, len(values) // 2):
+            return [str(v) for v in week_converted]
+
     force_month = ('month' in hint) or ('monthly' in hint) or ('yyyy_mm' in hint)
+    avoid_month = any(tok in hint for tok in ['week', 'weekly', 'day', 'daily', 'quarter', 'qtr', 'year', 'yearly'])
+    if avoid_month and not force_month:
+        return values
 
     converted = []
     converted_count = 0
@@ -1656,11 +1763,14 @@ def _normalize_month_axis_labels(values, title='', xlabel=''):
         else:
             converted.append(v)
 
-    if force_month or converted_count >= max(2, len(values) // 2):
+    compact_month_count = sum(1 for v in values if _is_compact_month_code(v))
+    if force_month or (
+        compact_month_count >= max(2, len(values) // 2)
+        and converted_count >= max(2, len(values) // 2)
+    ):
         return [str(v) for v in converted]
 
     return values
-
 
 def _aggregate_xy_by_x(x_values, y_values):
     if not x_values or not y_values or len(x_values) != len(y_values):
@@ -3417,6 +3527,8 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
             table_name=DATABRICKS_LOGICAL_VIEW_NAME,
         )
 
+        ai_plan = _enforce_requested_time_grain_on_chart_plan(ai_plan, prompt_for_chart, preferred_date_col=date_column)
+
         sql = str(ai_plan.get("sql", "")).replace("master_view", DATABRICKS_LOGICAL_VIEW_NAME).replace("final_view", DATABRICKS_LOGICAL_VIEW_NAME).strip()
         sql, guardrail_notes = _apply_sql_security_and_cost_guardrails(sql)
         for note in guardrail_notes:
@@ -3428,6 +3540,7 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
             user_prompt,
             table_name=DATABRICKS_LOGICAL_VIEW_NAME,
         )
+            ai_plan = _enforce_requested_time_grain_on_chart_plan(ai_plan, prompt_for_chart, preferred_date_col=date_column)
             sql = ai_plan["sql"]
             sql, guardrail_notes = _apply_sql_security_and_cost_guardrails(sql)
             for note in guardrail_notes:
@@ -3454,6 +3567,17 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
         }
     finally:
         connection.close()
+
+
+
+
+
+
+
+
+
+
+
 
 
 
