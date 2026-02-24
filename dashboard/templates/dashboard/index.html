@@ -5410,7 +5410,17 @@
 
                 const aiPrompt = contextLines.join('\n');
 
-                const data = await requestChartWithClarification(aiPrompt, status);
+                let data = await _postCustomArtifactRequest(aiPrompt, 'chart', null, true);
+                if (Array.isArray(data.logs)) {
+                    if (!Array.isArray(currentData.logs)) currentData.logs = [];
+                    data.logs.forEach(logLine => currentData.logs.push(String(logLine || '')));
+                }
+
+                // Safety: if backend still asks clarification, fall back to interactive flow.
+                if (data && data.needs_clarification) {
+                    data = await requestChartWithClarification(aiPrompt, status);
+                }
+
                 if (!data) {
                     if (status) status.textContent = 'AI chart edit cancelled.';
                     return;
