@@ -2339,6 +2339,7 @@ def _extract_kpi_sparkline_from_df(df, target_points=None):
         "x": df.iloc[:, 0],
         "y": pd.to_numeric(df.iloc[:, 1], errors="coerce").fillna(0.0)
     })
+    ts_work = None
 
     # Prefer chronological sorting when x looks like date/timestamp.
     parsed_ts = pd.to_datetime(work["x"], errors="coerce", utc=True)
@@ -2347,20 +2348,45 @@ def _extract_kpi_sparkline_from_df(df, target_points=None):
     except Exception:
         pass
     if parsed_ts.notna().sum() >= max(2, len(work) // 2):
-        # Normalize to monthly buckets to reduce noisy day-level jumps in KPI cards.
-        work = work.assign(_ts=parsed_ts).dropna(subset=["_ts"])
+        ts_work = (
+            work.assign(_ts=parsed_ts)
+            .dropna(subset=["_ts"])
+            .sort_values("_ts", kind="mergesort")
+        )
+        if ts_work.empty:
+            return []
+
+        min_ts = ts_work["_ts"].min()
+        max_ts = ts_work["_ts"].max()
+        span_days = max(1, int((max_ts - min_ts).days) + 1) if pd.notna(min_ts) and pd.notna(max_ts) else 1
+
+        bucket_kind = "month"
+        if span_days <= 45:
+            bucket_kind = "day"
+            period_series = ts_work["_ts"].dt.floor("D")
+        elif span_days <= 180:
+            bucket_kind = "week"
+            period_series = ts_work["_ts"].dt.to_period("W").dt.start_time
+        else:
+            period_series = ts_work["_ts"].dt.to_period("M").dt.to_timestamp()
+
         work = (
-            work.assign(_period=work["_ts"].dt.to_period("M").dt.to_timestamp())
+            ts_work.assign(_period=period_series)
             .groupby("_period", as_index=False)["y"]
             .sum()
             .sort_values("_period", kind="mergesort")
         )
 
-        # Drop current month point when present; it is often incomplete and can flip trend sign.
-        if not work.empty:
+        # Drop only an incomplete current period when doing so still keeps at least 2 points.
+        if len(work) >= 3:
             _now_utc = pd.Timestamp.now(tz="UTC").tz_convert(None)
-            current_month_start = _now_utc.normalize().replace(day=1)
-            if work.iloc[-1]["_period"] == current_month_start and len(work) >= 2:
+            if bucket_kind == "day":
+                current_period_start = _now_utc.floor("D")
+            elif bucket_kind == "week":
+                current_period_start = _now_utc.to_period("W").start_time
+            else:
+                current_period_start = _now_utc.normalize().replace(day=1)
+            if work.iloc[-1]["_period"] == current_period_start and (len(work) - 1) >= 2:
                 work = work.iloc[:-1]
     else:
         # Fallback to numeric sorting when possible.
@@ -2378,6 +2404,25 @@ def _extract_kpi_sparkline_from_df(df, target_points=None):
             tp = 0
         if tp > 0 and len(values) > tp:
             values = values[-tp:]
+
+    # If coarse bucketing collapsed to a single point, retry with day buckets.
+    if len(values) < 2 and ts_work is not None and not ts_work.empty:
+        day_work = (
+            ts_work.assign(_day=ts_work["_ts"].dt.floor("D"))
+            .groupby("_day", as_index=False)["y"]
+            .sum()
+            .sort_values("_day", kind="mergesort")
+        )
+        alt_values = [float(v) for v in day_work["y"].tolist()]
+        if len(alt_values) >= 2:
+            values = alt_values
+            if target_points is not None:
+                try:
+                    tp = int(target_points)
+                except Exception:
+                    tp = 0
+                if tp > 0 and len(values) > tp:
+                    values = values[-tp:]
     # Guard against edge outliers (first/last partial-period artifacts).
     if len(values) >= 4:
         core = values[1:]
@@ -2763,7 +2808,7 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
                         context="Custom KPI Trend",
                     )
                     if not trend_df.empty:
-                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df)
+                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
                 except Exception as e:
                     llm_logs.append(f"[WARN] KPI trend query failed: {str(e)}")
 
@@ -3076,7 +3121,7 @@ def execute_dashboard_logic_databricks(
                             context=f"{context_prefix} Trend {label_text}",
                         )
                         if not trend_df.empty and trend_df.shape[1] >= 2:
-                            sparkline_data = _extract_kpi_sparkline_from_df(trend_df)
+                            sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
                     except Exception as e:
                         log.append(f"[WARN] KPI trend query failed for {label_text}: {str(e)}")
 
@@ -3825,7 +3870,7 @@ def execute_dashboard_filter_refresh_databricks(
                 if trend_res and trend_res.get("ok"):
                     trend_df = trend_res.get("df")
                     if trend_df is not None and not trend_df.empty:
-                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df)
+                        sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
                     trend_sql_out = trend_res.get("executed_sql") or trend_sql_out
 
             if not sparkline_data:

@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
+import math
 import uuid
 from .utils import (
     execute_dashboard_logic_databricks,
@@ -47,6 +48,28 @@ def _extract_llm_logs(lines):
             keep.append(s)
     return keep
 
+
+def _sanitize_json_payload(value):
+    if isinstance(value, dict):
+        return {k: _sanitize_json_payload(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_json_payload(v) for v in value]
+    if isinstance(value, tuple):
+        return [_sanitize_json_payload(v) for v in value]
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if hasattr(value, "item") and callable(getattr(value, "item", None)):
+        try:
+            return _sanitize_json_payload(value.item())
+        except Exception:
+            return value
+    return value
+
+
+def _safe_json_response(payload, status=200):
+    cleaned = _sanitize_json_payload(payload)
+    return JsonResponse(cleaned, status=status, json_dumps_params={"allow_nan": False})
+
 def index(request):
     """Renders the frontend HTML."""
     return render(request, 'dashboard/index.html')
@@ -56,7 +79,7 @@ def index(request):
 def process_file(request):
     """Databricks-only dashboard processing endpoint."""
     if request.method != 'POST':
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
 
     filters_json = request.POST.get('filters', '{}')
 
@@ -116,18 +139,18 @@ def process_file(request):
         request.session['data_mode'] = 'databricks'
         request.session['active_filters_json'] = _merge_applied_filters(filters_json, dashboard_data)
         request.session['databricks_session_id'] = session_id
-        return JsonResponse(dashboard_data)
+        return _safe_json_response(dashboard_data)
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({"error": str(e)}, status=500)
+        return _safe_json_response({"error": str(e)}, status=500)
 
 
 @csrf_exempt
 def reapply_filters(request):
     """Re-runs only current on-screen widgets with new filters (no LLM regeneration)."""
     if request.method != 'POST':
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
 
     filters_json = request.POST.get('filters', '{}')
     widgets_json = request.POST.get('widgets', '{}')
@@ -189,22 +212,22 @@ def reapply_filters(request):
         llm_logs = _extract_llm_logs(dashboard_data.get('logs', []))
         dashboard_data['logs'] = llm_logs if llm_logs else []
 
-        return JsonResponse(dashboard_data)
+        return _safe_json_response(dashboard_data)
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({"error": str(e)}, status=500)
+        return _safe_json_response({"error": str(e)}, status=500)
 
 
 @csrf_exempt
 def custom_chart(request):
     """Generates a chart or KPI from natural language using Databricks mode."""
     if request.method != 'POST':
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
 
     prompt = (request.POST.get('prompt') or '').strip()
     if not prompt:
-        return JsonResponse({"error": "Prompt is required"}, status=400)
+        return _safe_json_response({"error": "Prompt is required"}, status=400)
 
     artifact_type = (request.POST.get('artifact_type') or 'chart').strip().lower()
     if artifact_type not in {'chart', 'kpi'}:
@@ -246,20 +269,20 @@ def custom_chart(request):
             result['logs'] = llm_logs
         else:
             result['logs'] = []
-        return JsonResponse(result)
+        return _safe_json_response(result)
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        return _safe_json_response({"error": str(e)}, status=500)
 
 
 @csrf_exempt
 def filter_values(request):
     """Fetches filter values for one selected filter column (lazy loading)."""
     if request.method != 'POST':
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
 
     column = (request.POST.get('column') or '').strip()
     if not column:
-        return JsonResponse({"error": "Column is required"}, status=400)
+        return _safe_json_response({"error": "Column is required"}, status=400)
 
     filters_json = request.POST.get('filters')
     if not filters_json:
@@ -267,8 +290,9 @@ def filter_values(request):
 
     try:
         result = fetch_filter_values_databricks(column_name=column, active_filters_json=filters_json)
-        return JsonResponse(result)
+        return _safe_json_response(result)
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        return _safe_json_response({"error": str(e)}, status=500)
+
 
 
