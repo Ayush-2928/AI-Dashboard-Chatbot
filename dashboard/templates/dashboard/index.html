@@ -4950,6 +4950,10 @@
             let trace = { marker: { color: color } };
             const chartType = String(chart.type || 'bar').toLowerCase();
             const showDataLabels = Boolean(chart && chart.showDataLabels);
+            const legendCategoryCount = (chartType === 'pie')
+                ? (Array.isArray(chart.x) ? chart.x.length : 0)
+                : (chartType === 'treemap' ? (Array.isArray(chart.labels) ? chart.labels.length : (Array.isArray(chart.x) ? chart.x.length : 0)) : 0);
+            const shouldShowLegend = (chartType === 'pie' || chartType === 'treemap') && legendCategoryCount > 1;
             const formatValueLabel = (v) => {
                 const n = Number(v);
                 if (!Number.isFinite(n)) return String(v ?? '');
@@ -5081,6 +5085,10 @@
                 xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 15 : 8));
             } else if (chartType === 'line') {
                 const rawX = Array.isArray(chart.x) ? chart.x.slice(0, 160) : [];
+                const weekLabelCount = rawX.reduce((count, v) => {
+                    const s = String(v ?? '').trim();
+                    return /^week\s+\d+\s+[a-z]{3}\s+\d{4}$/i.test(s) ? count + 1 : count;
+                }, 0);
                 const dateHintCount = rawX.reduce((count, v) => {
                     const s = String(v ?? '').trim().toLowerCase();
                     if (!s) return count;
@@ -5100,8 +5108,17 @@
                     return count;
                 }, 0);
 
+                const weekLabelAxis = rawX.length > 0 && weekLabelCount >= Math.max(2, Math.floor(rawX.length * 0.4));
                 const lineHasDateAxis = rawX.length > 0 && dateHintCount >= Math.max(2, Math.floor(rawX.length * 0.3));
-                if (lineHasDateAxis) {
+                if (weekLabelAxis) {
+                    xaxisConfig.type = 'category';
+                    xaxisConfig.tickangle = -45;
+                    if (chart.x && chart.x.length > 20) {
+                        xaxisConfig.tickmode = 'linear';
+                        xaxisConfig.tick0 = 0;
+                        xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 16 : 8));
+                    }
+                } else if (lineHasDateAxis) {
                     xaxisConfig.tickangle = -45;
                     xaxisConfig.tickformat = '%b %Y';
                     xaxisConfig.nticks = isModal ? 12 : 6;
@@ -5129,7 +5146,18 @@
                     font: { color: '#94a3b8', size: isModal ? 12 : 10, family: 'Outfit' },
                     margin: isModal ? { t: 50, l: 40, r: 40, b: 40 } : { t: 35, l: 20, r: 20, b: 20 },
                     title: isModal ? { text: chart.title, font: { color: 'white', size: 18 } } : { text: chart.title, font: { color: 'white', size: 12 }, y: 0.98 },
-                    showlegend: false,
+                    showlegend: shouldShowLegend,
+                    legend: shouldShowLegend ? {
+                        orientation: isModal ? 'v' : 'h',
+                        x: isModal ? 1.02 : 0,
+                        y: isModal ? 1 : -0.15,
+                        xanchor: isModal ? 'left' : 'left',
+                        yanchor: isModal ? 'top' : 'top',
+                        bgcolor: 'rgba(15,23,42,0.55)',
+                        bordercolor: 'rgba(148,163,184,0.25)',
+                        borderwidth: 1,
+                        font: { color: '#cbd5e1', size: isModal ? 11 : 9 },
+                    } : undefined,
                     autosize: true,
                     dragmode: isModal ? 'pan' : false
                 };

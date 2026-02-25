@@ -437,10 +437,16 @@ def _describe_databricks_table_columns(connection, table_name):
         col_name_key, col_type_key = describe_df.columns[0], describe_df.columns[1]
 
     columns = []
+    seen = set()
     for _, row in describe_df.iterrows():
         col_name = str(row[col_name_key]).strip()
         if not col_name or col_name.startswith("#"):
             continue
+        key = col_name.lower()
+        if key in seen:
+            # Databricks DESCRIBE may repeat partition columns; keep first occurrence only.
+            continue
+        seen.add(key)
         col_type = str(row[col_type_key]).strip() or "STRING"
         columns.append((col_name, col_type))
     return columns
@@ -1774,6 +1780,111 @@ def _enforce_requested_time_grain_on_chart_plan(ai_plan, user_prompt, preferred_
 
 
 
+def _safe_date_span_days(start_date, end_date):
+    try:
+        start_ts = pd.to_datetime(start_date, errors="coerce")
+        end_ts = pd.to_datetime(end_date, errors="coerce")
+    except Exception:
+        return None
+    if pd.isna(start_ts) or pd.isna(end_ts):
+        return None
+    try:
+        days = int((end_ts - start_ts).days) + 1
+    except Exception:
+        return None
+    return max(1, days)
+
+
+def _maybe_refine_short_window_line_to_weekly(
+    connection,
+    chart_sql,
+    c_data,
+    source_table_base,
+    source_table_query,
+    where_sql,
+    date_column,
+    applied_start_date,
+    applied_end_date,
+    logs=None,
+    context="Chart",
+):
+    if not isinstance(c_data, dict):
+        return False
+    if str(c_data.get("type", "")).lower() != "line":
+        return False
+    if not date_column:
+        return False
+
+    span_days = _safe_date_span_days(applied_start_date, applied_end_date)
+    if span_days is None or span_days > 95:
+        return False
+
+    old_x = list(c_data.get("x") or [])
+    old_y = list(c_data.get("y") or [])
+    if len(old_x) >= 4:
+        return False
+
+    base_sql = str(chart_sql or "").strip()
+    if not base_sql:
+        return False
+
+    weekly_plan = _enforce_requested_time_grain_on_chart_plan(
+        {
+            "sql": base_sql,
+            "xlabel": str(c_data.get("xlabel") or ""),
+            "title": str(c_data.get("title") or ""),
+        },
+        user_prompt="weekly",
+        preferred_date_col=date_column,
+    )
+    weekly_sql = str(weekly_plan.get("sql") or "").strip()
+    if not weekly_sql or weekly_sql == base_sql:
+        return False
+
+    try:
+        weekly_df, executed_weekly_sql = _execute_databricks_user_sql(
+            connection,
+            weekly_sql,
+            source_table_base,
+            query_source=source_table_query,
+            where_sql=where_sql,
+            logs=logs,
+            context=f"{context} Weekly Refinement",
+        )
+        if weekly_df.empty or weekly_df.shape[1] < 2:
+            return False
+
+        weekly_df.columns = [str(c).lower() for c in weekly_df.columns]
+        next_x = weekly_df["x"].tolist() if "x" in weekly_df else weekly_df.iloc[:, 0].tolist()
+        next_y_series = weekly_df["y"] if "y" in weekly_df else weekly_df.iloc[:, 1]
+        next_y = pd.to_numeric(next_y_series, errors="coerce").fillna(0).astype(float).tolist()
+
+        next_x, next_y = _normalize_and_aggregate_line_series(
+            next_x,
+            next_y,
+            str(c_data.get("title") or ""),
+            str(weekly_plan.get("xlabel") or c_data.get("xlabel") or "Week"),
+        )
+        next_x = [str(v) for v in next_x]
+
+        old_points = min(len(old_x), len(old_y))
+        new_points = min(len(next_x), len(next_y))
+        if new_points <= old_points or new_points < 4:
+            return False
+
+        c_data["x"] = next_x
+        c_data["y"] = next_y
+        c_data["xlabel"] = str(weekly_plan.get("xlabel") or "Week")
+        c_data["sql"] = executed_weekly_sql
+        if logs is not None:
+            logs.append(f"[INFO] {context}: Applied weekly refinement for short date window ({span_days} days)")
+        return True
+    except Exception as e:
+        if logs is not None:
+            logs.append(f"[WARN] {context}: Weekly refinement failed: {str(e)}")
+        return False
+
+
 CUSTOM_CHART_DISAMBIGUATION_STOPWORDS = {
     "show", "plot", "chart", "graph", "visual", "visualize", "give", "create", "generate",
     "for", "from", "with", "using", "into", "onto", "by", "of", "to", "in", "on", "at",
@@ -2099,8 +2210,38 @@ def _to_week_label_if_possible(value):
     if ts is None:
         return None
 
-    week_in_month = ((int(ts.day) - 1) // 7) + 1
-    return f"Week {week_in_month} {ts.strftime('%b %Y')}"
+    # For week-start timestamps (e.g., Monday), anchor label to mid-week so
+    # cross-month weeks are shown under the month users expect in filtered views.
+    anchor = ts + pd.Timedelta(days=3)
+    week_in_month = ((int(anchor.day) - 1) // 7) + 1
+    return f"Week {week_in_month} {anchor.strftime('%b %Y')}"
+
+
+def _looks_week_bucketed_dates(values):
+    if not values:
+        return False
+    try:
+        parsed = pd.to_datetime(pd.Series(list(values)[:260]), errors="coerce", utc=True, format="mixed")
+    except TypeError:
+        # Older pandas versions do not support format="mixed".
+        parsed = pd.Series([pd.to_datetime(v, errors="coerce", utc=True) for v in list(values)[:260]])
+    except Exception:
+        return False
+    parsed = parsed.dropna()
+    if parsed.empty or len(parsed) < 3:
+        return False
+    try:
+        parsed = parsed.dt.tz_convert(None)
+    except Exception:
+        pass
+    uniq = sorted(set(pd.Timestamp(v).normalize() for v in parsed.tolist()))
+    if len(uniq) < 3:
+        return False
+    deltas = [(uniq[i + 1] - uniq[i]).days for i in range(len(uniq) - 1)]
+    if not deltas:
+        return False
+    weekly_like = sum(1 for d in deltas if 6 <= int(d) <= 8)
+    return weekly_like >= max(2, int(len(deltas) * 0.6))
 
 
 def _normalize_month_axis_labels(values, title='' , xlabel=''):
@@ -2108,6 +2249,19 @@ def _normalize_month_axis_labels(values, title='' , xlabel=''):
         return values
 
     hint = f"{title} {xlabel}".lower()
+    if _looks_week_bucketed_dates(values):
+        week_converted = []
+        week_count = 0
+        for v in values:
+            week_label = _to_week_label_if_possible(v)
+            if week_label is not None:
+                week_converted.append(week_label)
+                week_count += 1
+            else:
+                week_converted.append(v)
+        if week_count >= max(2, len(values) // 2):
+            return [str(v) for v in week_converted]
+
     week_hint = ('week' in hint) or ('weekly' in hint) or ('weekwise' in hint)
     if week_hint:
         week_converted = []
@@ -3461,6 +3615,19 @@ def execute_dashboard_logic_databricks(
                                     c_data["x"], c_data["y"], c_data.get("title", ""), c_data.get("xlabel", "")
                                 )
                                 c_data["x"] = [str(v) for v in c_data.get("x", [])]
+                                _maybe_refine_short_window_line_to_weekly(
+                                    connection=connection,
+                                    chart_sql=chart_sql,
+                                    c_data=c_data,
+                                    source_table_base=source_table_base,
+                                    source_table_query=source_table_query,
+                                    where_sql=where_sql,
+                                    date_column=date_column,
+                                    applied_start_date=applied_start_date,
+                                    applied_end_date=applied_end_date,
+                                    logs=log,
+                                    context=f"Chart {i}",
+                                )
                             else:
                                 c_data["x"] = _normalize_month_axis_labels(c_data["x"], c_data.get("title", ""), c_data.get("xlabel", ""))
 
@@ -3912,8 +4079,21 @@ def execute_dashboard_filter_refresh_databricks(
                 "ylabel": item["ylabel"],
             }
             c_data = _build_custom_chart_payload(plan, df)
+            _maybe_refine_short_window_line_to_weekly(
+                connection=connection,
+                chart_sql=item.get("query_key", ""),
+                c_data=c_data,
+                source_table_base=source_table_base,
+                source_table_query=source_table_query,
+                where_sql=where_sql,
+                date_column=date_column,
+                applied_start_date=applied_start_date,
+                applied_end_date=applied_end_date,
+                logs=log,
+                context=f"Filter Chart {item.get('chart_id', '')}",
+            )
             c_data["id"] = item["chart_id"]
-            c_data["sql"] = chart_res.get("executed_sql") or ""
+            c_data["sql"] = c_data.get("sql") or chart_res.get("executed_sql") or ""
             c_data["showDataLabels"] = item["showDataLabels"]
             output["charts"].append(c_data)
 
