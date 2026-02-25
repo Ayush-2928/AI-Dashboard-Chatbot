@@ -4961,6 +4961,16 @@
                 if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}K`;
                 return Number.isInteger(n) ? String(n) : n.toFixed(2);
             };
+            const toFiniteNumber = (v) => {
+                const n = Number(v);
+                return Number.isFinite(n) ? n : 0;
+            };
+            const percentileFromSorted = (sorted, p) => {
+                if (!Array.isArray(sorted) || !sorted.length) return 0;
+                const clamped = Math.min(1, Math.max(0, Number(p) || 0));
+                const idx = Math.floor((sorted.length - 1) * clamped);
+                return Number(sorted[idx]) || 0;
+            };
 
             if (chartType === 'table') {
                 trace = {
@@ -5015,19 +5025,111 @@
                     line: { color: '#0f172a', width: 2 }
                 };
             } else if (chartType === 'heatmap') {
+                const rawX = Array.isArray(chart.x) ? chart.x.map(v => String(v ?? '')) : [];
+                const rawY = Array.isArray(chart.y) ? chart.y.map(v => String(v ?? '')) : [];
+                const rawZInput = Array.isArray(chart.z) ? chart.z.map(toFiniteNumber) : [];
+
+                let heatX = [];
+                let heatY = [];
+                let rawZMatrix = [];
+
+                if (Array.isArray(chart.z) && Array.isArray(chart.z[0])) {
+                    heatX = rawX;
+                    heatY = rawY;
+                    rawZMatrix = chart.z.map(row => (
+                        Array.isArray(row) ? row.map(toFiniteNumber) : []
+                    ));
+                } else if (rawX.length && rawY.length && rawX.length === rawY.length && rawY.length === rawZInput.length) {
+                    const xSeen = new Set();
+                    const ySeen = new Set();
+                    heatX = [];
+                    heatY = [];
+
+                    rawX.forEach(v => {
+                        if (!xSeen.has(v)) {
+                            xSeen.add(v);
+                            heatX.push(v);
+                        }
+                    });
+                    rawY.forEach(v => {
+                        if (!ySeen.has(v)) {
+                            ySeen.add(v);
+                            heatY.push(v);
+                        }
+                    });
+
+                    const xIndex = new Map(heatX.map((v, i) => [v, i]));
+                    const yIndex = new Map(heatY.map((v, i) => [v, i]));
+                    rawZMatrix = heatY.map(() => Array(heatX.length).fill(0));
+
+                    for (let i = 0; i < rawZInput.length; i += 1) {
+                        const xi = xIndex.get(rawX[i]);
+                        const yi = yIndex.get(rawY[i]);
+                        if (xi === undefined || yi === undefined) continue;
+                        rawZMatrix[yi][xi] += toFiniteNumber(rawZInput[i]);
+                    }
+                } else if (rawX.length && rawY.length && rawZInput.length === rawX.length * rawY.length) {
+                    heatX = rawX;
+                    heatY = rawY;
+                    rawZMatrix = [];
+                    for (let r = 0; r < heatY.length; r += 1) {
+                        const start = r * heatX.length;
+                        rawZMatrix.push(rawZInput.slice(start, start + heatX.length));
+                    }
+                } else {
+                    heatX = rawX;
+                    heatY = rawY;
+                    rawZMatrix = [rawZInput];
+                }
+
+                const flatRawZ = rawZMatrix.flat().map(toFiniteNumber);
+                const positiveRaw = flatRawZ.filter(v => v > 0).sort((a, b) => a - b);
+                const p95Raw = percentileFromSorted(positiveRaw, 0.95);
+                const maxRaw = positiveRaw.length ? positiveRaw[positiveRaw.length - 1] : 0;
+                const colorMax = Math.max(1, p95Raw > 0 ? p95Raw : maxRaw || 1);
+                const lowBoostGamma = 0.50;
+                const toColorSpace = (rawVal) => {
+                    const clamped = Math.min(Math.max(0, Number(rawVal) || 0), colorMax);
+                    const norm = colorMax > 0 ? (clamped / colorMax) : 0;
+                    return Math.pow(Math.max(0, norm), lowBoostGamma) * colorMax;
+                };
+                const zForColor = rawZMatrix.map(row => row.map(v => toColorSpace(v)));
+
                 trace.type = 'heatmap';
-                trace.x = chart.x;
-                trace.y = chart.y;
-                trace.z = chart.z;
+                trace.x = heatX;
+                trace.y = heatY;
+                trace.z = zForColor;
                 trace.colorscale = [
-                    [0, '#0b1a10'],
-                    [0.35, '#14532d'],
-                    [0.7, '#22c55e'],
-                    [1, '#bbf7d0']
+                    [0, '#10251a'],
+                    [0.14, '#18442f'],
+                    [0.30, '#1f5e3f'],
+                    [0.48, '#0f766e'],
+                    [0.66, '#16a34a'],
+                    [0.84, '#86efac'],
+                    [1, '#f0fdf4']
                 ];
                 trace.showscale = true;
+                trace.zmin = 0;
+                trace.zmax = colorMax;
+                trace.hovertemplate = '%{y} | %{x}<br>Value: %{text}<extra></extra>';
+                trace.text = rawZMatrix.map(row => row.map(v => formatValueLabel(v)));
+                trace.hoverongaps = false;
+                const tickRawVals = [0, colorMax * 0.1, colorMax * 0.25, colorMax * 0.5, colorMax];
+                trace.colorbar = {
+                    title: { text: 'Value' },
+                    tickvals: tickRawVals.map(v => toColorSpace(v)),
+                    ticktext: tickRawVals.map(v => formatValueLabel(v)),
+                    tickfont: { color: '#cbd5e1', size: isModal ? 11 : 9 },
+                    titlefont: { color: '#cbd5e1', size: isModal ? 11 : 9 },
+                    thickness: isModal ? 20 : 16,
+                    len: isModal ? 0.98 : 0.95,
+                    y: 0.5,
+                    yanchor: 'middle',
+                    xpad: 18,
+                };
+
                 if (showDataLabels) {
-                    trace.texttemplate = '%{z}';
+                    trace.texttemplate = '%{text}';
                     trace.textfont = { color: '#e2e8f0', size: isModal ? 11 : 9 };
                 }
             } else if (chartType === 'line') {
