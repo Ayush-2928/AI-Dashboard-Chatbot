@@ -490,6 +490,172 @@ def _databricks_query_row_cap():
 def _unquote_databricks_identifier(name):
     return str(name or "").replace("`", "").strip()
 
+
+def _split_databricks_table_fqn(table_name):
+    cleaned = _unquote_databricks_identifier(table_name)
+    parts = [p.strip() for p in cleaned.split(".") if p and p.strip()]
+    if len(parts) >= 3:
+        return parts[-3], parts[-2], parts[-1]
+    if len(parts) == 2:
+        return "", parts[0], parts[1]
+    if len(parts) == 1:
+        return "", "", parts[0]
+    return "", "", ""
+
+
+def _resolve_related_databricks_table_fqn(base_table, related_table_name):
+    raw = str(related_table_name or "").strip()
+    if not raw:
+        return ""
+
+    if "." in raw:
+        parts = [_unquote_databricks_identifier(p) for p in raw.split(".") if str(p).strip()]
+        if len(parts) == 3:
+            return f"{_quote_identifier(parts[0])}.{_quote_identifier(parts[1])}.{_quote_identifier(parts[2])}"
+        if len(parts) == 2:
+            return f"{_quote_identifier(parts[0])}.{_quote_identifier(parts[1])}"
+        return _quote_identifier(parts[0]) if parts else ""
+
+    catalog = config_databricks_catalog()
+    schema = config_databricks_schema()
+    if not catalog or not schema:
+        parsed_catalog, parsed_schema, _ = _split_databricks_table_fqn(base_table)
+        if not catalog:
+            catalog = parsed_catalog
+        if not schema:
+            schema = parsed_schema
+
+    if schema and catalog:
+        return f"{_quote_identifier(catalog)}.{_quote_identifier(schema)}.{_quote_identifier(raw)}"
+    if schema:
+        return f"{_quote_identifier(schema)}.{_quote_identifier(raw)}"
+    return _quote_identifier(raw)
+
+
+def _build_databricks_relationship_virtual_source(connection, base_table, base_columns, include_sample_rows, logs=None):
+    relation_specs = [
+        {
+            "table": "dim_product_master",
+            "base_key": "Material_No",
+            "dim_key": "ITEM_CBU_CODE",
+            "prefix": "product",
+        },
+        {
+            "table": "dim_customer_master",
+            "base_key": "AW_CODE",
+            "dim_key": "Sold_to_Code",
+            "prefix": "customer",
+        },
+    ]
+
+    base_col_names = [c for c, _ in (base_columns or [])]
+    if not base_col_names:
+        return None
+
+    select_clauses = []
+    schema_columns = []
+    used_aliases = set()
+
+    for col_name, col_type in base_columns:
+        select_clauses.append(f"f.{_quote_identifier(col_name)} AS {_quote_identifier(col_name)}")
+        schema_columns.append((col_name, col_type))
+        used_aliases.add(str(col_name).lower())
+
+    join_clauses = []
+    joined_tables = []
+    alias_idx = 1
+
+    for spec in relation_specs:
+        base_key = _find_col_case_insensitive(base_col_names, [spec["base_key"]])
+        if not base_key:
+            if logs is not None:
+                logs.append(f"[SOURCE] Skip relation join {spec['table']}: base key {spec['base_key']} not found")
+            continue
+
+        dim_fqn = _resolve_related_databricks_table_fqn(base_table, spec["table"])
+        if not dim_fqn:
+            continue
+
+        try:
+            dim_columns = _describe_databricks_table_columns(connection, dim_fqn)
+        except Exception as e:
+            if logs is not None:
+                logs.append(f"[SOURCE] Skip relation join {spec['table']}: describe failed ({str(e)})")
+            continue
+
+        if not dim_columns:
+            if logs is not None:
+                logs.append(f"[SOURCE] Skip relation join {spec['table']}: no columns returned")
+            continue
+
+        dim_col_names = [c for c, _ in dim_columns]
+        dim_key = _find_col_case_insensitive(dim_col_names, [spec["dim_key"]])
+        if not dim_key:
+            if logs is not None:
+                logs.append(f"[SOURCE] Skip relation join {spec['table']}: dim key {spec['dim_key']} not found")
+            continue
+
+        dim_alias = f"d{alias_idx}"
+        alias_idx += 1
+
+        join_clauses.append(
+            "LEFT JOIN {dim_table} {dim_alias} ON "
+            "TRIM(UPPER(CAST(f.{base_key} AS STRING))) = TRIM(UPPER(CAST({dim_alias}.{dim_key} AS STRING)))".format(
+                dim_table=dim_fqn,
+                dim_alias=dim_alias,
+                base_key=_quote_identifier(base_key),
+                dim_key=_quote_identifier(dim_key),
+            )
+        )
+        joined_tables.append(dim_fqn)
+
+        for dim_col_name, dim_col_type in dim_columns:
+            cleaned = clean_col_name(dim_col_name)
+            alias_root = f"{spec['prefix']}_{cleaned}" if cleaned else f"{spec['prefix']}_col"
+            alias_name = alias_root
+            suffix = 2
+            while alias_name.lower() in used_aliases:
+                alias_name = f"{alias_root}_{suffix}"
+                suffix += 1
+
+            used_aliases.add(alias_name.lower())
+            select_clauses.append(
+                f"{dim_alias}.{_quote_identifier(dim_col_name)} AS {_quote_identifier(alias_name)}"
+            )
+            schema_columns.append((alias_name, dim_col_type))
+
+    if not join_clauses:
+        return None
+
+    joined_query_source = (
+        "(SELECT "
+        + ", ".join(select_clauses)
+        + f" FROM {base_table} f "
+        + " ".join(join_clauses)
+        + ") __relation_source"
+    )
+
+    schema_context = _load_databricks_schema_context_from_query_source(
+        connection,
+        joined_query_source,
+        include_sample_rows,
+        schema_columns,
+    )
+
+    if logs is not None:
+        logs.append(
+            f"[SOURCE] Databricks relationship joins active: base={base_table}, joined={len(joined_tables)}"
+        )
+
+    return {
+        "base_table": base_table,
+        "query_source": joined_query_source,
+        "schema_columns": schema_columns,
+        "schema_context": schema_context,
+        "joined_tables": joined_tables,
+    }
+
+
 def _load_databricks_schema_context_from_query_source(connection, query_source, include_sample_rows, schema_columns):
     sample_df = None
     if include_sample_rows:
@@ -507,6 +673,18 @@ def _build_databricks_virtual_source(connection, include_sample_rows, logs=None)
     base_columns = _describe_databricks_table_columns(connection, base_table)
     if not base_columns:
         raise ValueError(f"No columns found for Databricks source {base_table}")
+
+    enable_relationship_joins = _safe_bool_env("DATABRICKS_ENABLE_RELATION_JOINS", True)
+    if enable_relationship_joins:
+        relationship_source = _build_databricks_relationship_virtual_source(
+            connection,
+            base_table,
+            base_columns,
+            include_sample_rows=include_sample_rows,
+            logs=logs,
+        )
+        if relationship_source:
+            return relationship_source
 
     schema_context = _load_databricks_schema_context_from_query_source(
         connection,
@@ -600,6 +778,150 @@ def _build_databricks_where_clause(active_filters_json, available_columns, date_
     return " AND ".join(where_clauses), len(where_clauses)
 
 
+def _dedupe_filter_column_candidates(columns):
+    out = []
+    seen = set()
+    for col in (columns or []):
+        c = str(col or "").strip()
+        if not c:
+            continue
+        key = c.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
+
+
+def _resolve_ranked_filter_columns(raw_candidates, allowed_columns, max_count=6):
+    allowed = [str(c).strip() for c in (allowed_columns or []) if str(c).strip()]
+    if not allowed:
+        return []
+
+    exact_lookup = {c.lower(): c for c in allowed}
+    normalized_lookup = {}
+    for c in allowed:
+        norm = re.sub(r"[^a-z0-9]+", "", c.lower())
+        if norm and norm not in normalized_lookup:
+            normalized_lookup[norm] = c
+
+    out = []
+    seen = set()
+    for raw in (raw_candidates or []):
+        token = str(raw or "").strip()
+        if not token:
+            continue
+
+        resolved = exact_lookup.get(token.lower())
+        if not resolved:
+            norm = re.sub(r"[^a-z0-9]+", "", token.lower())
+            resolved = normalized_lookup.get(norm)
+        if not resolved:
+            continue
+
+        key = resolved.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(resolved)
+        if max_count and len(out) >= max_count:
+            break
+    return out
+
+
+def _build_default_filter_defs(filter_columns):
+    return [
+        {
+            "label": col.replace('_', ' ').title(),
+            "column": col,
+            "values": [],
+            "values_loaded": False,
+        }
+        for col in _dedupe_filter_column_candidates(filter_columns)
+    ]
+
+
+def fetch_filter_values_databricks(column_name, active_filters_json='{}'):
+    connection = get_databricks_connection()
+    log = []
+    try:
+        source_model = _build_databricks_virtual_source(
+            connection,
+            include_sample_rows=False,
+            logs=log,
+        )
+        source_table_query = source_model["query_source"]
+        schema_columns = source_model["schema_columns"]
+        column_names = [c for c, _ in schema_columns]
+        column_type_lookup = {str(c).lower(): str(t) for c, t in schema_columns}
+        date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
+
+        requested_raw = str(column_name or "").strip()
+        if not requested_raw:
+            return {"column": "", "values": [], "values_loaded": True, "logs": log, "data_mode": "databricks"}
+
+        lookup = {str(c).lower(): c for c in column_names}
+        requested_col = lookup.get(requested_raw.lower())
+        if not requested_col:
+            return {"column": requested_raw, "values": [], "values_loaded": True, "logs": log, "data_mode": "databricks"}
+
+        parsed_filters = _parse_active_filters_json(active_filters_json)
+        if requested_col in parsed_filters:
+            parsed_filters.pop(requested_col, None)
+        # Also remove case-insensitive matches for safety.
+        for k in list(parsed_filters.keys()):
+            if str(k).lower() == requested_col.lower():
+                parsed_filters.pop(k, None)
+
+        filters_without_current = json.dumps(parsed_filters)
+        date_column = _resolve_selected_date_column(filters_without_current, date_cols)
+        effective_filters_json, _, _ = _apply_default_date_filters(
+            filters_without_current,
+            date_column,
+            date_range_override=None,
+            logs=log,
+        )
+
+        where_sql, _ = _build_databricks_where_clause(
+            effective_filters_json,
+            column_names,
+            date_column=date_column,
+            column_type_lookup=column_type_lookup,
+        )
+
+        col_ident = _quote_identifier(requested_col)
+        clauses = []
+        if where_sql:
+            clauses.append(f"({where_sql})")
+        clauses.append(f"{col_ident} IS NOT NULL")
+
+        sample_rows = _safe_int_env("DATABRICKS_FILTER_VALUE_SAMPLE_ROWS", 100000)
+        value_limit = _safe_int_env("DATABRICKS_FILTER_VALUE_LIMIT", 200)
+
+        base_q = f"SELECT {col_ident} AS raw_v FROM {source_table_query}"
+        if clauses:
+            base_q += " WHERE " + " AND ".join(clauses)
+        if sample_rows > 0:
+            base_q += f" LIMIT {sample_rows}"
+
+        sql_text = (
+            f"SELECT CAST(raw_v AS STRING) AS v FROM ({base_q}) __fv "
+            f"WHERE raw_v IS NOT NULL GROUP BY 1 ORDER BY 1 LIMIT {value_limit}"
+        )
+        vals_df = fetch_dataframe(connection, sql_text, readonly=True)
+        values = [str(v) for v in vals_df["v"].dropna().tolist()] if "v" in vals_df else []
+
+        return {
+            "column": requested_col,
+            "values": values,
+            "values_loaded": True,
+            "logs": log,
+            "data_mode": "databricks",
+        }
+    finally:
+        connection.close()
+
+
 def _normalize_databricks_sql_references(user_sql, source_table, view_name=DATABRICKS_LOGICAL_VIEW_NAME):
     sql_text = str(user_sql or "")
     source_raw = str(source_table or "").strip()
@@ -629,6 +951,22 @@ def _normalize_databricks_sql_dialect(sql_text):
     sql_value = re.sub(r"(?i)::\s*VARCHAR\s*(\(\s*\d+\s*\))?", "::STRING", sql_value)
 
     return sql_value
+
+
+def _query_uses_relationship_columns(sql_text):
+    text = str(sql_text or "").lower()
+    return ("product_" in text) or ("customer_" in text)
+
+
+def _choose_effective_query_source(source_table, query_source, user_sql="", where_sql=""):
+    source_base = str(source_table or "").strip()
+    source_joined = str(query_source or "").strip()
+    if not source_joined or source_joined == source_base:
+        return source_base, False
+
+    combined = f"{user_sql or ''}\n{where_sql or ''}"
+    needs_join = _query_uses_relationship_columns(combined)
+    return (source_joined if needs_join else source_base), needs_join
 
 
 def _wrap_sql_with_virtual_views(user_sql, source_table, where_sql="", view_name=DATABRICKS_LOGICAL_VIEW_NAME, query_source=None):
@@ -666,12 +1004,24 @@ def _execute_databricks_user_sql(connection, user_sql, source_table, where_sql="
         if row_cap > 0:
             logs.append(f"[PERF] {context}: Applying Databricks row cap DATABRICKS_QUERY_ROW_CAP={row_cap}")
 
+    effective_query_source, using_join_source = _choose_effective_query_source(
+        source_table,
+        query_source=query_source,
+        user_sql=guarded_sql,
+        where_sql=where_sql,
+    )
+    if logs is not None:
+        if using_join_source:
+            logs.append(f"[PERF] {context}: Using relationship-join source")
+        elif query_source and str(query_source).strip() != str(source_table).strip():
+            logs.append(f"[PERF] {context}: Using base fact source (join bypass)")
+
     wrapped_sql = _wrap_sql_with_virtual_views(
         guarded_sql,
         source_table,
         where_sql=where_sql,
         view_name=DATABRICKS_LOGICAL_VIEW_NAME,
-        query_source=query_source,
+        query_source=effective_query_source,
     )
 
     df = fetch_dataframe(connection, wrapped_sql, readonly=True)
@@ -718,7 +1068,22 @@ def _execute_databricks_batch_widget_queries(connection, jobs, source_table, whe
     if not sanitized_jobs:
         return {}
 
-    base_source = query_source if query_source else source_table
+    any_job_needs_join = _query_uses_relationship_columns(where_sql)
+    if not any_job_needs_join:
+        any_job_needs_join = any(_query_uses_relationship_columns(job.get("sql", "")) for job in sanitized_jobs)
+
+    base_source, using_join_source = _choose_effective_query_source(
+        source_table,
+        query_source=query_source,
+        user_sql=("\n".join(job.get("sql", "") for job in sanitized_jobs) if any_job_needs_join else ""),
+        where_sql=where_sql,
+    )
+    if logs is not None:
+        if using_join_source:
+            logs.append(f"[PERF] {context}: Using relationship-join source for batch")
+        elif query_source and str(query_source).strip() != str(source_table).strip():
+            logs.append(f"[PERF] {context}: Using base fact source for batch (join bypass)")
+
     base_select = f"SELECT * FROM {base_source}"
     if where_sql:
         base_select += f" WHERE {where_sql}"
@@ -876,7 +1241,11 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
     You are a BI Expert. Analyze '{logical_table_name}':
     {master_schema_context}
 
-    STEP 1: FILTERS -> 3 categorical columns for filtering.
+    STEP 1: FILTERS -> EXACTLY 6 filter columns ranked by usefulness (best first).
+    - First 3 are used as default visible filters.
+    - First 6 are used as recommended/preloaded filters.
+    - Prefer business dimensions suitable for interactive filtering (region, customer, product, channel, status, etc.).
+    - Use exact schema column names only.
     STEP 2: KPIS -> EXACTLY 4 KPI SQL queries (each must have label, sql, trend_sql).
     STEP 3: CHARTS -> 6 SQL queries (including heatmap if applicable).
 
@@ -907,7 +1276,7 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
 
     RETURN JSON:
     {{
-        "filters": ["Region", "Status", "Category"],
+        "filters": ["Region", "Status", "Category", "Customer_Name", "Product", "BillStatus"],
         "kpis": [
             {{ "label": "Total Spend", "sql": "SELECT SUM(amount) FROM {logical_table_name}", "trend_sql": "SELECT CAST(date_col AS DATE) as x, SUM(amount) as y FROM {logical_table_name} GROUP BY 1 ORDER BY 1 LIMIT 7" }},
             {{ "label": "Record Count", "sql": "SELECT COUNT(*) FROM {logical_table_name}", "trend_sql": "SELECT CAST(date_col AS DATE) as x, COUNT(*) as y FROM {logical_table_name} GROUP BY 1 ORDER BY 1 LIMIT 7" }}
@@ -1850,7 +2219,11 @@ def _series_looks_datetime(values):
     if hint_count < max(2, int(len(sample) * 0.3)):
         return False
 
-    parsed = pd.to_datetime(pd.Series(sample), errors="coerce", utc=True)
+    try:
+        parsed = pd.to_datetime(pd.Series(sample), errors="coerce", utc=True, format="mixed")
+    except TypeError:
+        # Older pandas versions do not support format="mixed".
+        parsed = pd.Series([pd.to_datetime(v, errors="coerce", utc=True) for v in sample])
     valid_count = int(parsed.notna().sum())
     return valid_count >= max(2, int(len(sample) * 0.6))
 
@@ -2511,6 +2884,19 @@ def execute_dashboard_logic_databricks(
         total_tokens += tokens
 
         if isinstance(plan, dict):
+            llm_ranked_filters = _resolve_ranked_filter_columns(
+                plan.get("filters", []),
+                text_cols,
+                max_count=6,
+            )
+            if llm_ranked_filters:
+                plan["filters"] = llm_ranked_filters
+                log.append(f"[FILTER] LLM-ranked filters: {', '.join(llm_ranked_filters)}")
+            else:
+                plan["filters"] = []
+                log.append("[FILTER] LLM-ranked filters unavailable; falling back to metadata columns")
+
+        if isinstance(plan, dict):
             plan_kpis = plan.get("kpis", [])
             if not isinstance(plan_kpis, list):
                 plan_kpis = []
@@ -2538,7 +2924,7 @@ def execute_dashboard_logic_databricks(
             )
             plan = {
                 "domain": "General",
-                "filters": text_cols[:3],
+                "filters": text_cols[:6],
                 "kpis": [
                     {"label": "Record Count", "sql": f"SELECT COUNT(*) FROM {DATABRICKS_LOGICAL_VIEW_NAME}"},
                 ],
@@ -2578,6 +2964,8 @@ def execute_dashboard_logic_databricks(
             except Exception as e:
                 log.append(f"[WARN] Could not load Databricks preview rows: {str(e)}")
 
+        lazy_filter_values = _safe_bool_env("DATABRICKS_FILTER_LAZY_VALUES", True)
+
         cached_filters = []
         if isinstance(filters_override, list):
             for f in filters_override:
@@ -2590,25 +2978,39 @@ def execute_dashboard_logic_databricks(
                 if not isinstance(vals, list):
                     vals = []
                 cleaned_vals = [str(v) for v in vals if str(v).strip()]
-                if not cleaned_vals:
-                    continue
                 cached_filters.append({
                     "label": str(f.get("label") or col.replace('_', ' ').title()),
                     "column": col,
                     "values": cleaned_vals,
+                    "values_loaded": bool(f.get("values_loaded")) or bool(cleaned_vals),
                 })
-        if cached_filters:
-            output["filters"] = cached_filters
-            log.append(f"[CACHE] Reusing cached filter definitions ({len(cached_filters)})")
+
+        if lazy_filter_values:
+            if cached_filters:
+                output["filters"] = cached_filters
+                log.append(f"[CACHE] Reusing cached filter definitions ({len(cached_filters)})")
+            else:
+                filter_columns = _dedupe_filter_column_candidates((plan.get("filters", []) + text_cols))
+                output["filters"] = _build_default_filter_defs(filter_columns)
+                log.append(f"[PERF] Lazy filter values enabled ({len(output['filters'])} filter columns)")
+        elif cached_filters:
+            output["filters"] = [f for f in cached_filters if f.get("values")]
+            log.append(f"[CACHE] Reusing cached filter definitions ({len(output['filters'])})")
         else:
             filter_candidates = []
             seen = set()
+            max_filter_candidates = _safe_int_env("DATABRICKS_FILTER_CANDIDATE_LIMIT", 12)
             for col in (plan.get("filters", []) + text_cols):
                 c = str(col)
                 if c.lower() in seen:
                     continue
                 seen.add(c.lower())
                 filter_candidates.append(c)
+                if len(filter_candidates) >= max_filter_candidates:
+                    break
+
+            if len(plan.get("filters", []) + text_cols) > len(filter_candidates):
+                log.append(f"[PERF] Filter candidates capped to {len(filter_candidates)} columns")
 
             for col in filter_candidates:
                 try:
@@ -2628,12 +3030,12 @@ def execute_dashboard_logic_databricks(
                     q = f"SELECT DISTINCT CAST(raw_v AS STRING) AS v FROM ({base_q}) __fv LIMIT 50"
                     vals_df = fetch_dataframe(connection, q, readonly=True)
                     vals = [str(v) for v in vals_df["v"].dropna().tolist()] if "v" in vals_df else []
-                    if vals:
-                        output["filters"].append({
-                            "label": col.replace('_', ' ').title(),
-                            "column": col,
-                            "values": vals,
-                        })
+                    output["filters"].append({
+                        "label": col.replace('_', ' ').title(),
+                        "column": col,
+                        "values": vals,
+                        "values_loaded": True,
+                    })
                 except Exception:
                     continue
 
@@ -3178,6 +3580,7 @@ def execute_dashboard_filter_refresh_databricks(
             "session_id": session_id,
         }
 
+        lazy_filter_values = _safe_bool_env("DATABRICKS_FILTER_LAZY_VALUES", True)
         cached_filters = []
         if isinstance(filters_override, list):
             for f in filters_override:
@@ -3190,16 +3593,23 @@ def execute_dashboard_filter_refresh_databricks(
                 if not isinstance(vals, list):
                     vals = []
                 cleaned_vals = [str(v) for v in vals if str(v).strip()]
-                if not cleaned_vals:
-                    continue
                 cached_filters.append({
                     "label": str(f.get("label") or col.replace('_', ' ').title()),
                     "column": col,
                     "values": cleaned_vals,
+                    "values_loaded": bool(f.get("values_loaded")) or bool(cleaned_vals),
                 })
-        if cached_filters:
-            output["filters"] = cached_filters
-            log.append(f"[CACHE] Reusing cached filter definitions ({len(cached_filters)})")
+
+        if lazy_filter_values:
+            if cached_filters:
+                output["filters"] = cached_filters
+                log.append(f"[CACHE] Reusing cached filter definitions ({len(cached_filters)})")
+            else:
+                output["filters"] = _build_default_filter_defs(text_cols)
+                log.append(f"[PERF] Lazy filter values enabled ({len(output['filters'])} filter columns)")
+        elif cached_filters:
+            output["filters"] = [f for f in cached_filters if f.get("values")]
+            log.append(f"[CACHE] Reusing cached filter definitions ({len(output['filters'])})")
 
         # Build a unique query plan first, then execute in parallel.
         unique_queries = {}
@@ -3582,30 +3992,3 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
         }
     finally:
         connection.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

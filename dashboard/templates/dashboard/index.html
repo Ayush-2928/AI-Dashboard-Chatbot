@@ -1869,8 +1869,13 @@
         let widgetDragState = null;
         let widgetResizeState = null;
         let availableFilterDefs = [];
+        let filterValueLoadPromises = {};
         let selectedFilterColumns = [];
         let filterDropdownGlobalBound = false;
+        let isRenderingEditableFilters = false;
+        let pendingEditableFiltersRender = false;
+        const INITIAL_FILTER_VISIBLE_COUNT = 3;
+        const INITIAL_FILTER_PRELOAD_COUNT = 6;
         let lastAppliedFilterSignature = '';
         let hasPendingFilterChanges = false;
         let originalDashboardState = null;
@@ -2137,6 +2142,7 @@
             dataSourceMode = 'databricks';
             activeFilters = {};
             availableFilterDefs = [];
+            filterValueLoadPromises = {};
             selectedFilterColumns = [];
             chartLibrary = [];
             chartLibrarySeq = 0;
@@ -2156,6 +2162,7 @@
             dataSourceMode = 'databricks';
             activeFilters = {};
             availableFilterDefs = [];
+            filterValueLoadPromises = {};
             selectedFilterColumns = [];
             chartLibrary = [];
             chartLibrarySeq = 0;
@@ -2467,8 +2474,137 @@
             return (availableFilterDefs || []).find(f => f && f.column === column) || null;
         }
 
+        function _normalizeFilterDef(raw, prevDef = null) {
+            const col = String((raw && raw.column) || '').trim();
+            if (!col) return null;
+
+            const incomingVals = Array.isArray(raw && raw.values)
+                ? raw.values.map(v => String(v)).filter(v => v.trim() !== '')
+                : null;
+            const prevVals = Array.isArray(prevDef && prevDef.values)
+                ? prevDef.values.map(v => String(v)).filter(v => v.trim() !== '')
+                : [];
+            const hasIncomingVals = Array.isArray(incomingVals) && incomingVals.length > 0;
+            const values = hasIncomingVals ? incomingVals : prevVals;
+
+            const incomingLoaded = Boolean(raw && raw.values_loaded);
+            const prevLoaded = Boolean(prevDef && prevDef.values_loaded);
+            const valuesLoaded = hasIncomingVals || incomingLoaded || prevLoaded;
+
+            return {
+                label: String((raw && raw.label) || (prevDef && prevDef.label) || col.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+                column: col,
+                values,
+                values_loaded: valuesLoaded,
+                values_loading: Boolean(prevDef && prevDef.values_loading),
+                preload_requested: Boolean(prevDef && prevDef.preload_requested),
+            };
+        }
+
+        function getRecommendedFilterColumns(limit = INITIAL_FILTER_PRELOAD_COUNT) {
+            return (availableFilterDefs || [])
+                .slice(0, Math.max(0, Number(limit) || 0))
+                .map(f => String((f && f.column) || '').trim())
+                .filter(Boolean);
+        }
+
+        async function preloadRecommendedFilterValues() {
+            const recommendedCols = getRecommendedFilterColumns(INITIAL_FILTER_PRELOAD_COUNT);
+            if (!recommendedCols.length) return;
+
+            const pending = [];
+            recommendedCols.forEach(col => {
+                const def = getFilterDef(col);
+                if (!def) return;
+                if (def.values_loaded || def.values_loading || def.preload_requested) return;
+                def.preload_requested = true;
+                pending.push(col);
+            });
+            if (!pending.length) return;
+
+            const workers = Math.min(3, pending.length);
+            const queue = [...pending];
+            const runner = async () => {
+                while (queue.length) {
+                    const nextCol = queue.shift();
+                    if (!nextCol) break;
+                    try {
+                        await ensureFilterValuesLoaded(nextCol);
+                    } catch (_) {}
+                }
+            };
+            await Promise.all(Array.from({ length: workers }, () => runner()));
+        }
+
+        async function ensureFilterValuesLoaded(column, { force = false } = {}) {
+            const col = String(column || '').trim();
+            if (!col) return [];
+
+            const def = getFilterDef(col);
+            if (!def) return [];
+            if (!force && def.values_loaded) return Array.isArray(def.values) ? def.values : [];
+            if (filterValueLoadPromises[col]) return filterValueLoadPromises[col];
+
+            def.values_loading = true;
+            renderEditableFilters();
+
+            const requestPromise = (async () => {
+                const formData = new FormData();
+                formData.append('column', col);
+                formData.append('filters', JSON.stringify(activeFilters || {}));
+
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const res = await fetch('/api/filter-values/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-CSRFToken': csrfToken }
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to load filter values');
+                }
+
+                const resolvedCol = String(data.column || col).trim() || col;
+                const target = getFilterDef(resolvedCol) || getFilterDef(col);
+                if (target) {
+                    target.values = Array.isArray(data.values)
+                        ? data.values.map(v => String(v)).filter(v => v.trim() !== '')
+                        : [];
+                    target.values_loaded = true;
+                }
+                return target && Array.isArray(target.values) ? target.values : [];
+            })();
+
+            filterValueLoadPromises[col] = requestPromise;
+            try {
+                return await requestPromise;
+            } catch (err) {
+                const target = getFilterDef(col);
+                if (target) {
+                    target.values = [];
+                    target.values_loaded = true;
+                }
+                const status = document.getElementById('chart-request-status');
+                if (status) status.textContent = `Could not load values for filter '${col}'.`;
+                return [];
+            } finally {
+                const target = getFilterDef(col);
+                if (target) target.values_loading = false;
+                delete filterValueLoadPromises[col];
+                renderEditableFilters();
+            }
+        }
+
         function refreshFilterDefinitions(filters) {
-            availableFilterDefs = Array.isArray(filters) ? filters : [];
+            const prevMap = new Map(
+                (availableFilterDefs || [])
+                    .filter(f => f && f.column)
+                    .map(f => [String(f.column), f])
+            );
+            const incoming = Array.isArray(filters) ? filters : [];
+            availableFilterDefs = incoming
+                .map(f => _normalizeFilterDef(f, prevMap.get(String((f && f.column) || '').trim()) || null))
+                .filter(Boolean);
             const availableCols = new Set(availableFilterDefs.map(f => f.column));
 
             selectedFilterColumns = selectedFilterColumns.filter(col => availableCols.has(col));
@@ -2486,11 +2622,14 @@
             });
 
             if (selectedFilterColumns.length === 0 && availableFilterDefs.length > 0) {
-                selectedFilterColumns = availableFilterDefs.slice(0, Math.min(3, availableFilterDefs.length)).map(f => f.column);
+                selectedFilterColumns = availableFilterDefs
+                    .slice(0, Math.min(INITIAL_FILTER_VISIBLE_COUNT, availableFilterDefs.length))
+                    .map(f => f.column);
             }
 
             selectedFilterColumns = [...new Set(selectedFilterColumns)];
             renderEditableFilters();
+            preloadRecommendedFilterValues();
         }
         function closeAllFilterDropdowns(exceptMenu = null) {
             document.querySelectorAll('.filter-dropdown-menu.open').forEach(menu => {
@@ -2559,14 +2698,17 @@
             let currentValue = selectedValue !== undefined && selectedValue !== null ? String(selectedValue) : '';
 
             const getSelectedLabel = () => {
-                const found = options.find(opt => String(opt.value) === String(currentValue));
+                const found = options.find(opt => !opt.isHeader && String(opt.value) === String(currentValue));
                 return found ? String(found.label) : String(placeholder || 'Select');
             };
 
             const renderOptionList = () => {
                 const q = String(searchInput.value || '').trim().toLowerCase();
                 optionsBox.innerHTML = '';
-                const filtered = options.filter(opt => String(opt.label || '').toLowerCase().includes(q));
+                const filtered = options.filter(opt => {
+                    if (opt && opt.isHeader) return !q;
+                    return String(opt.label || '').toLowerCase().includes(q);
+                });
 
                 if (!filtered.length) {
                     const empty = document.createElement('div');
@@ -2577,6 +2719,16 @@
                 }
 
                 filtered.forEach(opt => {
+                    if (opt && opt.isHeader) {
+                        const header = document.createElement('div');
+                        header.className = 'filter-dropdown-empty';
+                        header.style.textAlign = 'left';
+                        header.style.fontWeight = '700';
+                        header.textContent = String(opt.label || 'Group');
+                        optionsBox.appendChild(header);
+                        return;
+                    }
+
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'filter-dropdown-option';
@@ -2628,11 +2780,16 @@
         }
 
         function renderEditableFilters() {
+            if (isRenderingEditableFilters) {
+                pendingEditableFiltersRender = true;
+                return;
+            }
+            isRenderingEditableFilters = true;
+            try {
             const filterHost = document.getElementById('dynamic-filter-host');
             if (!filterHost) return;
 
-            const old = document.getElementById('dynamic-filter-controls');
-            if (old) old.remove();
+            document.querySelectorAll('#dynamic-filter-controls').forEach(node => node.remove());
 
             const controls = document.createElement('div');
             controls.id = 'dynamic-filter-controls';
@@ -2644,8 +2801,11 @@
 
                 const label = def.label || column;
                 const values = Array.isArray(def.values) ? def.values : [];
+                if (!def.values_loaded && !def.values_loading) {
+                    ensureFilterValuesLoaded(column);
+                }
                 const activeValue = activeFilters[column] !== undefined ? String(activeFilters[column]) : '';
-                if (activeValue && !values.map(String).includes(activeValue)) {
+                if (def.values_loaded && activeValue && !values.map(String).includes(activeValue)) {
                     delete activeFilters[column];
                 }
 
@@ -2658,10 +2818,15 @@
 
                 const dropdown = createSearchableFilterDropdown({
                     placeholder: `All ${label}`,
-                    options: [{ value: '', label: `All ${label}` }, ...values.map(v => ({ value: String(v), label: String(v) }))],
+                    options: [
+                        { value: '', label: `All ${label}` },
+                        ...values.map(v => ({ value: String(v), label: String(v) })),
+                        ...(def.values_loaded ? [] : [{ value: '__loading__', label: def.values_loading ? 'Loading values...' : 'Loading...' }]),
+                    ],
                     selectedValue: activeFilters[column] !== undefined ? String(activeFilters[column]) : '',
                     searchPlaceholder: `Search ${label}...`,
                     onSelect: (nextVal, prevVal) => {
+                        if (String(nextVal) === '__loading__') return;
                         if (String(nextVal) === String(prevVal)) return;
                         if (!nextVal) delete activeFilters[column];
                         else activeFilters[column] = nextVal;
@@ -2682,10 +2847,27 @@
                 controls.appendChild(chip);
             });
 
+            const recommendedSet = new Set(getRecommendedFilterColumns(INITIAL_FILTER_PRELOAD_COUNT));
             const addCandidates = availableFilterDefs.filter(f => f && !selectedFilterColumns.includes(f.column));
+            const recommendedCandidates = addCandidates.filter(f => recommendedSet.has(String((f && f.column) || '').trim()));
+            const moreCandidates = addCandidates.filter(f => !recommendedSet.has(String((f && f.column) || '').trim()));
+
+            const addFilterOptions = [];
+            if (recommendedCandidates.length) {
+                addFilterOptions.push({ value: '__group_recommended__', label: 'Recommended', isHeader: true });
+                recommendedCandidates.forEach(f => {
+                    addFilterOptions.push({ value: String(f.column), label: String(f.label || f.column) });
+                });
+            }
+            if (moreCandidates.length) {
+                addFilterOptions.push({ value: '__group_more__', label: 'More Filters', isHeader: true });
+                moreCandidates.forEach(f => {
+                    addFilterOptions.push({ value: String(f.column), label: String(f.label || f.column) });
+                });
+            }
             const addDropdown = createSearchableFilterDropdown({
                 placeholder: '+ Add Filter',
-                options: addCandidates.map(f => ({ value: String(f.column), label: String(f.label || f.column) })),
+                options: addFilterOptions,
                 selectedValue: '',
                 searchPlaceholder: 'Search filter columns...',
                 onSelect: (nextVal) => {
@@ -2694,6 +2876,7 @@
                     if (!selectedFilterColumns.includes(col)) {
                         selectedFilterColumns.push(col);
                     }
+                    ensureFilterValuesLoaded(col);
                     renderEditableFilters();
                 }
             });
@@ -2716,6 +2899,13 @@
 
             filterHost.appendChild(controls);
             refreshApplyFiltersButton();
+            } finally {
+                isRenderingEditableFilters = false;
+                if (pendingEditableFiltersRender) {
+                    pendingEditableFiltersRender = false;
+                    renderEditableFilters();
+                }
+            }
         }
 
         function handleDateColumnChange() {
@@ -4030,7 +4220,7 @@
                 }
 
                 openLibraryChartInPopup(libraryEntry.id);
-                status.textContent = 'Chart saved to library. Click Insert to add, or click Replace to choose a chart to replace. Open View Logs to inspect LLM payload logs.';
+                status.textContent = 'Chart saved to library.';
             } catch (error) {
                 status.textContent = 'Request failed.';
                 alert('Error: ' + error.message);
@@ -5691,7 +5881,7 @@
                     createSparkline(sparklineId, trendData, '#8b5cf6');
                 });
             }, 180);
-
+            
             refreshKpiReplaceTargets();
         }
 
@@ -5713,49 +5903,4 @@
 
 
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

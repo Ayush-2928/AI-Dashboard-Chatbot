@@ -8,6 +8,7 @@ from .utils import (
     execute_dashboard_filter_refresh_databricks,
     generate_custom_chart_from_prompt_databricks,
     generate_custom_kpi_from_prompt_databricks,
+    fetch_filter_values_databricks,
 )
 
 
@@ -245,6 +246,27 @@ def custom_chart(request):
             result['logs'] = llm_logs
         else:
             result['logs'] = []
+        return JsonResponse(result)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def filter_values(request):
+    """Fetches filter values for one selected filter column (lazy loading)."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    column = (request.POST.get('column') or '').strip()
+    if not column:
+        return JsonResponse({"error": "Column is required"}, status=400)
+
+    filters_json = request.POST.get('filters')
+    if not filters_json:
+        filters_json = request.session.get('active_filters_json', '{}')
+
+    try:
+        result = fetch_filter_values_databricks(column_name=column, active_filters_json=filters_json)
         return JsonResponse(result)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
