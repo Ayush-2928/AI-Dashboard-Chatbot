@@ -4037,6 +4037,7 @@
             const formData = new FormData();
             formData.append('prompt', String(promptText || ''));
             formData.append('artifact_type', artifactType);
+            formData.append('filters', JSON.stringify(activeFilters || {}));
             if (currentData && currentData.session_id) {
                 formData.append('session_id', currentData.session_id);
             }
@@ -4121,11 +4122,14 @@
         }
 
         async function requestChartWithClarification(promptText, statusEl) {
-            let clarificationChoice = null;
+            let clarificationChoices = [];
             let mergedLogs = [];
 
             for (let round = 0; round < 3; round++) {
-                const data = await _postCustomArtifactRequest(promptText, 'chart', clarificationChoice);
+                const clarificationPayload = clarificationChoices.length
+                    ? { choices: clarificationChoices }
+                    : null;
+                const data = await _postCustomArtifactRequest(promptText, 'chart', clarificationPayload);
                 if (Array.isArray(data.logs)) {
                     mergedLogs = mergedLogs.concat(data.logs);
                 }
@@ -4145,7 +4149,15 @@
                     return null;
                 }
 
-                clarificationChoice = choice;
+                const normalizedKeyword = String(choice.keyword || '').trim().toLowerCase();
+                const existingIdx = clarificationChoices.findIndex(item =>
+                    String((item && item.keyword) || '').trim().toLowerCase() === normalizedKeyword
+                );
+                if (existingIdx >= 0) {
+                    clarificationChoices[existingIdx] = choice;
+                } else {
+                    clarificationChoices.push(choice);
+                }
                 if (statusEl) {
                     statusEl.textContent = `Using '${choice.column}' for '${choice.keyword || 'term'}'. Regenerating...`;
                 }
@@ -4230,11 +4242,14 @@
         }
 
         async function requestKpiWithClarification(promptText, statusEl) {
-            let clarificationChoice = null;
+            let clarificationChoices = [];
             let mergedLogs = [];
 
             for (let round = 0; round < 3; round++) {
-                const data = await _postCustomArtifactRequest(promptText, 'kpi', clarificationChoice);
+                const clarificationPayload = clarificationChoices.length
+                    ? { choices: clarificationChoices }
+                    : null;
+                const data = await _postCustomArtifactRequest(promptText, 'kpi', clarificationPayload);
                 if (Array.isArray(data.logs)) {
                     mergedLogs = mergedLogs.concat(data.logs);
                 }
@@ -4252,7 +4267,15 @@
                 const choice = _askUserForClarificationChoice(clarification, statusEl);
                 if (!choice) return null;
 
-                clarificationChoice = choice;
+                const normalizedKeyword = String(choice.keyword || '').trim().toLowerCase();
+                const existingIdx = clarificationChoices.findIndex(item =>
+                    String((item && item.keyword) || '').trim().toLowerCase() === normalizedKeyword
+                );
+                if (existingIdx >= 0) {
+                    clarificationChoices[existingIdx] = choice;
+                } else {
+                    clarificationChoices.push(choice);
+                }
                 if (statusEl) {
                     statusEl.textContent = `Using '${choice.column}' for KPI term '${choice.keyword || 'term'}'. Regenerating...`;
                 }

@@ -1616,6 +1616,36 @@ def _safe_custom_sql(sql):
 
     return True
 
+
+def _relax_string_equality_predicates(sql_text):
+    sql = str(sql_text or "")
+    if not sql:
+        return sql
+
+    patt = re.compile(
+        r"(?i)(?P<lhs>(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_\.]*))\s*=\s*'(?P<rhs>[^']*)'"
+    )
+
+    def _repl(m):
+        lhs = str(m.group("lhs") or "").strip()
+        rhs = str(m.group("rhs") or "")
+        rhs_s = rhs.strip()
+        if not lhs or not rhs_s:
+            return m.group(0)
+
+        # Keep likely numeric/date literals untouched.
+        if re.fullmatch(r"[+-]?\d+(\.\d+)?", rhs_s):
+            return m.group(0)
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", rhs_s):
+            return m.group(0)
+        if re.fullmatch(r"\d{4}/\d{2}/\d{2}", rhs_s):
+            return m.group(0)
+
+        safe_rhs = rhs.replace("'", "''")
+        return f"UPPER(TRIM(CAST({lhs} AS STRING))) = UPPER(TRIM('{safe_rhs}'))"
+
+    return patt.sub(_repl, sql)
+
 def _default_custom_chart_plan(con, user_prompt):
     schema = con.execute("DESCRIBE final_view").df()
     text_cols = []
@@ -1998,40 +2028,75 @@ def _column_contains_value_term(connection, source_query, where_sql, column_name
 
 
 def _normalize_custom_chart_clarification_choice(choice, schema_columns):
-    if not isinstance(choice, dict):
-        return None
-
-    keyword = str(choice.get("keyword") or "").strip().lower()
-    column_raw = str(choice.get("column") or "").strip()
-    if not keyword and not column_raw:
-        return None
-
     available_map = {str(c).lower(): c for c, _ in schema_columns}
-    normalized_column = available_map.get(column_raw.lower()) if column_raw else None
+    normalized = {}
 
-    return {
-        "keyword": keyword,
-        "column": normalized_column,
-    }
+    def _add(keyword_raw, column_raw):
+        keyword = str(keyword_raw or "").strip().lower()
+        column_name = str(column_raw or "").strip()
+        if not keyword or not column_name:
+            return
+        resolved = available_map.get(column_name.lower())
+        if not resolved:
+            return
+        normalized[keyword] = resolved
+
+    if isinstance(choice, dict):
+        raw_choices = choice.get("choices")
+        if isinstance(raw_choices, list):
+            for item in raw_choices:
+                if isinstance(item, dict):
+                    _add(item.get("keyword"), item.get("column"))
+
+        raw_resolved = choice.get("resolved_choices")
+        if isinstance(raw_resolved, dict):
+            for key, value in raw_resolved.items():
+                _add(key, value)
+
+        _add(choice.get("keyword"), choice.get("column"))
+    elif isinstance(choice, list):
+        for item in choice:
+            if isinstance(item, dict):
+                _add(item.get("keyword"), item.get("column"))
+
+    return normalized or None
 
 
 def _apply_custom_chart_clarification_to_prompt(user_prompt, clarification_choice, logs=None):
     if not clarification_choice:
         return user_prompt
+    mappings = []
+    if isinstance(clarification_choice, dict):
+        single_keyword = str(clarification_choice.get("keyword") or "").strip()
+        single_column = str(clarification_choice.get("column") or "").strip()
+        if single_keyword and single_column:
+            mappings.append((single_keyword, single_column))
 
-    keyword = str(clarification_choice.get("keyword") or "").strip()
-    column = str(clarification_choice.get("column") or "").strip()
-    if not keyword or not column:
+        for key, value in clarification_choice.items():
+            if key in {"keyword", "column", "choices", "resolved_choices"}:
+                continue
+            k = str(key or "").strip()
+            v = str(value or "").strip()
+            if k and v:
+                mappings.append((k, v))
+
+    if not mappings:
         return user_prompt
 
-    if logs is not None:
-        logs.append(f"[CLARIFY] User selected column '{column}' for keyword '{keyword}'")
+    deduped = []
+    seen = set()
+    for keyword, column in mappings:
+        dedupe_key = (keyword.lower(), column.lower())
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        deduped.append((keyword, column))
+        if logs is not None:
+            logs.append(f"[CLARIFY] User selected column '{column}' for keyword '{keyword}'")
 
-    addition = (
-        "\n\nUSER CLARIFICATION:\n"
-        f"- Interpret '{keyword}' using column '{column}'.\n"
-        "- Use this mapping consistently in SQL and labels."
-    )
+    addition_lines = [f"- Interpret '{keyword}' using column '{column}'." for keyword, column in deduped]
+    addition_lines.append("- Use these mappings consistently in SQL and labels.")
+    addition = "\n\nUSER CLARIFICATIONS:\n" + "\n".join(addition_lines)
     return str(user_prompt or "") + addition
 
 
@@ -2068,11 +2133,20 @@ def _detect_custom_chart_ambiguity(
     if not column_terms and not value_terms:
         return None
 
-    chosen_keyword = ""
-    chosen_column = ""
-    if clarification_choice:
-        chosen_keyword = str(clarification_choice.get("keyword") or "").strip().lower()
-        chosen_column = str(clarification_choice.get("column") or "").strip()
+    chosen_map = {}
+    if isinstance(clarification_choice, dict):
+        single_keyword = str(clarification_choice.get("keyword") or "").strip().lower()
+        single_column = str(clarification_choice.get("column") or "").strip()
+        if single_keyword and single_column:
+            chosen_map[single_keyword] = single_column
+
+        for key, value in clarification_choice.items():
+            if key in {"keyword", "column", "choices", "resolved_choices"}:
+                continue
+            k = str(key or "").strip().lower()
+            v = str(value or "").strip()
+            if k and v:
+                chosen_map[k] = v
 
     columns_only = [c for c, _ in schema_columns]
 
@@ -2084,7 +2158,7 @@ def _detect_custom_chart_ambiguity(
         # Ignore generic metric words; only clarify meaningful business terms.
         if term_l in CUSTOM_CHART_DISAMBIGUATION_STOPWORDS:
             continue
-        if chosen_keyword and term_l == chosen_keyword and chosen_column:
+        if chosen_map.get(term_l):
             continue
 
         matches = [c for c in columns_only if _column_name_matches_term(c, term_l)]
@@ -2107,7 +2181,7 @@ def _detect_custom_chart_ambiguity(
             continue
         if term_l in CUSTOM_CHART_DISAMBIGUATION_STOPWORDS:
             continue
-        if chosen_keyword and term_l == chosen_keyword and chosen_column:
+        if chosen_map.get(term_l):
             continue
 
         matches = []
@@ -4205,6 +4279,24 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
             logs=llm_logs,
             context="Custom Chart",
         )
+
+        if df is not None and df.empty:
+            relaxed_sql = _relax_string_equality_predicates(sql)
+            if relaxed_sql != sql:
+                llm_logs.append("[FALLBACK] Custom Chart returned no rows; retrying with case-insensitive string matching")
+                retry_df, retry_executed_sql = _execute_databricks_user_sql(
+                    connection,
+                    relaxed_sql,
+                    source_table_base,
+                    query_source=source_table_query,
+                    where_sql=where_sql,
+                    logs=llm_logs,
+                    context="Custom Chart Fallback",
+                )
+                if retry_df is not None and not retry_df.empty:
+                    df = retry_df
+                    executed_sql = retry_executed_sql
+                    llm_logs.append("[FALLBACK] Custom Chart fallback succeeded")
 
         chart_payload = _build_custom_chart_payload(ai_plan, df)
         chart_payload["sql"] = executed_sql
