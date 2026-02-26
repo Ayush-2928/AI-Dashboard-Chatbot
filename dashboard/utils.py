@@ -1838,7 +1838,7 @@ def _relax_string_equality_predicates(sql_text):
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", rhs_s):
             return m.group(0)
         if re.fullmatch(r"\d{4}/\d{2}/\d{2}", rhs_s):
-            return m.group(0)
+            return m.group(0) 
 
         safe_rhs = rhs.replace("'", "''")
         return f"UPPER(TRIM(CAST({lhs} AS STRING))) = UPPER(TRIM('{safe_rhs}'))"
