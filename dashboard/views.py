@@ -4,6 +4,7 @@ from django.http import JsonResponse
 import json
 import math
 import uuid
+import os
 from .utils import (
     execute_dashboard_logic_databricks,
     execute_dashboard_filter_refresh_databricks,
@@ -41,10 +42,34 @@ def _merge_applied_filters(filters_json, dashboard_data):
 def _extract_llm_logs(lines):
     if not isinstance(lines, list):
         return []
+    include_sql = str(os.getenv("DATABRICKS_LOG_SQL_TEXT") or "").strip().lower() in {"1", "true", "yes", "on"}
     keep = []
     for line in lines:
         s = str(line or '')
-        if ('[LLM REQUEST]' in s) or ('[LLM RESPONSE]' in s) or ('[LLM ERROR]' in s):
+        if ('[LLM REQUEST]' in s) or ('[LLM RESPONSE]' in s) or ('[LLM ERROR]' in s) or (include_sql and s.startswith('[SQL]')):
+            keep.append(s)
+    return keep
+
+
+def _extract_filter_refresh_logs(lines):
+    if not isinstance(lines, list):
+        return []
+    prefixes = (
+        "[PERF]",
+        "[SOURCE]",
+        "[FILTER]",
+        "[CACHE]",
+        "[WARN]",
+        "[ERROR]",
+        "[SECURITY]",
+        "[FALLBACK]",
+        "[GUARD]",
+        "[SQL]",
+    )
+    keep = []
+    for line in lines:
+        s = str(line or "")
+        if s.startswith(prefixes):
             keep.append(s)
     return keep
 
@@ -208,9 +233,9 @@ def reapply_filters(request):
         request.session['active_filters_json'] = _merge_applied_filters(filters_json, dashboard_data)
         request.session['databricks_session_id'] = session_id
 
-        # Keep frontend logs clean for filter-only refresh path.
-        llm_logs = _extract_llm_logs(dashboard_data.get('logs', []))
-        dashboard_data['logs'] = llm_logs if llm_logs else []
+        # Reapply path has no LLM generation; surface operational logs for debugging/perf.
+        refresh_logs = _extract_filter_refresh_logs(dashboard_data.get('logs', []))
+        dashboard_data['logs'] = refresh_logs if refresh_logs else []
 
         return _safe_json_response(dashboard_data)
     except Exception as e:

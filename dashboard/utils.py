@@ -484,6 +484,38 @@ def _safe_bool_env(name, default=False):
     if raw is None:
         return bool(default)
     return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _sql_logging_enabled():
+    return _safe_bool_env("DATABRICKS_LOG_SQL_TEXT", False)
+
+
+def _sql_log_max_chars():
+    raw = os.getenv("DATABRICKS_LOG_SQL_TEXT_MAX_CHARS", "25000")
+    try:
+        return max(200, int(raw))
+    except Exception:
+        return 25000
+
+
+def _log_sql_text(debug_logs, context, label, sql_text):
+    if debug_logs is None or not _sql_logging_enabled():
+        return
+    try:
+        text = _redact_sensitive_text(sql_text if sql_text is not None else "")
+        text = str(text)
+        total_chars = len(text)
+        max_chars = _sql_log_max_chars()
+        preview = text[:max_chars]
+        if total_chars > max_chars:
+            preview += f"\n... [TRUNCATED {total_chars - max_chars} chars]"
+        debug_logs.append(
+            f"[SQL] {context} | {label} | chars={total_chars}\n{preview}"
+        )
+    except Exception as e:
+        debug_logs.append(f"[SQL] {context} | {label} | logging failed: {str(e)}")
+
+
 def _databricks_query_row_cap():
     raw = os.getenv("DATABRICKS_QUERY_ROW_CAP", "0")
     try:
@@ -538,7 +570,24 @@ def _resolve_related_databricks_table_fqn(base_table, related_table_name):
     return _quote_identifier(raw)
 
 
-def _build_databricks_relationship_virtual_source(connection, base_table, base_columns, include_sample_rows, logs=None):
+def _dedupe_schema_columns(columns):
+    deduped = []
+    seen = set()
+    dropped = 0
+    for col_name, col_type in (columns or []):
+        name = str(col_name or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            dropped += 1
+            continue
+        seen.add(key)
+        deduped.append((col_name, col_type))
+    return deduped, dropped
+
+
+def _build_databricks_relationship_select_model(connection, base_table, base_columns, required_columns=None, logs=None):
     relation_specs = [
         {
             "table": "dim_product_master",
@@ -558,14 +607,22 @@ def _build_databricks_relationship_virtual_source(connection, base_table, base_c
     if not base_col_names:
         return None
 
+    required_lookup = None
+    if required_columns:
+        required_lookup = {str(c).strip().lower() for c in required_columns if str(c).strip()}
+
     select_clauses = []
     schema_columns = []
     used_aliases = set()
 
+    for col_name, _ in base_columns:
+        used_aliases.add(str(col_name).lower())
+
     for col_name, col_type in base_columns:
+        if required_lookup is not None and str(col_name).lower() not in required_lookup:
+            continue
         select_clauses.append(f"f.{_quote_identifier(col_name)} AS {_quote_identifier(col_name)}")
         schema_columns.append((col_name, col_type))
-        used_aliases.add(str(col_name).lower())
 
     join_clauses = []
     joined_tables = []
@@ -583,11 +640,15 @@ def _build_databricks_relationship_virtual_source(connection, base_table, base_c
             continue
 
         try:
-            dim_columns = _describe_databricks_table_columns(connection, dim_fqn)
+            dim_columns_raw = _describe_databricks_table_columns(connection, dim_fqn)
         except Exception as e:
             if logs is not None:
                 logs.append(f"[SOURCE] Skip relation join {spec['table']}: describe failed ({str(e)})")
             continue
+
+        dim_columns, dropped_dim_cols = _dedupe_schema_columns(dim_columns_raw)
+        if dropped_dim_cols and logs is not None:
+            logs.append(f"[SOURCE] Deduped {dropped_dim_cols} duplicate columns in {spec['table']}")
 
         if not dim_columns:
             if logs is not None:
@@ -604,17 +665,8 @@ def _build_databricks_relationship_virtual_source(connection, base_table, base_c
         dim_alias = f"d{alias_idx}"
         alias_idx += 1
 
-        join_clauses.append(
-            "LEFT JOIN {dim_table} {dim_alias} ON "
-            "TRIM(UPPER(CAST(f.{base_key} AS STRING))) = TRIM(UPPER(CAST({dim_alias}.{dim_key} AS STRING)))".format(
-                dim_table=dim_fqn,
-                dim_alias=dim_alias,
-                base_key=_quote_identifier(base_key),
-                dim_key=_quote_identifier(dim_key),
-            )
-        )
-        joined_tables.append(dim_fqn)
-
+        dim_select_clauses = []
+        dim_schema_columns = []
         for dim_col_name, dim_col_type in dim_columns:
             cleaned = clean_col_name(dim_col_name)
             alias_root = f"{spec['prefix']}_{cleaned}" if cleaned else f"{spec['prefix']}_col"
@@ -625,12 +677,35 @@ def _build_databricks_relationship_virtual_source(connection, base_table, base_c
                 suffix += 1
 
             used_aliases.add(alias_name.lower())
-            select_clauses.append(
+
+            if required_lookup is not None and alias_name.lower() not in required_lookup:
+                continue
+
+            dim_select_clauses.append(
                 f"{dim_alias}.{_quote_identifier(dim_col_name)} AS {_quote_identifier(alias_name)}"
             )
-            schema_columns.append((alias_name, dim_col_type))
+            dim_schema_columns.append((alias_name, dim_col_type))
+
+        if required_lookup is not None and not dim_select_clauses:
+            continue
+
+        join_clauses.append(
+            "LEFT JOIN {dim_table} {dim_alias} ON "
+            "TRIM(UPPER(CAST(f.{base_key} AS STRING))) = TRIM(UPPER(CAST({dim_alias}.{dim_key} AS STRING)))".format(
+                dim_table=dim_fqn,
+                dim_alias=dim_alias,
+                base_key=_quote_identifier(base_key),
+                dim_key=_quote_identifier(dim_key),
+            )
+        )
+        joined_tables.append(dim_fqn)
+        select_clauses.extend(dim_select_clauses)
+        schema_columns.extend(dim_schema_columns)
 
     if not join_clauses:
+        return None
+
+    if not select_clauses:
         return None
 
     joined_query_source = (
@@ -641,24 +716,42 @@ def _build_databricks_relationship_virtual_source(connection, base_table, base_c
         + ") __relation_source"
     )
 
+    return {
+        "query_source": joined_query_source,
+        "schema_columns": schema_columns,
+        "joined_tables": joined_tables,
+    }
+
+
+def _build_databricks_relationship_virtual_source(connection, base_table, base_columns, include_sample_rows, logs=None, required_columns=None):
+    relation_model = _build_databricks_relationship_select_model(
+        connection,
+        base_table,
+        base_columns,
+        required_columns=required_columns,
+        logs=logs,
+    )
+    if not relation_model:
+        return None
+
     schema_context = _load_databricks_schema_context_from_query_source(
         connection,
-        joined_query_source,
+        relation_model["query_source"],
         include_sample_rows,
-        schema_columns,
+        relation_model["schema_columns"],
     )
 
     if logs is not None:
         logs.append(
-            f"[SOURCE] Databricks relationship joins active: base={base_table}, joined={len(joined_tables)}"
+            f"[SOURCE] Databricks relationship joins active: base={base_table}, joined={len(relation_model['joined_tables'])}"
         )
 
     return {
         "base_table": base_table,
-        "query_source": joined_query_source,
-        "schema_columns": schema_columns,
+        "query_source": relation_model["query_source"],
+        "schema_columns": relation_model["schema_columns"],
         "schema_context": schema_context,
-        "joined_tables": joined_tables,
+        "joined_tables": relation_model["joined_tables"],
     }
 
 
@@ -676,7 +769,10 @@ def _load_databricks_schema_context_from_query_source(connection, query_source, 
 
 def _build_databricks_virtual_source(connection, include_sample_rows, logs=None):
     base_table = _resolve_databricks_source_table(connection, logs=logs)
-    base_columns = _describe_databricks_table_columns(connection, base_table)
+    base_columns_raw = _describe_databricks_table_columns(connection, base_table)
+    base_columns, dropped_base_cols = _dedupe_schema_columns(base_columns_raw)
+    if dropped_base_cols and logs is not None:
+        logs.append(f"[SOURCE] Deduped {dropped_base_cols} duplicate base columns from {base_table}")
     if not base_columns:
         raise ValueError(f"No columns found for Databricks source {base_table}")
 
@@ -914,6 +1010,7 @@ def fetch_filter_values_databricks(column_name, active_filters_json='{}'):
             f"SELECT CAST(raw_v AS STRING) AS v FROM ({base_q}) __fv "
             f"WHERE raw_v IS NOT NULL GROUP BY 1 ORDER BY 1 LIMIT {value_limit}"
         )
+        _log_sql_text(log, "Filter Values", "sql", sql_text)
         vals_df = fetch_dataframe(connection, sql_text, readonly=True)
         values = [str(v) for v in vals_df["v"].dropna().tolist()] if "v" in vals_df else []
 
@@ -964,6 +1061,59 @@ def _query_uses_relationship_columns(sql_text):
     return ("product_" in text) or ("customer_" in text)
 
 
+def _extract_sql_referenced_columns(sql_text, available_columns):
+    sql = str(sql_text or "")
+    if not sql or not available_columns:
+        return set()
+
+    matched = set()
+    for col in available_columns:
+        name = str(col or "").strip()
+        if not name:
+            continue
+        esc = re.escape(name)
+        if re.search(rf"(?i)(?<![A-Za-z0-9_`])`{esc}`(?![A-Za-z0-9_`])", sql):
+            matched.add(name)
+            continue
+        if re.search(rf"(?i)(?<![A-Za-z0-9_`]){esc}(?![A-Za-z0-9_`])", sql):
+            matched.add(name)
+    return matched
+
+
+def _build_pruned_batch_query_source(connection, source_table, query_source, required_columns, logs=None, log_context="Batch"):
+    req_cols = [str(c).strip() for c in (required_columns or []) if str(c).strip()]
+    if not req_cols:
+        return str(query_source or source_table).strip()
+
+    fallback_source = str(query_source or source_table).strip()
+    try:
+        base_cols_raw = _describe_databricks_table_columns(connection, source_table)
+        base_cols, dropped = _dedupe_schema_columns(base_cols_raw)
+        if dropped and logs is not None:
+            logs.append(f"[SOURCE] Deduped {dropped} duplicate base columns from {source_table} for batch prune")
+
+        relation_model = _build_databricks_relationship_select_model(
+            connection,
+            source_table,
+            base_cols,
+            required_columns=req_cols,
+            logs=logs,
+        )
+        if not relation_model:
+            return fallback_source
+
+        if logs is not None:
+            logs.append(
+                f"[PERF] {log_context} source pruned: columns={len(relation_model.get('schema_columns', []))}, "
+                f"joins={len(relation_model.get('joined_tables', []))}"
+            )
+        return relation_model.get("query_source", fallback_source) or fallback_source
+    except Exception as e:
+        if logs is not None:
+            logs.append(f"[WARN] Batch source prune failed; using fallback source: {str(e)}")
+        return fallback_source
+
+
 def _choose_effective_query_source(source_table, query_source, user_sql="", where_sql=""):
     source_base = str(source_table or "").strip()
     source_joined = str(query_source or "").strip()
@@ -993,7 +1143,16 @@ def _wrap_sql_with_virtual_views(user_sql, source_table, where_sql="", view_name
     )
 
 
-def _execute_databricks_user_sql(connection, user_sql, source_table, where_sql="", logs=None, context="Databricks Query", query_source=None):
+def _execute_databricks_user_sql(
+    connection,
+    user_sql,
+    source_table,
+    where_sql="",
+    logs=None,
+    context="Databricks Query",
+    query_source=None,
+    available_columns=None,
+):
     normalized_sql = _normalize_databricks_sql_references(
         user_sql,
         source_table,
@@ -1006,6 +1165,7 @@ def _execute_databricks_user_sql(connection, user_sql, source_table, where_sql="
             logs.append(f"[SECURITY] {context}: Normalized SQL types for Databricks dialect (VARCHAR -> STRING)")
         for note in notes:
             logs.append(f"[SECURITY] {context}: {note}")
+        _log_sql_text(logs, context, "guarded_sql", guarded_sql)
         row_cap = _databricks_query_row_cap()
         if row_cap > 0:
             logs.append(f"[PERF] {context}: Applying Databricks row cap DATABRICKS_QUERY_ROW_CAP={row_cap}")
@@ -1022,6 +1182,23 @@ def _execute_databricks_user_sql(connection, user_sql, source_table, where_sql="
         elif query_source and str(query_source).strip() != str(source_table).strip():
             logs.append(f"[PERF] {context}: Using base fact source (join bypass)")
 
+    if using_join_source and _safe_bool_env("DATABRICKS_PRUNE_SINGLE_SOURCE", True):
+        required_columns = set()
+        if isinstance(available_columns, list) and available_columns:
+            required_columns.update(_extract_sql_referenced_columns(where_sql, available_columns))
+            required_columns.update(_extract_sql_referenced_columns(guarded_sql, available_columns))
+        if required_columns:
+            effective_query_source = _build_pruned_batch_query_source(
+                connection,
+                source_table,
+                effective_query_source,
+                sorted(required_columns),
+                logs=logs,
+                log_context=f"{context} (single)",
+            )
+        elif logs is not None:
+            logs.append(f"[PERF] {context}: Single-query prune skipped (no referenced columns resolved)")
+
     wrapped_sql = _wrap_sql_with_virtual_views(
         guarded_sql,
         source_table,
@@ -1029,6 +1206,7 @@ def _execute_databricks_user_sql(connection, user_sql, source_table, where_sql="
         view_name=DATABRICKS_LOGICAL_VIEW_NAME,
         query_source=effective_query_source,
     )
+    _log_sql_text(logs, context, "wrapped_sql", wrapped_sql)
 
     df = fetch_dataframe(connection, wrapped_sql, readonly=True)
 
@@ -1042,7 +1220,7 @@ def _execute_databricks_user_sql(connection, user_sql, source_table, where_sql="
 
 
 
-def _execute_databricks_batch_widget_queries(connection, jobs, source_table, where_sql="", query_source=None, logs=None, context="Batch Query"):
+def _execute_databricks_batch_widget_queries(connection, jobs, source_table, where_sql="", query_source=None, logs=None, context="Batch Query", available_columns=None):
     sanitized_jobs = []
     row_cap = _databricks_query_row_cap()
 
@@ -1070,6 +1248,7 @@ def _execute_databricks_batch_widget_queries(connection, jobs, source_table, whe
                 logs.append(f"[SECURITY] {ctx}: {note}")
 
         sanitized_jobs.append({"key": key, "sql": guarded_sql, "context": ctx})
+        _log_sql_text(logs, f"{context}:{key}", "job_sql", guarded_sql)
 
     if not sanitized_jobs:
         return {}
@@ -1089,6 +1268,25 @@ def _execute_databricks_batch_widget_queries(connection, jobs, source_table, whe
             logs.append(f"[PERF] {context}: Using relationship-join source for batch")
         elif query_source and str(query_source).strip() != str(source_table).strip():
             logs.append(f"[PERF] {context}: Using base fact source for batch (join bypass)")
+
+    if using_join_source and _safe_bool_env("DATABRICKS_PRUNE_BATCH_SOURCE", True):
+        required_columns = set()
+        if isinstance(available_columns, list) and available_columns:
+            required_columns.update(_extract_sql_referenced_columns(where_sql, available_columns))
+            for job in sanitized_jobs:
+                required_columns.update(_extract_sql_referenced_columns(job.get("sql", ""), available_columns))
+
+        if required_columns:
+            base_source = _build_pruned_batch_query_source(
+                connection,
+                source_table,
+                base_source,
+                sorted(required_columns),
+                logs=logs,
+                log_context=context,
+            )
+        elif logs is not None:
+            logs.append(f"[PERF] {context}: Batch prune skipped (no referenced columns resolved)")
 
     base_select = f"SELECT * FROM {base_source}"
     if where_sql:
@@ -1113,6 +1311,7 @@ def _execute_databricks_batch_widget_queries(connection, jobs, source_table, whe
     batch_sql = "WITH " + ", ".join(cte_parts) + " " + " UNION ALL ".join(union_parts)
     if logs is not None:
         logs.append(f"[PERF] {context}: single-query batch size={len(sanitized_jobs)}")
+    _log_sql_text(logs, context, "batch_sql", batch_sql)
 
     raw_df = fetch_dataframe(connection, batch_sql, readonly=True)
 
@@ -1835,6 +2034,7 @@ def _maybe_refine_short_window_line_to_weekly(
     date_column,
     applied_start_date,
     applied_end_date,
+    available_columns=None,
     logs=None,
     context="Chart",
 ):
@@ -1878,6 +2078,7 @@ def _maybe_refine_short_window_line_to_weekly(
             source_table_base,
             query_source=source_table_query,
             where_sql=where_sql,
+            available_columns=available_columns,
             logs=logs,
             context=f"{context} Weekly Refinement",
         )
@@ -3009,6 +3210,7 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
             source_table_base,
             query_source=source_table_query,
             where_sql=where_sql,
+            available_columns=column_names,
             logs=llm_logs,
             context="Custom KPI Value",
         )
@@ -3032,6 +3234,7 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
                         source_table_base,
                         query_source=source_table_query,
                         where_sql=where_sql,
+                        available_columns=column_names,
                         logs=llm_logs,
                         context="Custom KPI Trend",
                     )
@@ -3324,6 +3527,7 @@ def execute_dashboard_logic_databricks(
                 source_table_base,
                 query_source=source_table_query,
                 where_sql=where_sql,
+                available_columns=column_names,
                 logs=log,
                 context=f"{context_prefix} {label_text}",
             )
@@ -3345,6 +3549,7 @@ def execute_dashboard_logic_databricks(
                             source_table_base,
                             query_source=source_table_query,
                             where_sql=where_sql,
+                            available_columns=column_names,
                             logs=log,
                             context=f"{context_prefix} Trend {label_text}",
                         )
@@ -3588,6 +3793,7 @@ def execute_dashboard_logic_databricks(
                         source_table_base,
                         query_source=source_table_query,
                         where_sql=where_sql,
+                        available_columns=column_names,
                         logs=log,
                         context=f"Chart {chart_index} Fallback",
                     )
@@ -3647,6 +3853,7 @@ def execute_dashboard_logic_databricks(
                     source_table_base,
                     query_source=source_table_query,
                     where_sql=where_sql,
+                    available_columns=column_names,
                     logs=log,
                     context=f"Chart {i}",
                 )
@@ -3699,6 +3906,7 @@ def execute_dashboard_logic_databricks(
                                     date_column=date_column,
                                     applied_start_date=applied_start_date,
                                     applied_end_date=applied_end_date,
+                                    available_columns=column_names,
                                     logs=log,
                                     context=f"Chart {i}",
                                 )
@@ -3997,6 +4205,7 @@ def execute_dashboard_filter_refresh_databricks(
                     source_table_base,
                     query_source=source_table_query,
                     where_sql=where_sql,
+                    available_columns=column_names,
                     logs=local_logs,
                     context=job_context,
                 )
@@ -4023,71 +4232,41 @@ def execute_dashboard_filter_refresh_databricks(
 
         query_results = {}
         if unique_queries:
-            use_single_query = _safe_bool_env("DATABRICKS_FILTER_SINGLE_QUERY", True)
-            if use_single_query and len(unique_queries) > 1:
-                batch_jobs = [
-                    {"key": key, "sql": meta["sql"], "context": meta["context"]}
-                    for key, meta in unique_queries.items()
-                ]
-                try:
-                    query_results = _execute_databricks_batch_widget_queries(
-                        connection,
-                        batch_jobs,
-                        source_table_base,
-                        where_sql=where_sql,
-                        query_source=source_table_query,
-                        logs=log,
-                        context="Filter Refresh Batch",
-                    )
-                except Exception as e:
-                    log.append(f"[WARN] Filter single-query execution failed; falling back to fanout: {str(e)}")
-                    query_results = {}
+            max_workers = _safe_int_env("DATABRICKS_FILTER_MAX_WORKERS", 4)
+            max_workers = max(1, min(max_workers, len(unique_queries)))
+            log.append(f"[PERF] Filter refresh query fanout={len(unique_queries)} workers={max_workers}")
 
-            if query_results:
-                has_non_empty = any(
-                    bool(res.get("ok")) and isinstance(res.get("df"), pd.DataFrame) and (not res.get("df").empty)
-                    for res in query_results.values()
-                )
-                if not has_non_empty:
-                    log.append("[WARN] Filter single-query returned no rows for all widgets; falling back to fanout")
-                    query_results = {}
-
-            if not query_results:
-                max_workers = _safe_int_env("DATABRICKS_FILTER_MAX_WORKERS", 4)
-                max_workers = max(1, min(max_workers, len(unique_queries)))
-                log.append(f"[PERF] Filter refresh query fanout={len(unique_queries)} workers={max_workers}")
-
-                if max_workers == 1:
-                    for key, meta in unique_queries.items():
-                        res = _execute_single_filter_query(meta["sql"], meta["context"])
+            if max_workers == 1:
+                for key, meta in unique_queries.items():
+                    res = _execute_single_filter_query(meta["sql"], meta["context"])
+                    query_results[key] = res
+                    for line in res.get("logs", []):
+                        log.append(line)
+                    if not res.get("ok"):
+                        log.append("[WARN] Filter query failed ({0}): {1}".format(meta["context"], res.get("error")))
+            else:
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    future_map = {
+                        executor.submit(_execute_single_filter_query, meta["sql"], meta["context"]): (key, meta)
+                        for key, meta in unique_queries.items()
+                    }
+                    for future in as_completed(future_map):
+                        key, meta = future_map[future]
+                        try:
+                            res = future.result()
+                        except Exception as e:
+                            res = {
+                                "ok": False,
+                                "df": pd.DataFrame(),
+                                "executed_sql": meta["sql"],
+                                "logs": [],
+                                "error": str(e),
+                            }
                         query_results[key] = res
                         for line in res.get("logs", []):
                             log.append(line)
                         if not res.get("ok"):
                             log.append("[WARN] Filter query failed ({0}): {1}".format(meta["context"], res.get("error")))
-                else:
-                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                        future_map = {
-                            executor.submit(_execute_single_filter_query, meta["sql"], meta["context"]): (key, meta)
-                            for key, meta in unique_queries.items()
-                        }
-                        for future in as_completed(future_map):
-                            key, meta = future_map[future]
-                            try:
-                                res = future.result()
-                            except Exception as e:
-                                res = {
-                                    "ok": False,
-                                    "df": pd.DataFrame(),
-                                    "executed_sql": meta["sql"],
-                                    "logs": [],
-                                    "error": str(e),
-                                }
-                            query_results[key] = res
-                            for line in res.get("logs", []):
-                                log.append(line)
-                            if not res.get("ok"):
-                                log.append("[WARN] Filter query failed ({0}): {1}".format(meta["context"], res.get("error")))
         # Build KPI outputs in the same order as provided widget state.
         for item in kpi_runtime:
             label = item["label"]
@@ -4163,6 +4342,7 @@ def execute_dashboard_filter_refresh_databricks(
                 date_column=date_column,
                 applied_start_date=applied_start_date,
                 applied_end_date=applied_end_date,
+                available_columns=column_names,
                 logs=log,
                 context=f"Filter Chart {item.get('chart_id', '')}",
             )
@@ -4276,6 +4456,7 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
             source_table_base,
             query_source=source_table_query,
             where_sql=where_sql,
+            available_columns=column_names,
             logs=llm_logs,
             context="Custom Chart",
         )
@@ -4290,6 +4471,7 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
                     source_table_base,
                     query_source=source_table_query,
                     where_sql=where_sql,
+                    available_columns=column_names,
                     logs=llm_logs,
                     context="Custom Chart Fallback",
                 )

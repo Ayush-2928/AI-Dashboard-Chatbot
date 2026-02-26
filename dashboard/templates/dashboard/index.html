@@ -4877,12 +4877,9 @@
             const logsContainer = document.getElementById('logs-content');
             logsContainer.innerHTML = '';
 
-            const llmLines = (Array.isArray(currentData.logs) ? currentData.logs : []).filter(line => {
-                const s = String(line || '');
-                return s.includes('[LLM REQUEST]') || s.includes('[LLM RESPONSE]') || s.includes('[LLM ERROR]');
-            });
+            const visibleLines = Array.isArray(currentData.logs) ? currentData.logs : [];
 
-            llmLines.forEach(log => {
+            visibleLines.forEach(log => {
                 const line = String(log || '');
                 const logDiv = document.createElement('div');
                 logDiv.className = 'p-2 rounded';
