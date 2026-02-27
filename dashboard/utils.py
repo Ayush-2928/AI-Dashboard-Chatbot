@@ -1915,13 +1915,22 @@ def _default_custom_chart_plan(con, user_prompt):
 
 def generate_custom_chart_plan(final_schema_context, user_prompt, debug_logs=None, table_name="final_view"):
     prompt = f"""
-    You are a senior BI analyst. Build one chart spec from a natural language request.
+    You are a senior BI analyst. Build exactly one chart spec from a natural language request.
 
-    DATA SCHEMA (DuckDB table: final_view):
+    DATA SCHEMA (table: final_view):
     {final_schema_context}
 
     USER REQUEST:
     {user_prompt}
+
+    GOAL:
+    Convert the request into one clear visualization query that matches user intent.
+
+    INTENT PRIORITY (high to low):
+    1. Metric intent (what to measure).
+    2. Time intent (month/week/day/range if asked).
+    3. Grouping intent (overall total vs split by dimension).
+    4. Chart type intent (if user asks explicit type, follow it).
 
     RULES:
     1. Return ONLY JSON.
@@ -1936,9 +1945,12 @@ def generate_custom_chart_plan(final_schema_context, user_prompt, debug_logs=Non
     5. For category charts, include LIMIT 30 or less.
     6. Use safe casts where useful (CAST(col AS VARCHAR) for categories, CAST(date AS DATE) for dates).
     7. If the user explicitly asks for weeks/weekly on x-axis, use weekly grain (for example DATE_TRUNC('week', date_col)) and set xlabel to Week.
-    8. final_view is transaction-level. For transactional metrics use final_view directly.
-    9. For master/entity attributes (rating, age, salary, static price, scores, etc.), deduplicate by entity key before AVG-style aggregations.
-    10. For unique entity questions, use COUNT(DISTINCT <detected_entity_key>) instead of COUNT(*).
+    8. If user asks for monthly/daily trends, prefer a real date/timestamp column with DATE_TRUNC over string date buckets.
+    9. If user asks for an overall total trend, do NOT introduce extra grouping dimensions.
+    10. If user asks to compare multiple named entities (for example A and B), include that comparison in SQL filters/grouping explicitly.
+    11. final_view is transaction-level. For transactional metrics use final_view directly.
+    12. For master/entity attributes (rating, age, salary, static price, scores, etc.), deduplicate by entity key before AVG-style aggregations.
+    13. For unique entity questions, use COUNT(DISTINCT <detected_entity_key>) instead of COUNT(*).
 
     JSON format:
     {{
@@ -2965,13 +2977,21 @@ def _build_custom_chart_payload(plan, df):
 
 def generate_custom_kpi_plan(final_schema_context, user_prompt, debug_logs=None, table_name="final_view"):
     prompt = f"""
-    You are a senior BI analyst. Build one KPI spec from a natural language request.
+    You are a senior BI analyst. Build exactly one KPI spec from a natural language request.
 
-    DATA SCHEMA (DuckDB table: final_view):
+    DATA SCHEMA (table: final_view):
     {final_schema_context}
 
     USER REQUEST:
     {user_prompt}
+
+    GOAL:
+    Convert the request into one KPI value query plus one matching trend query.
+
+    INTENT PRIORITY (high to low):
+    1. Metric intent (what to measure).
+    2. Filter/entity intent (which segment/items).
+    3. Time intent (requested window/grain).
 
     RULES:
     1. Return ONLY JSON.
@@ -2979,10 +2999,12 @@ def generate_custom_kpi_plan(final_schema_context, user_prompt, debug_logs=None,
     3. Provide two queries:
        - value_sql: one-row KPI value query (single metric cell preferred).
        - trend_sql: time trend query with aliases exactly x, y for KPI sparkline.
-    4. For trend_sql use a date/timestamp column when available and order by x.
-    5. final_view is transaction-level. For transactional metrics aggregate directly.
-    6. For master/entity attributes (rating, age, salary, static price, scores, etc.), deduplicate by entity key before AVG-style aggregations.
-    7. For unique entity questions use COUNT(DISTINCT <detected_entity_key>) instead of COUNT(*).
+    4. value_sql and trend_sql must represent the same KPI definition and filters.
+    5. For trend_sql use a date/timestamp column when available and order by x.
+    6. If the request asks for monthly/weekly/daily behavior, reflect that time grain in trend_sql.
+    7. final_view is transaction-level. For transactional metrics aggregate directly.
+    8. For master/entity attributes (rating, age, salary, static price, scores, etc.), deduplicate by entity key before AVG-style aggregations.
+    9. For unique entity questions use COUNT(DISTINCT <detected_entity_key>) instead of COUNT(*).
 
     JSON format:
     {{
