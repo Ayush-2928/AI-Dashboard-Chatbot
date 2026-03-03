@@ -87,7 +87,7 @@
 
         .expand-btn {
             position: absolute;
-            top: 12px;
+            top: 10px;
             right: 12px;
             z-index: 10;
             background: rgba(59, 130, 246, 0.8);
@@ -100,6 +100,12 @@
             opacity: 0;
             transition: all 0.2s ease;
             backdrop-filter: blur(10px);
+        }
+
+        /* Keep top-right chart actions clear of the remove (x) button. */
+        .glass-panel .expand-btn {
+            top: 10px;
+            right: 40px;
         }
 
         .expand-btn:hover {
@@ -121,6 +127,10 @@
     line-height: 1;
     cursor: grab;
     user-select: none;
+}
+
+.glass-panel .widget-drag-handle {
+    right: 108px;
 }
 
 .widget-drag-handle:active {
@@ -168,10 +178,11 @@
 
         .chart-controls {
     position: absolute;
-    top: 12px;
+    top: 10px;
     left: 12px;
     z-index: 10;
     display: flex;
+    align-items: center;
     gap: 6px;
     opacity: 0;
     transition: opacity 0.2s ease;
@@ -206,6 +217,8 @@
 
 .edit-menu {
     position: relative;
+    display: flex;
+    align-items: center;
 }
 
 .edit-toggle,
@@ -692,11 +705,73 @@
     cursor: not-allowed;
 }
 
+.chatbot-status-wrap {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 16px;
+    width: min(1100px, calc(100vw - 28px));
+    z-index: 1210;
+    pointer-events: none;
+    display: none;
+}
+
+.chatbot-status-wrap.has-text {
+    display: block;
+}
+
+.chatbot-status-wrap.above-chatbot-dock {
+    bottom: var(--chatbot-dock-offset, 96px);
+}
+
 .chatbot-status {
+    position: relative;
+    width: 100%;
+    padding: 8px 12px;
+    padding-right: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(10px);
     color: #c4b5fd;
     font-size: 13px;
-    min-width: 170px;
-    text-align: right;
+    text-align: center;
+}
+
+.chatbot-status:empty {
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.chatbot-status-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 18px;
+    height: 18px;
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(15, 23, 42, 0.35);
+    color: rgba(203, 213, 225, 0.9);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    pointer-events: auto;
+}
+
+.chatbot-status-close:hover {
+    background: rgba(127, 29, 29, 0.42);
+    border-color: rgba(239, 68, 68, 0.45);
+    color: #fee2e2;
 }
 
 .chatbot-close-btn {
@@ -1033,9 +1108,13 @@
         transform: none;
         flex-wrap: wrap;
     }
+    .chatbot-status-wrap {
+        width: calc(100vw - 16px);
+        left: 8px;
+        transform: none;
+    }
     .chatbot-status {
         text-align: left;
-        min-width: auto;
     }
 }
 
@@ -1538,6 +1617,13 @@
             justify-content: center;
         }
 
+        .widget-drag-handle,
+        .expand-btn,
+        .edit-toggle,
+        .reset-toggle {
+            min-width: 58px !important;
+        }
+
         .widget-remove-btn {
             width: auto !important;
             min-width: 22px;
@@ -1774,8 +1860,11 @@
             onkeydown="if(event.key === 'Enter') submitChatbotRequest()"
         >
         <button id="chart-request-btn" class="chatbot-button" onclick="submitChatbotRequest()">Generate Chart</button>
-        <div id="chart-request-status" class="chatbot-status"></div>
         <button class="chatbot-close-btn" onclick="closeChatbotDock()" title="Close AI Chatbox">x</button>
+    </div>
+    <div id="chart-request-status-wrap" class="chatbot-status-wrap">
+        <div id="chart-request-status" class="chatbot-status" aria-live="polite"></div>
+        <button id="chart-request-status-close" class="chatbot-status-close" onclick="clearChartRequestStatus()" title="Dismiss status">x</button>
     </div>
 
     <div id="custom-chart-popup" class="custom-chart-popup" style="display: none;">
@@ -2119,6 +2208,7 @@
         }
 
         let chartInsertHintTimer = null;
+        let chartRequestStatusObserver = null;
         function showChartInsertHint(message) {
             let el = document.getElementById('chart-insert-hint');
             if (!el) {
@@ -2135,6 +2225,40 @@
             chartInsertHintTimer = setTimeout(() => {
                 el.classList.remove('show');
             }, 2600);
+        }
+
+        function updateChartRequestStatusVisibility() {
+            const status = document.getElementById('chart-request-status');
+            const wrap = document.getElementById('chart-request-status-wrap');
+            const closeBtn = document.getElementById('chart-request-status-close');
+            if (!status || !wrap) return;
+
+            const hasText = String(status.textContent || '').trim().length > 0;
+            wrap.classList.toggle('has-text', hasText);
+            if (closeBtn) {
+                closeBtn.style.display = hasText ? 'inline-flex' : 'none';
+            }
+        }
+
+        function clearChartRequestStatus() {
+            const status = document.getElementById('chart-request-status');
+            if (status) status.textContent = '';
+            updateChartRequestStatusVisibility();
+        }
+
+        function initChartRequestStatusObserver() {
+            if (chartRequestStatusObserver) return;
+            const status = document.getElementById('chart-request-status');
+            if (!status) return;
+            updateChartRequestStatusVisibility();
+            chartRequestStatusObserver = new MutationObserver(() => {
+                updateChartRequestStatusVisibility();
+            });
+            chartRequestStatusObserver.observe(status, {
+                childList: true,
+                characterData: true,
+                subtree: true,
+            });
         }
 
 
@@ -3473,12 +3597,24 @@
             const dock = document.getElementById('chart-chatbot-dock');
             const btn = document.getElementById('open-ai-chart-btn');
             const dashboard = document.getElementById('dashboard-screen');
+            const statusWrap = document.getElementById('chart-request-status-wrap');
             if (!dock || !btn || !dashboard) return;
+            initChartRequestStatusObserver();
 
             const showDock = isChatbotDockOpen && !dashboard.classList.contains('hidden');
             dock.style.display = showDock ? 'flex' : 'none';
             dashboard.classList.remove('with-chatbot-dock');
             btn.textContent = isChatbotDockOpen ? 'Close AI Chart' : 'AI Chart Generation';
+            if (statusWrap) {
+                if (showDock) {
+                    const dockHeight = Math.max(dock.offsetHeight || 56, 56);
+                    statusWrap.style.setProperty('--chatbot-dock-offset', `${dockHeight + 24}px`);
+                    statusWrap.classList.add('above-chatbot-dock');
+                } else {
+                    statusWrap.classList.remove('above-chatbot-dock');
+                }
+            }
+            updateChartRequestStatusVisibility();
         }
 
         function updateChatbotModeUI() {
@@ -6046,7 +6182,10 @@
                 closeLogs();
             }
         });
-        window.addEventListener('resize', updateDashboardSidebarLayout);
+        window.addEventListener('resize', () => {
+            updateDashboardSidebarLayout();
+            updateChatbotDockVisibility();
+        });
     </script>
 </body>
 
