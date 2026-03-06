@@ -2026,6 +2026,7 @@
         let chartSlotIds = ['chart_0', 'chart_1', 'chart_2', 'chart_3', 'chart_4'];
         let chartLibrary = [];
         let chartLibrarySeq = 0;
+        let glossarySeq = 0;
         let activeLibraryId = null;
         let customPopupSourceLibraryId = null;
         let customPopupKpiSourceLibraryId = null;
@@ -3561,6 +3562,34 @@
             return out;
         }
 
+        function _nextGlossaryStamp() {
+            glossarySeq += 1;
+            return glossarySeq;
+        }
+
+        function _touchGlossaryStamp(item) {
+            if (!item || typeof item !== 'object') return;
+            item._glossaryTs = _nextGlossaryStamp();
+        }
+
+        function _ensureGlossaryStamps(data) {
+            const charts = Array.isArray(data?.charts) ? data.charts : [];
+            charts.forEach(chart => {
+                if (!chart || typeof chart !== 'object') return;
+                if (!Number.isFinite(Number(chart._glossaryTs))) {
+                    chart._glossaryTs = _nextGlossaryStamp();
+                }
+            });
+
+            const kpis = Array.isArray(data?.kpis) ? data.kpis : [];
+            kpis.forEach(kpi => {
+                if (!kpi || typeof kpi !== 'object') return;
+                if (!Number.isFinite(Number(kpi._glossaryTs))) {
+                    kpi._glossaryTs = _nextGlossaryStamp();
+                }
+            });
+        }
+
         function buildGlossaryEntries() {
             const entries = [];
             const seen = new Set();
@@ -3589,7 +3618,8 @@
                     source: `Dashboard ${chart.id || `chart_${idx}`}`,
                     valueSql: sql,
                     trendSql: '',
-                    analysis: _analyzeSqlForGlossary(sql)
+                    analysis: _analyzeSqlForGlossary(sql),
+                    updatedAt: Number(chart._glossaryTs) || 0
                 });
             });
 
@@ -3605,41 +3635,16 @@
                     valueSql: sqls.valueSql,
                     trendSql: sqls.trendSql,
                     analysis: _analyzeSqlForGlossary(sqls.valueSql),
-                    trendAnalysis: _analyzeSqlForGlossary(sqls.trendSql)
+                    trendAnalysis: _analyzeSqlForGlossary(sqls.trendSql),
+                    updatedAt: Number(kpi._glossaryTs) || 0
                 });
             });
 
-            chartLibrary.forEach((entry, idx) => {
-                if (!entry) return;
-                if (entry.artifact === 'kpi') {
-                    const sqls = _normalizeKpiSqlSources({
-                        sql: entry.sql,
-                        trend_sql: entry.kpi && entry.kpi.trend_sql ? entry.kpi.trend_sql : ''
-                    });
-                    addEntry({
-                        artifact: 'kpi',
-                        title: String(entry.title || `KPI ${idx + 1}`),
-                        type: 'KPI',
-                        source: `Library (${entry.source || 'Generated'})`,
-                        valueSql: sqls.valueSql,
-                        trendSql: sqls.trendSql,
-                        analysis: _analyzeSqlForGlossary(sqls.valueSql),
-                        trendAnalysis: _analyzeSqlForGlossary(sqls.trendSql)
-                    });
-                } else {
-                    const sql = String(entry.sql || (entry.chart && entry.chart.sql) || '');
-                    addEntry({
-                        artifact: 'chart',
-                        title: String(entry.title || `Chart ${idx + 1}`),
-                        type: chartTypeLabel(entry.type || (entry.chart && entry.chart.type) || 'chart'),
-                        source: `Library (${entry.source || 'Generated'})`,
-                        valueSql: sql,
-                        trendSql: '',
-                        analysis: _analyzeSqlForGlossary(sql)
-                    });
-                }
+            entries.sort((a, b) => {
+                const aTs = Number(a.updatedAt) || 0;
+                const bTs = Number(b.updatedAt) || 0;
+                return bTs - aTs;
             });
-
             return entries;
         }
 
@@ -4382,6 +4387,7 @@
             nextChart._layoutSpan = Number(nextChart._layoutSpan) > 0 ? Number(nextChart._layoutSpan) : 1;
             nextChart._layoutMinH = Number(nextChart._layoutMinH) > 0 ? Number(nextChart._layoutMinH) : 120;
             nextChart.original = createChartSnapshot(nextChart);
+            _touchGlossaryStamp(nextChart);
 
             const emptyIdx = currentData.charts.findIndex(c => c && c._removed === true);
             if (emptyIdx !== -1) {
@@ -4461,6 +4467,7 @@
             const kpiToAdd = cloneKpi(entry.kpi);
             delete kpiToAdd._id;
             ensureKpiId(kpiToAdd);
+            _touchGlossaryStamp(kpiToAdd);
             currentData.kpis.push(kpiToAdd);
 
             renderKpisSection(currentData, getThemeColor());
@@ -4566,6 +4573,7 @@
             }
 
             sourceKpi._id = kpiId;
+            _touchGlossaryStamp(sourceKpi);
             currentData.kpis[targetIndex] = sourceKpi;
 
             pendingKpiReplaceLibraryId = null;
@@ -4589,6 +4597,7 @@
             const nextKpi = cloneKpi(customPopupKpi);
             delete nextKpi._id;
             ensureKpiId(nextKpi);
+            _touchGlossaryStamp(nextKpi);
             currentData.kpis.push(nextKpi);
 
             renderKpisSection(currentData, getThemeColor());
@@ -5259,6 +5268,7 @@
             replacement._layoutSpan = replaced && Number(replaced._layoutSpan) > 0 ? Number(replaced._layoutSpan) : (Number(replacement._layoutSpan) || 1);
             replacement._layoutMinH = replaced && Number(replaced._layoutMinH) > 0 ? Number(replaced._layoutMinH) : (Number(replacement._layoutMinH) || 120);
             replacement.original = createChartSnapshot(replacement);
+            _touchGlossaryStamp(replacement);
 
             currentData.charts[targetIndex] = replacement;
             renderChartById(slotId);
@@ -5585,6 +5595,29 @@
                 const n = Number(v);
                 return Number.isFinite(n) ? n : 0;
             };
+            const buildPieGreenPalette = (count) => {
+                const palette = [
+                    '#22c55e', // emerald-500
+                    '#a3e635', // lime-400
+                    '#166534', // green-800
+                    '#4ade80', // green-400
+                    '#65a30d', // lime-600
+                    '#10b981', // emerald-500
+                    '#14532d', // green-900
+                    '#86efac', // green-300
+                    '#84cc16', // lime-500
+                    '#34d399', // emerald-400
+                    '#15803d', // green-700
+                    '#bef264', // lime-300
+                ];
+                const n = Math.max(0, Number(count) || 0);
+                if (n <= palette.length) return palette.slice(0, n || palette.length);
+                return Array.from({ length: n }, (_, i) => {
+                    const c = palette[i % palette.length];
+                    const shift = ((Math.floor(i / palette.length) % 2) === 0) ? 14 : -14;
+                    return adjustColor(c, shift);
+                });
+            };
             const percentileFromSorted = (sorted, p) => {
                 if (!Array.isArray(sorted) || !sorted.length) return 0;
                 const clamped = Math.min(1, Math.max(0, Number(p) || 0));
@@ -5641,7 +5674,7 @@
                 trace.textinfo = showDataLabels ? 'percent+label+value' : 'percent+label';
                 trace.textposition = 'inside';
                 trace.marker = {
-                    colors: [color, adjustColor(color,-20), adjustColor(color,-40), '#475569', '#334155'],
+                    colors: buildPieGreenPalette(Array.isArray(trace.labels) ? trace.labels.length : 0),
                     line: { color: '#0f172a', width: 2 }
                 };
             } else if (chartType === 'heatmap') {
@@ -6386,6 +6419,7 @@
                 replacement._layoutSpan = replaced && Number(replaced._layoutSpan) > 0 ? Number(replaced._layoutSpan) : (Number(replacement._layoutSpan) || 1);
                 replacement._layoutMinH = replaced && Number(replaced._layoutMinH) > 0 ? Number(replaced._layoutMinH) : (Number(replacement._layoutMinH) || 120);
                 replacement.original = createChartSnapshot(replacement);
+                _touchGlossaryStamp(replacement);
                 currentData.charts[targetIndex] = replacement;
 
                 if (Array.isArray(data.logs) && currentData) {
@@ -6455,6 +6489,7 @@
             document.getElementById('dashboard-screen').classList.remove('hidden');
             document.getElementById('dashboard-screen').classList.remove('with-chatbot-dock');
             updateChatbotDockVisibility();
+            _ensureGlossaryStamps(data);
 
             const color = getThemeColor();
             
