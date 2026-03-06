@@ -493,6 +493,7 @@
 
         body.filter-loading-active #dashboard-screen,
         body.filter-loading-active #chart-sidebar,
+        body.filter-loading-active #glossary-sidebar,
         body.filter-loading-active #chart-chatbot-dock,
         body.filter-loading-active #custom-chart-popup,
         body.filter-loading-active #custom-kpi-popup,
@@ -1087,6 +1088,59 @@
     text-align: center;
 }
 
+.glossary-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    padding-right: 2px;
+}
+
+.glossary-item {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.glossary-title {
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+    word-break: break-word;
+}
+
+.glossary-meta {
+    color: #94a3b8;
+    font-size: 10px;
+}
+
+.glossary-line {
+    color: #cbd5e1;
+    font-size: 11px;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.glossary-key {
+    color: #e2e8f0;
+    font-weight: 600;
+}
+
+.glossary-empty {
+    color: #64748b;
+    font-size: 13px;
+    border: 1px dashed rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+}
+
 @media (max-width: 1250px) {
     .dashboard-grid.with-sidebar {
         width: 100vw;
@@ -1467,6 +1521,7 @@
 
 
         #open-charts-btn,
+        #open-glossary-btn,
         #open-ai-chart-btn,
         #reset-dashboard-btn,
         #dashboard-screen button[onclick="location.reload()"] {
@@ -1476,6 +1531,7 @@
         }
 
         #open-charts-btn:hover,
+        #open-glossary-btn:hover,
         #open-ai-chart-btn:hover,
         #reset-dashboard-btn:hover,
         #dashboard-screen button[onclick="location.reload()"]:hover {
@@ -1515,6 +1571,7 @@
         .chatbot-input,
         .chart-library-item,
         .chart-library-btn,
+        .glossary-item,
         .chart-sidebar-clear,
         .chart-sidebar-close,
         .control-btn,
@@ -1552,7 +1609,8 @@
         .chatbot-status,
         .custom-chart-sql,
         .chart-sidebar-subtitle,
-        .chart-library-meta {
+        .chart-library-meta,
+        .glossary-meta {
             color: #c4b5fd !important;
         }
 
@@ -1569,6 +1627,11 @@
         }
 
         .chart-library-empty {
+            border-color: rgba(255, 255, 255, 0.18);
+            color: #9197a3;
+        }
+
+        .glossary-empty {
             border-color: rgba(255, 255, 255, 0.18);
             color: #9197a3;
         }
@@ -1780,6 +1843,9 @@
                 <button id="open-charts-btn" onclick="toggleChartSidebar()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
                     Archived Charts
                 </button>
+                <button id="open-glossary-btn" onclick="toggleGlossarySidebar()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
+                    Open Glossary
+                </button>
                 <button id="open-ai-chart-btn" onclick="toggleChatbotDock()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
                     Chart Generation
                 </button>
@@ -1845,6 +1911,20 @@
         </div>
         <div id="chart-library-empty" class="chart-library-empty">New and replaced charts/KPIs will appear here. Use Replace/Expand to reapply them.</div>
         <div id="chart-library-list" class="chart-library-list"></div>
+    </aside>
+
+    <aside id="glossary-sidebar" class="chart-sidebar" style="display: none;">
+        <div class="chart-sidebar-header">
+            <div>
+                <div class="chart-sidebar-title">Glossary</div>
+                <div class="chart-sidebar-subtitle"><span id="glossary-count">0</span> item(s)</div>
+            </div>
+            <div class="chart-sidebar-header-actions">
+                <button class="chart-sidebar-close" onclick="closeGlossarySidebar()" title="Close Glossary">x</button>
+            </div>
+        </div>
+        <div id="glossary-empty" class="glossary-empty">Generate or insert charts/KPIs to auto-build glossary entries.</div>
+        <div id="glossary-list" class="glossary-list"></div>
     </aside>
 
     <div id="chart-chatbot-dock" class="chatbot-dock" style="display: none;">
@@ -1952,6 +2032,7 @@
         let pendingKpiReplaceLibraryId = null;
         let kpiSeq = 0;
         let isChartSidebarOpen = false;
+        let isGlossarySidebarOpen = false;
         let isChatbotDockOpen = false;
         let widgetLayouts = {};
         let widgetResizeObservers = {};
@@ -2024,8 +2105,28 @@
             if (Number.isFinite(raw) && raw > 0) {
                 return Math.max(88, Math.round(raw));
             }
-            if (index === 0 && span >= 2) return 142;
-            return 130;
+            const legacyBase = (index === 0 && span >= 2) ? 142 : 130;
+
+            const vh = Number(window.innerHeight) || 0;
+            if (!Number.isFinite(vh) || vh <= 0) return legacyBase;
+
+            // Approximate number of chart rows from current adaptive layout policy:
+            // <=2 charts: 1 row, <=5 charts: 2 rows, then +1 row per 4 additional charts.
+            let chartRows = 1;
+            if (totalCount > 2) {
+                chartRows = totalCount <= 5 ? 2 : 2 + Math.ceil((totalCount - 5) / 4);
+            }
+
+            // Reserve space for header + filters + KPI lane + paddings/buttons.
+            const reservedTop = 360;
+            const availableForCharts = Math.max(220, vh - reservedTop);
+            const perRowTarget = Math.floor(availableForCharts / Math.max(1, chartRows));
+
+            // Wider cards can be a bit taller without feeling cramped.
+            const spanBoost = span >= 2 ? 18 : 0;
+            const viewportTarget = Math.max(130, Math.min(340, perRowTarget + spanBoost));
+
+            return Math.max(legacyBase, viewportTarget);
         }
 
         function _buildChartRowsForCompaction(charts, maxPerRow = 4) {
@@ -3285,6 +3386,323 @@
             return type || 'Chart';
         }
 
+        const GLOSSARY_SQL_KEYWORDS = new Set([
+            'select', 'from', 'where', 'group', 'order', 'by', 'limit', 'as', 'and', 'or', 'in',
+            'on', 'join', 'left', 'right', 'inner', 'outer', 'full', 'cross', 'with',
+            'sum', 'count', 'avg', 'min', 'max', 'distinct', 'cast', 'date_trunc', 'coalesce',
+            'nullif', 'round', 'case', 'when', 'then', 'else', 'end', 'desc', 'asc',
+            'date', 'timestamp', 'string', 'varchar', 'double', 'float', 'int', 'bigint',
+            'true', 'false', 'null', 'x', 'y', 'z', 'labels', 'parents', 'values', 'measure'
+        ]);
+
+        function _splitSqlSelectExpressions(selectClause) {
+            const text = String(selectClause || '');
+            const parts = [];
+            let cur = '';
+            let depth = 0;
+            let quote = '';
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if (quote) {
+                    cur += ch;
+                    if (ch === quote) quote = '';
+                    continue;
+                }
+                if (ch === '\'' || ch === '"' || ch === '`') {
+                    quote = ch;
+                    cur += ch;
+                    continue;
+                }
+                if (ch === '(') {
+                    depth++;
+                    cur += ch;
+                    continue;
+                }
+                if (ch === ')') {
+                    depth = Math.max(0, depth - 1);
+                    cur += ch;
+                    continue;
+                }
+                if (ch === ',' && depth === 0) {
+                    const token = cur.trim();
+                    if (token) parts.push(token);
+                    cur = '';
+                    continue;
+                }
+                cur += ch;
+            }
+            const tail = cur.trim();
+            if (tail) parts.push(tail);
+            return parts;
+        }
+
+        function _extractSelectClause(sqlText) {
+            const sql = String(sqlText || '');
+            const mView = sql.match(/select\s+([\s\S]+?)\s+from\s+analysis_view\b/i);
+            if (mView && mView[1]) return mView[1];
+            const mAny = sql.match(/select\s+([\s\S]+?)\s+from\b/i);
+            return mAny && mAny[1] ? mAny[1] : '';
+        }
+
+        function _extractAliasExpression(expressions, alias) {
+            const target = String(alias || '').toLowerCase();
+            for (const expr of expressions || []) {
+                const m = String(expr || '').match(/\s+as\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/i);
+                if (m && String(m[1] || '').toLowerCase() === target) {
+                    return String(expr || '').trim();
+                }
+            }
+            return '';
+        }
+
+        function _extractColumnCandidates(expr) {
+            const text = String(expr || '')
+                .replace(/\[[^\]]+\]/g, m => m.slice(1, -1))
+                .replace(/[`"]/g, '');
+            const matches = text.match(/[A-Za-z_][A-Za-z0-9_.]*/g) || [];
+            const cols = [];
+            matches.forEach(raw => {
+                const right = String(raw).split('.').pop() || '';
+                const token = right.trim();
+                if (!token) return;
+                const lower = token.toLowerCase();
+                if (GLOSSARY_SQL_KEYWORDS.has(lower)) return;
+                if (/^\d+$/.test(token)) return;
+                if (lower === 'analysis_view') return;
+                if (!cols.includes(token)) cols.push(token);
+            });
+            return cols;
+        }
+
+        function _inferSourceTable(columnName) {
+            const col = String(columnName || '').trim().toLowerCase();
+            if (!col) return '';
+            if (col.startsWith('product_')) return 'dim_product_master';
+            if (col.startsWith('customer_')) return 'dim_customer_master';
+            return 'fact_invoice';
+        }
+
+        function _extractWhereColumns(sqlText) {
+            const sql = String(sqlText || '');
+            const m = sql.match(/\bwhere\b([\s\S]+?)(\bgroup\s+by\b|\border\s+by\b|\blimit\b|$)/i);
+            if (!m || !m[1]) return [];
+            const cols = _extractColumnCandidates(m[1]);
+            return cols.map(col => ({ column: col, table: _inferSourceTable(col) }));
+        }
+
+        function _analyzeSqlForGlossary(sqlText) {
+            const sql = String(sqlText || '').trim();
+            const empty = {
+                x: null,
+                y: null,
+                z: null,
+                metric: null,
+                filters: [],
+                sqlPreview: ''
+            };
+            if (!sql) return empty;
+
+            const selectClause = _extractSelectClause(sql);
+            const expressions = _splitSqlSelectExpressions(selectClause);
+
+            const xExpr = _extractAliasExpression(expressions, 'x');
+            const yExpr = _extractAliasExpression(expressions, 'y');
+            const zExpr = _extractAliasExpression(expressions, 'z');
+            const metricExpr = yExpr || zExpr || (expressions.length ? expressions[0] : '');
+
+            const toAxis = (expr) => {
+                const cleanExpr = String(expr || '').trim();
+                if (!cleanExpr) return null;
+                const cols = _extractColumnCandidates(cleanExpr);
+                const col = cols.length ? cols[0] : '';
+                return {
+                    expression: cleanExpr.replace(/\s+/g, ' ').trim(),
+                    column: col,
+                    table: _inferSourceTable(col)
+                };
+            };
+
+            return {
+                x: toAxis(xExpr),
+                y: toAxis(yExpr),
+                z: toAxis(zExpr),
+                metric: toAxis(metricExpr),
+                filters: _extractWhereColumns(sql),
+                sqlPreview: sql.replace(/\s+/g, ' ').trim().slice(0, 260)
+            };
+        }
+
+        function _normalizeKpiSqlSources(kpi) {
+            const out = { valueSql: '', trendSql: '' };
+            if (!kpi || typeof kpi !== 'object') return out;
+
+            if (typeof kpi.sql === 'object' && kpi.sql) {
+                out.valueSql = String(kpi.sql.value_sql || kpi.sql.sql || '');
+                out.trendSql = String(kpi.sql.trend_sql || kpi.trend_sql || '');
+                return out;
+            }
+
+            if (typeof kpi.sql === 'string') {
+                const raw = String(kpi.sql || '').trim();
+                if (raw.startsWith('{') && raw.endsWith('}')) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && typeof parsed === 'object') {
+                            out.valueSql = String(parsed.value_sql || parsed.sql || '');
+                            out.trendSql = String(parsed.trend_sql || kpi.trend_sql || '');
+                            return out;
+                        }
+                    } catch (_) {}
+                }
+                out.valueSql = raw;
+            }
+
+            out.trendSql = String(kpi.trend_sql || '');
+            return out;
+        }
+
+        function buildGlossaryEntries() {
+            const entries = [];
+            const seen = new Set();
+
+            const addEntry = (entry) => {
+                if (!entry) return;
+                const key = [
+                    String(entry.artifact || ''),
+                    String(entry.title || '').toLowerCase(),
+                    String(entry.valueSql || ''),
+                    String(entry.trendSql || '')
+                ].join('|');
+                if (seen.has(key)) return;
+                seen.add(key);
+                entries.push(entry);
+            };
+
+            const dashboardCharts = Array.isArray(currentData?.charts) ? currentData.charts : [];
+            dashboardCharts.forEach((chart, idx) => {
+                if (!chart || chart._removed) return;
+                const sql = String(chart.sql || '');
+                addEntry({
+                    artifact: 'chart',
+                    title: String(chart.title || chart.id || `Chart ${idx + 1}`),
+                    type: chartTypeLabel(chart.type || 'chart'),
+                    source: `Dashboard ${chart.id || `chart_${idx}`}`,
+                    valueSql: sql,
+                    trendSql: '',
+                    analysis: _analyzeSqlForGlossary(sql)
+                });
+            });
+
+            const dashboardKpis = Array.isArray(currentData?.kpis) ? currentData.kpis : [];
+            dashboardKpis.forEach((kpi, idx) => {
+                if (!kpi) return;
+                const sqls = _normalizeKpiSqlSources(kpi);
+                addEntry({
+                    artifact: 'kpi',
+                    title: String(kpi.label || `KPI ${idx + 1}`),
+                    type: 'KPI',
+                    source: `Dashboard ${ensureKpiId(kpi)}`,
+                    valueSql: sqls.valueSql,
+                    trendSql: sqls.trendSql,
+                    analysis: _analyzeSqlForGlossary(sqls.valueSql),
+                    trendAnalysis: _analyzeSqlForGlossary(sqls.trendSql)
+                });
+            });
+
+            chartLibrary.forEach((entry, idx) => {
+                if (!entry) return;
+                if (entry.artifact === 'kpi') {
+                    const sqls = _normalizeKpiSqlSources({
+                        sql: entry.sql,
+                        trend_sql: entry.kpi && entry.kpi.trend_sql ? entry.kpi.trend_sql : ''
+                    });
+                    addEntry({
+                        artifact: 'kpi',
+                        title: String(entry.title || `KPI ${idx + 1}`),
+                        type: 'KPI',
+                        source: `Library (${entry.source || 'Generated'})`,
+                        valueSql: sqls.valueSql,
+                        trendSql: sqls.trendSql,
+                        analysis: _analyzeSqlForGlossary(sqls.valueSql),
+                        trendAnalysis: _analyzeSqlForGlossary(sqls.trendSql)
+                    });
+                } else {
+                    const sql = String(entry.sql || (entry.chart && entry.chart.sql) || '');
+                    addEntry({
+                        artifact: 'chart',
+                        title: String(entry.title || `Chart ${idx + 1}`),
+                        type: chartTypeLabel(entry.type || (entry.chart && entry.chart.type) || 'chart'),
+                        source: `Library (${entry.source || 'Generated'})`,
+                        valueSql: sql,
+                        trendSql: '',
+                        analysis: _analyzeSqlForGlossary(sql)
+                    });
+                }
+            });
+
+            return entries;
+        }
+
+        function _formatGlossaryField(label, axis) {
+            if (!axis || (!axis.column && !axis.expression)) return '';
+            const text = axis.column || axis.expression || 'Not detected';
+            const tableText = axis.table ? ` (${axis.table})` : '';
+            return `<div class="glossary-line"><span class="glossary-key">${escapeHtml(label)}:</span> ${escapeHtml(text)}${escapeHtml(tableText)}</div>`;
+        }
+
+        function renderGlossarySidebar() {
+            const list = document.getElementById('glossary-list');
+            const empty = document.getElementById('glossary-empty');
+            const count = document.getElementById('glossary-count');
+            if (!list || !empty || !count) return;
+
+            const entries = buildGlossaryEntries();
+            count.textContent = String(entries.length);
+            updateGlossaryToggleButton();
+            list.innerHTML = '';
+
+            if (!entries.length) {
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            entries.forEach(item => {
+                const analysis = item.analysis || {};
+                const trend = item.trendAnalysis || {};
+                const filters = Array.isArray(analysis.filters) ? analysis.filters : [];
+                const filtersText = filters.length
+                    ? filters.slice(0, 3).map(f => `${f.column} (${f.table || 'unknown'})`).join(', ')
+                    : '';
+                const sqlPreview = String(item.valueSql || analysis.sqlPreview || '').trim();
+
+                const lines = [
+                    _formatGlossaryField('X Axis', analysis.x),
+                    _formatGlossaryField('Y Axis', analysis.y),
+                    _formatGlossaryField('Z Axis', analysis.z),
+                    _formatGlossaryField(item.artifact === 'kpi' ? 'Value Metric' : 'Metric', analysis.metric),
+                    _formatGlossaryField('Trend Axis', trend.x),
+                    _formatGlossaryField('Trend Metric', trend.metric)
+                ].filter(Boolean);
+
+                if (filtersText) {
+                    lines.push(`<div class="glossary-line"><span class="glossary-key">Filters:</span> ${escapeHtml(filtersText)}</div>`);
+                }
+                if (sqlPreview) {
+                    lines.push(`<div class="glossary-line"><span class="glossary-key">SQL:</span> ${escapeHtml(sqlPreview.slice(0, 170))}${sqlPreview.length > 170 ? '...' : ''}</div>`);
+                }
+
+                const div = document.createElement('div');
+                div.className = 'glossary-item';
+                div.innerHTML = `
+                    <div class="glossary-title">${escapeHtml(item.title)}</div>
+                    <div class="glossary-meta">${escapeHtml(item.source)} | ${escapeHtml(item.type)}</div>
+                    ${lines.join('')}
+                `;
+                list.appendChild(div);
+            });
+        }
+
         function applyWidgetLayoutToElement(el, widgetId) {
             if (!el || !widgetId) return;
             const layout = widgetLayouts[widgetId];
@@ -3593,6 +4011,12 @@
             btn.textContent = isChartSidebarOpen ? 'Close Charts' : 'Open Charts';
         }
 
+        function updateGlossaryToggleButton() {
+            const btn = document.getElementById('open-glossary-btn');
+            if (!btn) return;
+            btn.textContent = isGlossarySidebarOpen ? 'Close Glossary' : 'Open Glossary';
+        }
+
         function updateChatbotDockVisibility() {
             const dock = document.getElementById('chart-chatbot-dock');
             const btn = document.getElementById('open-ai-chart-btn');
@@ -3712,8 +4136,13 @@
         }
 
         function toggleChartSidebar() {
-            isChartSidebarOpen = !isChartSidebarOpen;
+            const willOpen = !isChartSidebarOpen;
+            isChartSidebarOpen = willOpen;
+            if (willOpen) {
+                isGlossarySidebarOpen = false;
+            }
             updateChartsToggleButton();
+            updateGlossaryToggleButton();
             updateDashboardSidebarLayout();
         }
 
@@ -3724,18 +4153,49 @@
             updateDashboardSidebarLayout();
         }
 
+        function toggleGlossarySidebar() {
+            const willOpen = !isGlossarySidebarOpen;
+            isGlossarySidebarOpen = willOpen;
+            if (willOpen) {
+                isChartSidebarOpen = false;
+            }
+            renderGlossarySidebar();
+            updateGlossaryToggleButton();
+            updateChartsToggleButton();
+            updateDashboardSidebarLayout();
+        }
+
+        function closeGlossarySidebar() {
+            if (!isGlossarySidebarOpen) return;
+            isGlossarySidebarOpen = false;
+            updateGlossaryToggleButton();
+            updateDashboardSidebarLayout();
+        }
+
         function updateDashboardSidebarLayout() {
             const dashboard = document.getElementById('dashboard-screen');
-            const sidebar = document.getElementById('chart-sidebar');
-            if (!dashboard || !sidebar) return;
+            const chartSidebar = document.getElementById('chart-sidebar');
+            const glossarySidebar = document.getElementById('glossary-sidebar');
+            if (!dashboard || !chartSidebar || !glossarySidebar) return;
 
-            if (dashboard.classList.contains('hidden') || !isChartSidebarOpen) {
-                sidebar.style.display = 'none';
+            chartSidebar.style.display = 'none';
+            glossarySidebar.style.display = 'none';
+
+            if (dashboard.classList.contains('hidden')) {
                 dashboard.classList.remove('with-sidebar');
                 return;
             }
 
-            sidebar.style.display = 'flex';
+            const activeSidebar = isGlossarySidebarOpen
+                ? glossarySidebar
+                : (isChartSidebarOpen ? chartSidebar : null);
+
+            if (!activeSidebar) {
+                dashboard.classList.remove('with-sidebar');
+                return;
+            }
+
+            activeSidebar.style.display = 'flex';
             if (window.innerWidth > 1250) {
                 dashboard.classList.add('with-sidebar');
             } else {
@@ -3751,10 +4211,12 @@
 
             count.textContent = String(chartLibrary.length);
             updateChartsToggleButton();
+            updateGlossaryToggleButton();
             list.innerHTML = '';
 
             if (chartLibrary.length === 0) {
                 empty.style.display = 'block';
+                renderGlossarySidebar();
                 return;
             }
 
@@ -3784,6 +4246,8 @@
                 `;
                 list.appendChild(item);
             });
+
+            renderGlossarySidebar();
         }
 
         function addChartToLibrary(chart, options = {}) {

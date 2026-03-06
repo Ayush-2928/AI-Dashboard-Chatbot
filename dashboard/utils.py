@@ -65,6 +65,40 @@ def _is_databricks_mode_active():
     return config_is_databricks_mode_active()
 
 
+def _live_server_logs_enabled():
+    raw = str(os.getenv("DATABRICKS_LIVE_SERVER_LOGS", "true")).strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _live_server_log_max_chars():
+    raw = str(os.getenv("DATABRICKS_LIVE_SERVER_LOG_MAX_CHARS", "2000")).strip()
+    try:
+        return max(200, int(raw))
+    except Exception:
+        return 2000
+
+
+class _LiveLogBuffer(list):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args)
+        self._emit_console = _live_server_logs_enabled()
+        self._max_chars = _live_server_log_max_chars()
+        self._context = str(kwargs.get("context") or "").strip()
+
+    def append(self, item):
+        super().append(item)
+        if not self._emit_console:
+            return
+        try:
+            text = str(item or "")
+            if len(text) > self._max_chars:
+                text = f"{text[:self._max_chars]} ... [TRUNCATED {len(str(item)) - self._max_chars} chars]"
+            prefix = f"[LIVE] {self._context} " if self._context else "[LIVE] "
+            print(prefix + text, flush=True)
+        except Exception:
+            pass
+
+
 def _llm_include_sample_rows():
     return config_llm_include_sample_rows()
 
@@ -174,6 +208,31 @@ def _log_llm_response(debug_logs, context, tokens_used, content, max_chars=50000
         )
     except Exception as e:
         debug_logs.append(f"[LLM RESPONSE] {context} | logging failed: {str(e)}")
+
+
+def _step_start(logs, step_name, detail=""):
+    start_ts = time.perf_counter()
+    if logs is not None:
+        suffix = f" | {detail}" if detail else ""
+        logs.append(f"[STEP] {step_name} START{suffix}")
+    return start_ts
+
+
+def _step_done(logs, step_name, start_ts, detail=""):
+    if logs is None:
+        return
+    elapsed_ms = (time.perf_counter() - start_ts) * 1000.0
+    suffix = f" | {detail}" if detail else ""
+    logs.append(f"[STEP] {step_name} DONE | {elapsed_ms:.1f} ms{suffix}")
+
+
+def _step_fail(logs, step_name, start_ts, error):
+    if logs is None:
+        return
+    elapsed_ms = (time.perf_counter() - start_ts) * 1000.0
+    logs.append(f"[ERROR] {step_name} FAILED | {elapsed_ms:.1f} ms | {str(error)}")
+
+
 def call_ai_with_retry(messages, json_mode=False, retries=3, debug_logs=None, context="LLM"):
     model_name = "gpt-4o"
     if not client:
@@ -748,6 +807,7 @@ def _build_databricks_relationship_virtual_source(connection, base_table, base_c
 
     return {
         "base_table": base_table,
+        "base_columns": base_columns,
         "query_source": relation_model["query_source"],
         "schema_columns": relation_model["schema_columns"],
         "schema_context": schema_context,
@@ -799,6 +859,7 @@ def _build_databricks_virtual_source(connection, include_sample_rows, logs=None)
 
     return {
         "base_table": base_table,
+        "base_columns": base_columns,
         "query_source": base_table,
         "schema_columns": base_columns,
         "schema_context": schema_context,
@@ -3137,6 +3198,8 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
         schema_columns = source_model["schema_columns"]
         column_names = [c for c, _ in schema_columns]
         column_type_lookup = {str(c).lower(): str(t) for c, t in schema_columns}
+        base_columns = source_model.get("base_columns", [])
+        base_column_names_lower = {str(c).strip().lower() for c, _ in (base_columns or [])}
         date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
         date_column = _resolve_selected_date_column(active_filters_json, date_cols)
 
@@ -3295,10 +3358,11 @@ def execute_dashboard_logic_databricks(
     filters_override=None,
     date_range_override=None,
 ):
-    log = []
+    log = _LiveLogBuffer(context="Dashboard")
     total_tokens = 0
     if not session_id:
         session_id = str(uuid.uuid4())
+    generation_start = _step_start(log, "Dashboard Generation", f"session={session_id}")
 
     include_sample_rows = _llm_include_sample_rows()
     if not include_sample_rows:
@@ -3306,6 +3370,7 @@ def execute_dashboard_logic_databricks(
 
     connection = get_databricks_connection()
     try:
+        meta_step = _step_start(log, "Metadata Load")
         source_model = _build_databricks_virtual_source(
             connection,
             include_sample_rows=include_sample_rows,
@@ -3321,8 +3386,17 @@ def execute_dashboard_logic_databricks(
         date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
         text_cols = [c for c, t in schema_columns if _is_text_dtype(t)]
         num_cols = [c for c, t in schema_columns if _is_numeric_dtype(t)]
+        base_columns = source_model.get("base_columns", [])
+        base_column_names_lower = {str(c).strip().lower() for c, _ in (base_columns or [])}
         date_column = _resolve_selected_date_column(active_filters_json, date_cols)
+        _step_done(
+            log,
+            "Metadata Load",
+            meta_step,
+            detail=f"columns={len(column_names)} date_cols={len(date_cols)} text_cols={len(text_cols)} numeric_cols={len(num_cols)}"
+        )
 
+        filter_step = _step_start(log, "Filter Parse + WHERE Build")
         effective_filters_json, applied_start_date, applied_end_date = _apply_default_date_filters(
             active_filters_json,
             date_column,
@@ -3338,7 +3412,9 @@ def execute_dashboard_logic_databricks(
         )
         if filter_count > 0:
             log.append(f"[FILTER] Applied {filter_count} filter(s) in Databricks mode")
+        _step_done(log, "Filter Parse + WHERE Build", filter_step, detail=f"filters_applied={filter_count}")
 
+        date_range_step = _step_start(log, "Date Range Resolve")
         date_range = {"min": None, "max": None}
         cached_date_range_used = False
         if isinstance(date_range_override, dict):
@@ -3353,10 +3429,11 @@ def execute_dashboard_logic_databricks(
                 log.append("[CACHE] Reusing cached date range")
         if date_column and not cached_date_range_used:
             date_ident = _quote_identifier(date_column)
+            date_range_source = source_table_base if str(date_column).strip().lower() in base_column_names_lower else source_table_query
             try:
                 range_df = fetch_dataframe(
                     connection,
-                    f"SELECT MIN(CAST({date_ident} AS DATE)) AS min_date, MAX(CAST({date_ident} AS DATE)) AS max_date FROM {source_table_query}",
+                    f"SELECT MIN({date_ident}) AS min_date, MAX({date_ident}) AS max_date FROM {date_range_source} WHERE {date_ident} IS NOT NULL",
                     readonly=True,
                 )
                 if not range_df.empty:
@@ -3368,18 +3445,26 @@ def execute_dashboard_logic_databricks(
                         date_range["max"] = str(max_val)
             except Exception as e:
                 log.append(f"[WARN] Could not compute date range: {str(e)}")
+        _step_done(
+            log,
+            "Date Range Resolve",
+            date_range_step,
+            detail=f"selected={date_column or 'none'} cached={'yes' if cached_date_range_used else 'no'}"
+        )
 
         if _is_databricks_mode_active() and STRICT_SQL_GUARDRAILS:
             log.append(
                 f"[SECURITY] Databricks SQL guardrails active (SELECT/WITH only, forbidden keywords blocked, max LIMIT={AI_SQL_MAX_LIMIT})"
             )
 
+        viz_step = _step_start(log, "LLM Viz Plan")
         plan, tokens = generate_viz_config(
             schema_context,
             debug_logs=log,
             logical_table_name=DATABRICKS_LOGICAL_VIEW_NAME,
         )
         total_tokens += tokens
+        _step_done(log, "LLM Viz Plan", viz_step, detail=f"tokens={tokens}")
 
         if isinstance(plan, dict):
             llm_ranked_filters = _resolve_ranked_filter_columns(
@@ -3400,6 +3485,7 @@ def execute_dashboard_logic_databricks(
                 plan_kpis = []
             if len(plan_kpis) < 4:
                 needed_kpis = 4 - len(plan_kpis)
+                extra_kpi_step = _step_start(log, "LLM Additional KPI Plan", detail=f"needed={needed_kpis}")
                 extra_kpis, extra_tokens = generate_additional_kpis(
                     schema_context,
                     plan_kpis,
@@ -3410,6 +3496,7 @@ def execute_dashboard_logic_databricks(
                 total_tokens += extra_tokens
                 if extra_kpis:
                     plan["kpis"] = plan_kpis + extra_kpis
+                _step_done(log, "LLM Additional KPI Plan", extra_kpi_step, detail=f"tokens={extra_tokens} returned={len(extra_kpis or [])}")
 
         if not plan:
             metric_col = num_cols[0] if num_cols else None
@@ -3462,6 +3549,7 @@ def execute_dashboard_logic_databricks(
             except Exception as e:
                 log.append(f"[WARN] Could not load Databricks preview rows: {str(e)}")
 
+        filter_def_step = _step_start(log, "Filter Definitions Build")
         lazy_filter_values = _safe_bool_env("DATABRICKS_FILTER_LAZY_VALUES", True)
 
         cached_filters = []
@@ -3536,6 +3624,7 @@ def execute_dashboard_logic_databricks(
                     })
                 except Exception:
                     continue
+        _step_done(log, "Filter Definitions Build", filter_def_step, detail=f"filters={len(output.get('filters', []))} lazy={'yes' if lazy_filter_values else 'no'}")
 
         def _run_kpi_spec(label, kpi_sql, trend_sql=None, context_prefix="KPI"):
             label_text = str(label or "Metric").strip() or "Metric"
@@ -3620,6 +3709,7 @@ def execute_dashboard_logic_databricks(
                 entity_col=invoice_entity_col,
             )
 
+        kpi_exec_step = _step_start(log, "KPI Execute")
         kpis = []
         for _k in (plan.get("kpis", []) or []):
             norm = _enforce_invoice_count_kpi(_k)
@@ -3764,7 +3854,9 @@ def execute_dashboard_logic_databricks(
                 })
 
         output["kpis"] = valid_kpis[:4]
+        _step_done(log, "KPI Execute", kpi_exec_step, detail=f"output_kpis={len(output['kpis'])}")
 
+        chart_exec_step = _step_start(log, "Chart Execute")
         charts = plan.get("charts", [])[:5]
 
         fallback_dims = []
@@ -3979,6 +4071,7 @@ def execute_dashboard_logic_databricks(
                 "values": [],
                 "measure": [],
             })
+        _step_done(log, "Chart Execute", chart_exec_step, detail=f"output_charts={len(output['charts'])}")
 
         output["__cache"] = {
             "filters": output.get("filters", []),
@@ -3986,7 +4079,20 @@ def execute_dashboard_logic_databricks(
             "date_range": output.get("date_range"),
             "selected_date_column": output.get("selected_date_column"),
         }
+        _step_done(
+            log,
+            "Dashboard Generation",
+            generation_start,
+            detail=f"tokens={total_tokens} charts={len(output.get('charts', []))} kpis={len(output.get('kpis', []))}"
+        )
         return output
+    except Exception as e:
+        _step_fail(log, "Dashboard Generation", generation_start, e)
+        try:
+            setattr(e, "_dashboard_logs", list(log))
+        except Exception:
+            pass
+        raise
     finally:
         connection.close()
 
@@ -4001,7 +4107,7 @@ def execute_dashboard_filter_refresh_databricks(
     filters_override=None,
     date_range_override=None,
 ):
-    log = []
+    log = _LiveLogBuffer(context="FilterRefresh")
     if not session_id:
         session_id = str(uuid.uuid4())
 
@@ -4026,6 +4132,8 @@ def execute_dashboard_filter_refresh_databricks(
         column_names = [c for c, _ in schema_columns]
         column_type_lookup = {str(c).lower(): str(t) for c, t in schema_columns}
         date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
+        base_columns = source_model.get("base_columns", [])
+        base_column_names_lower = {str(c).strip().lower() for c, _ in (base_columns or [])}
         date_column = _resolve_selected_date_column(active_filters_json, date_cols)
 
         effective_filters_json, applied_start_date, applied_end_date = _apply_default_date_filters(
@@ -4060,10 +4168,11 @@ def execute_dashboard_filter_refresh_databricks(
 
         if date_column and not cached_date_range_used:
             date_ident = _quote_identifier(date_column)
+            date_range_source = source_table_base if str(date_column).strip().lower() in base_column_names_lower else source_table_query
             try:
                 range_df = fetch_dataframe(
                     connection,
-                    f"SELECT MIN(CAST({date_ident} AS DATE)) AS min_date, MAX(CAST({date_ident} AS DATE)) AS max_date FROM {source_table_query}",
+                    f"SELECT MIN({date_ident}) AS min_date, MAX({date_ident}) AS max_date FROM {date_range_source} WHERE {date_ident} IS NOT NULL",
                     readonly=True,
                 )
                 if not range_df.empty:

@@ -51,6 +51,31 @@ def _extract_llm_logs(lines):
     return keep
 
 
+def _extract_dashboard_generation_logs(lines):
+    if not isinstance(lines, list):
+        return []
+    prefixes = (
+        "[STEP]",
+        "[PERF]",
+        "[SOURCE]",
+        "[FILTER]",
+        "[CACHE]",
+        "[WARN]",
+        "[ERROR]",
+        "[SECURITY]",
+        "[FALLBACK]",
+        "[GUARD]",
+        "[DEDUP]",
+        "[SQL]",
+    )
+    keep = []
+    for line in lines:
+        s = str(line or "")
+        if s.startswith(prefixes) or ("[LLM REQUEST]" in s) or ("[LLM RESPONSE]" in s) or ("[LLM ERROR]" in s):
+            keep.append(s)
+    return keep[-2000:]
+
+
 def _extract_filter_refresh_logs(lines):
     if not isinstance(lines, list):
         return []
@@ -113,9 +138,12 @@ def process_file(request):
         if not isinstance(cached_filter_defs, list):
             cached_filter_defs = None
 
-        last_llm_logs = request.session.get('last_dashboard_llm_logs')
-        if not isinstance(last_llm_logs, list):
-            last_llm_logs = []
+        last_dashboard_logs = request.session.get('last_dashboard_generation_logs')
+        if not isinstance(last_dashboard_logs, list):
+            # Backward-compatible fallback for older sessions.
+            last_dashboard_logs = request.session.get('last_dashboard_llm_logs')
+            if not isinstance(last_dashboard_logs, list):
+                last_dashboard_logs = []
 
         cached_date_range = request.session.get('cached_date_range')
         cached_selected_date_column = str(request.session.get('cached_selected_date_column') or '').strip().lower()
@@ -154,12 +182,13 @@ def process_file(request):
             if isinstance(date_range_cache, dict):
                 request.session['cached_date_range'] = date_range_cache
 
-        current_llm_logs = _extract_llm_logs(dashboard_data.get('logs', []))
-        if current_llm_logs:
-            request.session['last_dashboard_llm_logs'] = current_llm_logs
-            dashboard_data['logs'] = current_llm_logs
+        current_dashboard_logs = _extract_dashboard_generation_logs(dashboard_data.get('logs', []))
+        if current_dashboard_logs:
+            request.session['last_dashboard_generation_logs'] = current_dashboard_logs
+            request.session['last_dashboard_llm_logs'] = _extract_llm_logs(current_dashboard_logs)
+            dashboard_data['logs'] = current_dashboard_logs
         else:
-            dashboard_data['logs'] = last_llm_logs
+            dashboard_data['logs'] = last_dashboard_logs
 
         request.session['data_mode'] = 'databricks'
         request.session['active_filters_json'] = _merge_applied_filters(filters_json, dashboard_data)
@@ -168,7 +197,11 @@ def process_file(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return _safe_json_response({"error": str(e)}, status=500)
+        err_logs = _extract_dashboard_generation_logs(getattr(e, "_dashboard_logs", []))
+        payload = {"error": str(e)}
+        if err_logs:
+            payload["logs"] = err_logs
+        return _safe_json_response(payload, status=500)
 
 
 @csrf_exempt
@@ -318,6 +351,4 @@ def filter_values(request):
         return _safe_json_response(result)
     except Exception as e:
         return _safe_json_response({"error": str(e)}, status=500)
-
-
 
