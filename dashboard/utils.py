@@ -3,7 +3,10 @@ import json
 import os
 import re
 import time
+import math
 import numpy as np
+import hashlib
+import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -13,6 +16,7 @@ import io
 import os
 from django.conf import settings
 import uuid
+from datetime import datetime
 
 from .databricks_config import (
     is_truthy as config_is_truthy,
@@ -4622,3 +4626,1009 @@ def generate_custom_chart_from_prompt_databricks(user_prompt, active_filters_jso
         }
     finally:
         connection.close()
+
+
+def _wireframe_keyword_domain(prompt_text):
+    text = str(prompt_text or "").lower()
+    mapping = [
+        (("invoice", "distributor", "sku", "fmcg", "retail", "sales"), "FMCG Sales Analytics"),
+        (("patient", "hospital", "clinic", "doctor", "bed"), "Healthcare Operations"),
+        (("student", "school", "course", "exam", "admission"), "Education Performance"),
+        (("shipment", "warehouse", "delivery", "logistics", "fleet"), "Supply Chain & Logistics"),
+        (("ticket", "resolution", "sla", "incident", "support"), "Customer Support Operations"),
+        (("campaign", "funnel", "lead", "conversion", "marketing"), "Marketing Performance"),
+        (("subscription", "churn", "mrr", "arr", "saas"), "SaaS Growth Analytics"),
+        (("expense", "budget", "finance", "cost", "profit"), "Financial Operations"),
+        (("factory", "production", "oee", "downtime", "yield"), "Manufacturing Performance"),
+        (("employee", "attrition", "hiring", "headcount", "hr"), "People Analytics"),
+    ]
+    for keys, domain in mapping:
+        if any(k in text for k in keys):
+            return domain
+    return "Business Performance"
+
+
+def _wireframe_fallback_blueprint(prompt_text, kpi_count=6):
+    domain = _wireframe_keyword_domain(prompt_text)
+    defaults = {
+        "FMCG Sales Analytics": [
+            ("Total Gross Value", "currency", "up"),
+            ("Total Net Amount", "currency", "up"),
+            ("Invoice Quantity", "count", "up"),
+            ("Unique Customers", "count", "up"),
+            ("Average Order Value", "currency", "up"),
+            ("Return Rate", "percent", "down"),
+        ],
+        "Healthcare Operations": [
+            ("Patient Volume", "count", "up"),
+            ("Average Wait Time", "duration", "down"),
+            ("Bed Occupancy", "percent", "up"),
+            ("Readmission Rate", "percent", "down"),
+            ("Procedure Throughput", "count", "up"),
+            ("Satisfaction Score", "score", "up"),
+        ],
+        "Business Performance": [
+            ("Total Revenue", "currency", "up"),
+            ("Total Cost", "currency", "down"),
+            ("Net Margin", "percent", "up"),
+            ("Active Customers", "count", "up"),
+            ("Order Volume", "count", "up"),
+            ("Growth Rate", "percent", "up"),
+        ],
+    }
+    kpi_defs = defaults.get(domain, defaults["Business Performance"])[: max(3, min(8, int(kpi_count or 6)))]
+    return {
+        "domain": domain,
+        "wireframe_title": f"{domain} KPI Wireframe",
+        "assumptions": [
+            "Wireframe uses synthetic sample data only.",
+            "KPIs are inferred from the written requirement and optional reference image.",
+            "Use this layout for stakeholder alignment before connecting live data.",
+        ],
+        "kpis": [
+            {
+                "label": label,
+                "unit": unit,
+                "direction": direction,
+                "chart": "line",
+                "intent": f"Track {label.lower()} trend over time.",
+            }
+            for (label, unit, direction) in kpi_defs
+        ],
+    }
+
+
+def _parse_wireframe_llm_json(raw_text):
+    if not raw_text:
+        return None
+    try:
+        return json.loads(raw_text)
+    except Exception:
+        pass
+    text = str(raw_text).strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            return json.loads(text[start : end + 1])
+        except Exception:
+            return None
+    return None
+
+
+def _seed_from_text(text):
+    digest = hashlib.sha256(str(text or "").encode("utf-8")).hexdigest()
+    return int(digest[:16], 16)
+
+
+def _format_wireframe_value(value, unit):
+    n = float(value)
+    unit_s = str(unit or "").lower()
+    if unit_s == "percent":
+        return f"{n:.1f}%"
+    if unit_s == "duration":
+        if n >= 60:
+            return f"{n / 60:.1f} hrs"
+        return f"{n:.0f} min"
+    if unit_s == "score":
+        return f"{n:.2f}/5"
+    if abs(n) >= 1_000_000_000:
+        return f"{n / 1_000_000_000:.2f}B"
+    if abs(n) >= 1_000_000:
+        return f"{n / 1_000_000:.2f}M"
+    if abs(n) >= 1_000:
+        return f"{n / 1_000:.1f}K"
+    return f"{n:.0f}"
+
+
+def _wireframe_month_labels(periods):
+    now = datetime.utcnow()
+    labels = []
+    year = now.year
+    month = now.month
+    for _ in range(periods):
+        labels.append(datetime(year, month, 1).strftime("%b %Y"))
+        month -= 1
+        if month < 1:
+            month = 12
+            year -= 1
+    labels.reverse()
+    return labels
+
+
+def _generate_wireframe_series(seed_key, unit="currency", direction="up", periods=8):
+    rng = random.Random(_seed_from_text(seed_key))
+    unit_s = str(unit or "").lower()
+    direction_s = str(direction or "").lower()
+
+    if unit_s == "currency":
+        start = rng.uniform(8_000_000, 90_000_000)
+    elif unit_s == "count":
+        start = rng.uniform(2_000, 80_000)
+    elif unit_s == "percent":
+        start = rng.uniform(8, 45)
+    elif unit_s == "duration":
+        start = rng.uniform(18, 160)
+    elif unit_s == "score":
+        start = rng.uniform(2.8, 4.4)
+    else:
+        start = rng.uniform(2_000, 50_000)
+
+    if "down" in direction_s:
+        drift = -rng.uniform(0.01, 0.05)
+    elif "flat" in direction_s or "stable" in direction_s:
+        drift = rng.uniform(-0.004, 0.004)
+    else:
+        drift = rng.uniform(0.01, 0.06)
+
+    points = []
+    value = start
+    safe_periods = max(5, int(periods or 8))
+    for i in range(safe_periods):
+        noise = rng.uniform(-0.025, 0.025)
+        seasonal = 0.012 * math.sin((i / max(1, safe_periods)) * math.pi * 2.0 + rng.uniform(0.0, 0.8))
+        value = max(0.0001, value * (1.0 + drift + noise + seasonal))
+        if unit_s == "percent":
+            value = max(0.1, min(99.9, value))
+        if unit_s == "score":
+            value = max(1.0, min(5.0, value))
+        points.append(round(value, 4))
+
+    first = points[0]
+    last = points[-1]
+    delta_pct = 0.0 if first == 0 else ((last - first) / abs(first)) * 100.0
+    return points, delta_pct
+
+
+def _build_wireframe_payload(blueprint, prompt_text, requested_kpis=6):
+    bp = blueprint if isinstance(blueprint, dict) else {}
+    domain = str(bp.get("domain") or _wireframe_keyword_domain(prompt_text)).strip() or "Business Performance"
+    title = str(bp.get("wireframe_title") or f"{domain} KPI Wireframe").strip()
+
+    raw_kpis = bp.get("kpis")
+    if not isinstance(raw_kpis, list) or not raw_kpis:
+        fallback = _wireframe_fallback_blueprint(prompt_text, requested_kpis)
+        raw_kpis = fallback["kpis"]
+        if not title:
+            title = fallback["wireframe_title"]
+
+    limit = max(1, min(12, int(requested_kpis or 6)))
+    raw_kpis = raw_kpis[:limit]
+
+    month_labels = _wireframe_month_labels(8)
+    kpis = []
+    for i, item in enumerate(raw_kpis):
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or f"KPI {i + 1}").strip() or f"KPI {i + 1}"
+        unit = str(item.get("unit") or "count").strip().lower()
+        direction = str(item.get("direction") or "up").strip().lower()
+        intent = str(item.get("intent") or f"Track {label.lower()} over time.").strip()
+        chart = str(item.get("chart") or "line").strip().lower()
+        if chart not in {"line", "bar", "area"}:
+            chart = "line"
+
+        series, delta_pct = _generate_wireframe_series(
+            seed_key=f"{domain}|{label}|{unit}|{direction}|{prompt_text}",
+            unit=unit,
+            direction=direction,
+            periods=len(month_labels),
+        )
+        current = series[-1] if series else 0
+        kpis.append(
+            {
+                "id": f"wkpi_{i + 1}",
+                "label": label,
+                "intent": intent,
+                "unit": unit,
+                "direction": direction,
+                "chart": chart,
+                "value": float(current),
+                "value_display": _format_wireframe_value(current, unit),
+                "delta_pct": round(float(delta_pct), 2),
+                "sparkline": [float(v) for v in series],
+                "periods": month_labels,
+            }
+        )
+
+    assumptions = bp.get("assumptions")
+    if not isinstance(assumptions, list) or not assumptions:
+        assumptions = [
+            "Wireframe uses sample synthetic values, not live data.",
+            "Domain and KPI list are inferred from user description.",
+            "Use this for layout/metric alignment before data integration.",
+        ]
+
+    return {
+        "domain": domain,
+        "wireframe_title": title,
+        "assumptions": [str(a) for a in assumptions[:6]],
+        "kpis": kpis,
+        "layout": {
+            "cards_per_row": 3 if len(kpis) <= 6 else 4,
+            "sections": [
+                "KPI cards with trend chips",
+                "Trend strip placeholders",
+                "Comparative breakdown placeholders",
+            ],
+        },
+    }
+
+
+def _wireframe_normalize_chart_type(chart_type):
+    t = str(chart_type or "bar").strip().lower()
+    if t not in {"bar", "line", "area", "pie", "heatmap", "scatter"}:
+        return "bar"
+    return t
+
+
+def _wireframe_find_kpi_by_label(kpis, name):
+    target = str(name or "").strip().lower()
+    if not target:
+        return None
+    for k in (kpis or []):
+        label = str((k or {}).get("label") or "").strip().lower()
+        if label == target:
+            return k
+    for k in (kpis or []):
+        label = str((k or {}).get("label") or "").strip().lower()
+        if target in label or label in target:
+            return k
+    return None
+
+
+def _wireframe_default_chart_plans(kpis, chart_count=3):
+    labels = [str((k or {}).get("label") or "") for k in (kpis or []) if k]
+    plans = []
+    if labels:
+        plans.append({
+            "title": f"{labels[0]} Trend",
+            "type": "line",
+            "source_kpis": [labels[0]],
+            "xlabel": "Period",
+            "ylabel": labels[0],
+        })
+    if len(labels) >= 2:
+        plans.append({
+            "title": "KPI Comparison",
+            "type": "bar",
+            "source_kpis": labels[: min(6, len(labels))],
+            "xlabel": "KPI",
+            "ylabel": "Value",
+        })
+    if len(labels) >= 2:
+        plans.append({
+            "title": "KPI Share",
+            "type": "pie",
+            "source_kpis": labels[: min(6, len(labels))],
+            "xlabel": "KPI",
+            "ylabel": "Share",
+        })
+    if not plans:
+        plans = [{
+            "title": "Metric Trend",
+            "type": "line",
+            "source_kpis": [],
+            "xlabel": "Period",
+            "ylabel": "Value",
+        }]
+    max_count = max(1, int(chart_count or 3))
+    return plans[:max_count]
+
+
+def _wireframe_build_chart_payload(plan, kpis, chart_id):
+    chart_type = _wireframe_normalize_chart_type((plan or {}).get("type"))
+    title = str((plan or {}).get("title") or "Wireframe Chart").strip() or "Wireframe Chart"
+    xlabel = str((plan or {}).get("xlabel") or "").strip()
+    ylabel = str((plan or {}).get("ylabel") or "").strip()
+
+    src_names = (plan or {}).get("source_kpis") or []
+    if not isinstance(src_names, list):
+        src_names = [str(src_names)]
+
+    selected = []
+    for n in src_names:
+        hit = _wireframe_find_kpi_by_label(kpis, n)
+        if hit and hit not in selected:
+            selected.append(hit)
+    if not selected and kpis:
+        selected = [kpis[0]]
+
+    if chart_type in {"line", "area"}:
+        primary = selected[0] if selected else {}
+        x = list((primary or {}).get("periods") or [])
+        y = [float(v) for v in ((primary or {}).get("sparkline") or [])]
+        out = {
+            "id": chart_id,
+            "title": title,
+            "type": "line" if chart_type == "line" else "area",
+            "xlabel": xlabel or "Period",
+            "ylabel": ylabel or str((primary or {}).get("label") or "Value"),
+            "x": x,
+            "y": y,
+        }
+        if len(selected) >= 2:
+            sec = selected[1]
+            out["series"] = [
+                {"name": str((primary or {}).get("label") or "Series 1"), "x": x, "y": y},
+                {
+                    "name": str((sec or {}).get("label") or "Series 2"),
+                    "x": list((sec or {}).get("periods") or x),
+                    "y": [float(v) for v in ((sec or {}).get("sparkline") or [])],
+                },
+            ]
+        return out
+
+    if chart_type == "scatter":
+        if len(selected) < 2 and len(kpis) >= 2:
+            selected = [kpis[0], kpis[1]]
+        a = selected[0] if selected else {}
+        b = selected[1] if len(selected) > 1 else a
+        ax = [float(v) for v in ((a or {}).get("sparkline") or [])]
+        by = [float(v) for v in ((b or {}).get("sparkline") or [])]
+        m = min(len(ax), len(by))
+        return {
+            "id": chart_id,
+            "title": title,
+            "type": "scatter",
+            "xlabel": xlabel or str((a or {}).get("label") or "X"),
+            "ylabel": ylabel or str((b or {}).get("label") or "Y"),
+            "x": ax[:m],
+            "y": by[:m],
+        }
+
+    if chart_type == "heatmap":
+        if not selected:
+            selected = (kpis or [])[:3]
+        x = list((selected[0] or {}).get("periods") or [])
+        y = [str((k or {}).get("label") or "KPI") for k in selected]
+        z = []
+        for k in selected:
+            row = [float(v) for v in ((k or {}).get("sparkline") or [])]
+            if len(row) < len(x):
+                row = row + [row[-1] if row else 0.0] * (len(x) - len(row))
+            z.append(row[: len(x)])
+        return {
+            "id": chart_id,
+            "title": title,
+            "type": "heatmap",
+            "xlabel": xlabel or "Period",
+            "ylabel": ylabel or "KPI",
+            "x": x,
+            "y": y,
+            "z": z,
+        }
+
+    labels = [str((k or {}).get("label") or "KPI") for k in selected] if selected else []
+    values = [float((k or {}).get("value") or 0.0) for k in selected] if selected else []
+
+    if chart_type == "pie":
+        return {
+            "id": chart_id,
+            "title": title,
+            "type": "pie",
+            "xlabel": xlabel or "KPI",
+            "ylabel": ylabel or "Share",
+            "x": labels,
+            "y": values,
+        }
+
+    # Demo wireframe UX: a single-category bar looks like one giant block.
+    # When only one KPI is selected, switch bar x/y to month-wise synthetic trend.
+    if len(selected) == 1:
+        solo = selected[0] or {}
+        period_x = list((solo or {}).get("periods") or [])
+        period_y = [float(v) for v in ((solo or {}).get("sparkline") or [])]
+        if period_x and period_y:
+            m = min(len(period_x), len(period_y))
+            return {
+                "id": chart_id,
+                "title": title,
+                "type": "bar",
+                "xlabel": xlabel or "Period",
+                "ylabel": ylabel or str((solo or {}).get("label") or "Value"),
+                "x": period_x[:m],
+                "y": period_y[:m],
+            }
+
+    return {
+        "id": chart_id,
+        "title": title,
+        "type": "bar",
+        "xlabel": xlabel or "KPI",
+        "ylabel": ylabel or "Value",
+        "x": labels,
+        "y": values,
+    }
+
+
+def _wireframe_plan_charts_with_llm(
+    domain,
+    prompt,
+    kpis,
+    chart_count=3,
+    logs=None,
+    reference_image_block=None,
+    prefer_image_layout=False,
+):
+    count = max(1, min(8, int(chart_count or 3)))
+    kpi_list = [
+        {
+            "label": str((k or {}).get("label") or ""),
+            "unit": str((k or {}).get("unit") or ""),
+            "direction": str((k or {}).get("direction") or ""),
+        }
+        for k in (kpis or [])
+    ]
+    count_rule = (
+        f"- Return as many visible charts from the reference image (up to {count})."
+        if prefer_image_layout
+        else f"- Return exactly {count} charts."
+    )
+    image_rule = (
+        "- If reference image is present, replicate chart intent/types/titles visible in it."
+        if prefer_image_layout
+        else "- Prefer practical business visuals."
+    )
+
+    prompt_text = f"""
+You are a BI wireframe designer. Based on domain + KPI list, propose chart placeholders.
+
+Return ONLY JSON:
+{{
+  "charts": [
+    {{
+      "title": "Chart title",
+      "type": "bar|line|area|pie|heatmap|scatter",
+      "source_kpis": ["KPI label 1", "KPI label 2"],
+      "xlabel": "x label",
+      "ylabel": "y label"
+    }}
+  ]
+}}
+
+Rules:
+- {count_rule}
+- Use only source_kpis from the provided KPI labels.
+- {image_rule}
+- No SQL/code/markdown.
+
+Domain: {domain}
+User context: {prompt}
+KPI list: {json.dumps(kpi_list, ensure_ascii=False)}
+""".strip()
+
+    content = [{"type": "text", "text": prompt_text}]
+    if reference_image_block:
+        content.append(reference_image_block)
+
+    debug_target = None if reference_image_block else logs
+    llm_raw, tokens_used = call_ai_with_retry(
+        messages=[{"role": "user", "content": content if reference_image_block else prompt_text}],
+        json_mode=True,
+        retries=2,
+        debug_logs=debug_target,
+        context="Generate Wireframe Chart Plans",
+    )
+    if reference_image_block and logs is not None:
+        logs.append("[LLM REQUEST] Generate Wireframe Chart Plans | image included")
+        logs.append(f"[LLM RESPONSE] Generate Wireframe Chart Plans | tokens={tokens_used} | chars={len(str(llm_raw or ''))}")
+    parsed = _parse_wireframe_llm_json(llm_raw)
+    charts = (parsed or {}).get("charts") if isinstance(parsed, dict) else None
+    if not isinstance(charts, list) or not charts:
+        if logs is not None:
+            logs.append("[WIRE] Using fallback chart plans")
+        charts = _wireframe_default_chart_plans(kpis, chart_count=count)
+    if prefer_image_layout:
+        return charts[:count]
+    return charts[:count]
+
+
+def _wireframe_extract_explicit_targets(prompt_text):
+    text = str(prompt_text or "").strip()
+    lower = text.lower()
+    word_to_num = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+        "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    }
+
+    def _to_int(token):
+        t = str(token or "").strip().lower()
+        if t.isdigit():
+            return int(t)
+        return word_to_num.get(t)
+
+    kpi_count = None
+    chart_count = None
+
+    for pat in [
+        r"\b(?:exactly|around|about|roughly)?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:kpis?|kpi cards?|metrics?)\b",
+    ]:
+        m = re.search(pat, lower)
+        if m:
+            v = _to_int(m.group(1))
+            if v is not None:
+                kpi_count = v
+                break
+
+    for pat in [
+        r"\b(?:exactly|around|about|roughly)?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:charts?|graphs?|plots?|visuals?)\b",
+    ]:
+        m = re.search(pat, lower)
+        if m:
+            v = _to_int(m.group(1))
+            if v is not None:
+                chart_count = v
+                break
+
+    kpi_labels = []
+    kpi_list_match = re.search(
+        r"\bkpi(?:\s+cards?)?\s+(?:for|like|including)\s+(.+?)(?:[.;]|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if kpi_list_match:
+        raw = kpi_list_match.group(1)
+        parts = re.split(r",|\band\b|&", raw, flags=re.IGNORECASE)
+        for part in parts:
+            label = str(part or "").strip(" .:-")
+            if label and label.lower() not in {"etc", "others", "other"}:
+                kpi_labels.append(label)
+        if len(kpi_labels) >= 2:
+            kpi_count = len(kpi_labels) if kpi_count is None else kpi_count
+
+    chart_types = []
+    for t in ["bar", "line", "area", "pie", "heatmap", "scatter"]:
+        if re.search(rf"\b{re.escape(t)}(?:\s+chart)?s?\b", lower):
+            chart_types.append(t)
+
+    has_explicit_layout = bool(
+        kpi_count is not None or chart_count is not None or kpi_labels or chart_types
+    )
+    return {
+        "kpi_count": kpi_count,
+        "chart_count": chart_count,
+        "kpi_labels": kpi_labels[:12],
+        "chart_types": chart_types[:8],
+        "has_explicit_layout": has_explicit_layout,
+    }
+
+
+def generate_wireframe_from_prompt(
+    description,
+    kpi_count=6,
+    chart_count=3,
+    reference_image_b64=None,
+    reference_mime="image/png",
+):
+    llm_logs = []
+    prompt = str(description or "").strip()
+    if not prompt:
+        raise ValueError("Description is required")
+
+    try:
+        requested_kpis = max(3, min(8, int(kpi_count or 6)))
+    except Exception:
+        requested_kpis = 6
+    try:
+        requested_charts = max(0, min(8, int(chart_count or 3)))
+    except Exception:
+        requested_charts = 3
+
+    explicit_targets = _wireframe_extract_explicit_targets(prompt)
+    explicit_kpi_labels = [str(x).strip() for x in (explicit_targets.get("kpi_labels") or []) if str(x).strip()]
+    explicit_chart_types = [
+        _wireframe_normalize_chart_type(t)
+        for t in (explicit_targets.get("chart_types") or [])
+        if str(t).strip()
+    ]
+    explicit_kpi_count = explicit_targets.get("kpi_count")
+    explicit_chart_count = explicit_targets.get("chart_count")
+    text_priority_mode = bool(
+        explicit_kpi_labels
+        or explicit_chart_types
+        or (explicit_kpi_count is not None and explicit_chart_count is not None)
+    )
+
+    if explicit_kpi_count is not None:
+        requested_kpis = max(1, min(8, int(explicit_kpi_count)))
+    elif explicit_kpi_labels:
+        requested_kpis = max(1, min(8, len(explicit_kpi_labels)))
+
+    if explicit_chart_count is not None:
+        requested_charts = max(0, min(8, int(explicit_chart_count)))
+    elif explicit_chart_types:
+        requested_charts = max(0, min(8, len(explicit_chart_types)))
+
+    image_block = None
+    b64 = str(reference_image_b64 or "").strip()
+    if b64:
+        mime = str(reference_mime or "image/png").strip()
+        if not mime.startswith("image/"):
+            mime = "image/png"
+        image_block = {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+        llm_logs.append("[WIRE] Reference image attached")
+
+    if text_priority_mode:
+        llm_logs.append(
+            f"[WIRE] Text directives applied: kpis={requested_kpis}, charts={requested_charts}"
+        )
+    elif image_block:
+        llm_logs.append("[WIRE] Image-first layout mode active")
+
+    if text_priority_mode:
+        priority_rule = "- Text directives are strict priority. If image conflicts with explicit text, follow text."
+    elif image_block:
+        priority_rule = "- If reference image is present, treat image as primary truth for visible KPI cards and chart composition."
+    else:
+        priority_rule = "- Infer KPI/chart layout from text requirements."
+
+    explicit_rules = []
+    if explicit_kpi_count is not None:
+        explicit_rules.append(f"Explicit KPI count from text: {requested_kpis}")
+    if explicit_kpi_labels:
+        explicit_rules.append(f"Explicit KPI labels from text: {', '.join(explicit_kpi_labels[:8])}")
+    if explicit_chart_count is not None:
+        explicit_rules.append(f"Explicit chart count from text: {requested_charts}")
+    if explicit_chart_types:
+        explicit_rules.append(f"Explicit chart types from text (order): {', '.join(explicit_chart_types[:8])}")
+    if not explicit_rules:
+        explicit_rules.append("No strict text directives detected.")
+    explicit_rule_block = "\n".join([f"- {r}" for r in explicit_rules])
+
+    prompt_text = f"""
+You are a senior BI wireframe designer.
+Given user requirements (no real dataset), infer the best business domain and draft KPI wireframe metadata.
+
+Return ONLY JSON with this shape:
+{{
+  "domain": "short domain name",
+  "wireframe_title": "dashboard/wireframe title",
+  "assumptions": ["assumption 1", "assumption 2"],
+  "kpis": [
+    {{
+      "label": "KPI label",
+      "unit": "currency|count|percent|duration|score",
+      "direction": "up|down|stable",
+      "chart": "line|bar|area",
+      "intent": "why this KPI matters"
+    }}
+  ],
+  "charts": [
+    {{
+      "title": "Chart title",
+      "type": "bar|line|area|pie|heatmap|scatter",
+      "source_kpis": ["KPI label 1", "KPI label 2"],
+      "xlabel": "x label",
+      "ylabel": "y label"
+    }}
+  ]
+}}
+
+Rules:
+- {priority_rule}
+- Propose exactly {requested_kpis} KPIs.
+- Propose exactly {requested_charts} charts.
+- Preserve explicit KPI labels/chart types from text when provided.
+- Keep domain specific and practical.
+- KPI names should be business-friendly and non-technical.
+- Do not include SQL, code, or markdown.
+
+Text directives:
+{explicit_rule_block}
+
+User requirement text:
+{prompt}
+""".strip()
+
+    if image_block:
+        content = [
+            {"type": "text", "text": prompt_text},
+            image_block,
+        ]
+    else:
+        content = prompt_text
+
+    llm_raw = None
+    blueprint = None
+    try:
+        debug_target = None if image_block else llm_logs
+        llm_raw, tokens_used = call_ai_with_retry(
+            messages=[{"role": "user", "content": content}],
+            json_mode=True,
+            retries=2,
+            debug_logs=debug_target,
+            context="Generate Wireframe Blueprint",
+        )
+        if image_block:
+            redacted_prompt = _redact_sensitive_text(prompt_text)
+            preview_chars = 6000
+            prompt_preview = redacted_prompt[:preview_chars]
+            if len(redacted_prompt) > preview_chars:
+                prompt_preview += f"\n... [TRUNCATED {len(redacted_prompt) - preview_chars} chars]"
+            llm_logs.append(
+                f"[LLM REQUEST] Generate Wireframe Blueprint | image included | text_chars={len(redacted_prompt)}\n"
+                f"[user]\n{prompt_preview}"
+            )
+            llm_logs.append(
+                f"[LLM RESPONSE] Generate Wireframe Blueprint | tokens={tokens_used} | chars={len(str(llm_raw or ''))}"
+            )
+        blueprint = _parse_wireframe_llm_json(llm_raw)
+    except Exception as e:
+        llm_logs.append(f"[WIRE][WARN] LLM blueprint failed: {str(e)}")
+        blueprint = None
+
+    if not isinstance(blueprint, dict):
+        llm_logs.append("[WIRE] Using heuristic fallback blueprint")
+        blueprint = _wireframe_fallback_blueprint(prompt, requested_kpis)
+
+    if explicit_kpi_labels:
+        deduped_labels = []
+        seen = set()
+        for label in explicit_kpi_labels:
+            clean = re.sub(r"\s+", " ", str(label or "")).strip(" .:-")
+            key = clean.lower()
+            if clean and key not in seen:
+                deduped_labels.append(clean)
+                seen.add(key)
+        base_kpis = blueprint.get("kpis") if isinstance(blueprint.get("kpis"), list) else []
+        enforced_kpis = []
+        for idx, label in enumerate(deduped_labels[:requested_kpis]):
+            src = base_kpis[idx] if idx < len(base_kpis) and isinstance(base_kpis[idx], dict) else {}
+            chart_hint = str(src.get("chart") or "line").strip().lower()
+            if chart_hint not in {"line", "bar", "area"}:
+                chart_hint = "line"
+            enforced_kpis.append(
+                {
+                    "label": label,
+                    "unit": str(src.get("unit") or "count").strip().lower() or "count",
+                    "direction": str(src.get("direction") or "up").strip().lower() or "up",
+                    "chart": chart_hint,
+                    "intent": str(src.get("intent") or f"Track {label.lower()} over time.").strip(),
+                }
+            )
+        for idx in range(len(enforced_kpis), requested_kpis):
+            src = base_kpis[idx] if idx < len(base_kpis) and isinstance(base_kpis[idx], dict) else {}
+            label = str(src.get("label") or f"KPI {idx + 1}").strip() or f"KPI {idx + 1}"
+            chart_hint = str(src.get("chart") or "line").strip().lower()
+            if chart_hint not in {"line", "bar", "area"}:
+                chart_hint = "line"
+            enforced_kpis.append(
+                {
+                    "label": label,
+                    "unit": str(src.get("unit") or "count").strip().lower() or "count",
+                    "direction": str(src.get("direction") or "up").strip().lower() or "up",
+                    "chart": chart_hint,
+                    "intent": str(src.get("intent") or f"Track {label.lower()} over time.").strip(),
+                }
+            )
+        blueprint["kpis"] = enforced_kpis[:requested_kpis]
+        llm_logs.append(f"[WIRE] Enforced KPI labels from text: {len(deduped_labels[:requested_kpis])}")
+
+    if image_block and (not text_priority_mode) and isinstance(blueprint.get("kpis"), list) and blueprint.get("kpis"):
+        inferred_kpis = len(blueprint.get("kpis") or [])
+        requested_kpis = max(1, min(12, inferred_kpis))
+        llm_logs.append(f"[WIRE] Image-first KPI inference applied: kpis={requested_kpis}")
+
+    payload = _build_wireframe_payload(blueprint, prompt, requested_kpis=requested_kpis)
+    blueprint_charts = blueprint.get("charts") if isinstance(blueprint, dict) else None
+    chart_target = requested_charts
+    chart_plans = []
+    prefer_image_layout = bool(image_block and not text_priority_mode)
+    if chart_target <= 0:
+        llm_logs.append("[WIRE] Chart count set to 0; skipping chart generation")
+    elif prefer_image_layout and isinstance(blueprint_charts, list) and blueprint_charts:
+        chart_plans = blueprint_charts[: max(1, min(8, len(blueprint_charts)))]
+        llm_logs.append(f"[WIRE] Image-first chart inference applied: charts={len(chart_plans)}")
+    else:
+        image_chart_cap = 8 if prefer_image_layout else chart_target
+        chart_plans = _wireframe_plan_charts_with_llm(
+            domain=payload.get("domain", ""),
+            prompt=prompt,
+            kpis=payload.get("kpis", []),
+            chart_count=image_chart_cap,
+            logs=llm_logs,
+            reference_image_block=image_block if (image_block and not text_priority_mode) else None,
+            prefer_image_layout=prefer_image_layout,
+        )
+    if explicit_chart_types:
+        first_label = str((payload.get("kpis") or [{}])[0].get("label") or "KPI") if (payload.get("kpis") or []) else "KPI"
+        for idx, forced_type in enumerate(explicit_chart_types[:requested_charts]):
+            if idx < len(chart_plans) and isinstance(chart_plans[idx], dict):
+                chart_plans[idx]["type"] = forced_type
+                if not chart_plans[idx].get("source_kpis"):
+                    chart_plans[idx]["source_kpis"] = [first_label]
+            else:
+                chart_plans.append(
+                    {
+                        "title": f"{forced_type.title()} Chart {idx + 1}",
+                        "type": forced_type,
+                        "source_kpis": [first_label],
+                        "xlabel": "Period" if forced_type in {"line", "area", "heatmap"} else "Category",
+                        "ylabel": "Value",
+                    }
+                )
+        llm_logs.append(f"[WIRE] Enforced chart types from text: {', '.join(explicit_chart_types[:requested_charts])}")
+    if not prefer_image_layout:
+        chart_plans = (chart_plans or [])[: max(0, min(8, requested_charts))]
+
+    charts = []
+    for idx, plan in enumerate(chart_plans):
+        charts.append(_wireframe_build_chart_payload(plan, payload.get("kpis", []), chart_id=f"wchart_{idx+1}"))
+
+    payload["charts"] = charts
+    payload["chart_count"] = len(charts)
+    payload["kpi_count"] = len(payload.get("kpis", []))
+    payload["input"] = {
+        "description": prompt,
+        "kpi_count": requested_kpis,
+        "chart_count": requested_charts,
+        "has_reference_image": bool(image_block),
+    }
+    payload["logs"] = llm_logs
+    return payload
+
+
+def generate_wireframe_artifact_from_prompt(user_prompt, current_payload, artifact_hint="auto"):
+    prompt = str(user_prompt or "").strip()
+    if not prompt:
+        raise ValueError("Prompt is required")
+
+    state = current_payload if isinstance(current_payload, dict) else {}
+    kpis = state.get("kpis", [])
+    charts = state.get("charts", [])
+    if not isinstance(kpis, list):
+        kpis = []
+    if not isinstance(charts, list):
+        charts = []
+    domain = str(state.get("domain") or "Business Performance")
+
+    logs = []
+    hint = str(artifact_hint or "auto").strip().lower()
+    if hint not in {"auto", "kpi", "chart"}:
+        hint = "auto"
+
+    kpi_meta = [{"label": str((k or {}).get("label") or ""), "unit": str((k or {}).get("unit") or "")} for k in kpis]
+    chart_meta = [{"title": str((c or {}).get("title") or ""), "type": str((c or {}).get("type") or "")} for c in charts]
+
+    def _next_unique_artifact_id(prefix, items):
+        used = set()
+        max_num = 0
+        for item in (items or []):
+            raw_id = str((item or {}).get("id") or "").strip()
+            if not raw_id:
+                continue
+            used.add(raw_id)
+            m = re.match(rf"^{re.escape(prefix)}_(\d+)$", raw_id)
+            if m:
+                try:
+                    max_num = max(max_num, int(m.group(1)))
+                except Exception:
+                    pass
+        candidate = max_num + 1 if max_num > 0 else (len(items or []) + 1)
+        while f"{prefix}_{candidate}" in used:
+            candidate += 1
+        return f"{prefix}_{candidate}"
+
+    prompt_text = f"""
+You are a BI wireframe assistant.
+Decide whether user wants a new KPI card or a new chart, then propose one artifact.
+
+Return ONLY JSON:
+{{
+  "artifact_type": "kpi|chart",
+  "kpi": {{
+    "label": "KPI label",
+    "unit": "currency|count|percent|duration|score",
+    "direction": "up|down|stable",
+    "chart": "line|bar|area",
+    "intent": "why this KPI matters"
+  }},
+  "chart": {{
+    "title": "Chart title",
+    "type": "bar|line|area|pie|heatmap|scatter",
+    "source_kpis": ["KPI label 1", "KPI label 2"],
+    "xlabel": "x label",
+    "ylabel": "y label"
+  }}
+}}
+
+Rules:
+- Respect artifact hint when not auto: {hint}
+- Propose exactly one artifact.
+- Use source_kpis from existing KPI labels only.
+
+Domain: {domain}
+Existing KPIs: {json.dumps(kpi_meta, ensure_ascii=False)}
+Existing Charts: {json.dumps(chart_meta, ensure_ascii=False)}
+User request: {prompt}
+""".strip()
+
+    llm_raw, _ = call_ai_with_retry(
+        messages=[{"role": "user", "content": prompt_text}],
+        json_mode=True,
+        retries=2,
+        debug_logs=logs,
+        context="Generate Wireframe Artifact",
+    )
+    parsed = _parse_wireframe_llm_json(llm_raw) or {}
+
+    artifact_type = str(parsed.get("artifact_type") or "").strip().lower()
+    if hint in {"kpi", "chart"}:
+        artifact_type = hint
+    if artifact_type not in {"kpi", "chart"}:
+        low = prompt.lower()
+        artifact_type = "chart" if any(w in low for w in ["chart", "graph", "plot", "visual"]) else "kpi"
+
+    if artifact_type == "kpi":
+        kpi_plan = parsed.get("kpi") if isinstance(parsed.get("kpi"), dict) else {}
+        if not kpi_plan:
+            kpi_plan = {
+                "label": "New KPI",
+                "unit": "count",
+                "direction": "up",
+                "chart": "line",
+                "intent": f"Track {prompt.lower()}",
+            }
+        kpi_id = _next_unique_artifact_id("wkpi", kpis)
+        month_labels = _wireframe_month_labels(8)
+        label = str(kpi_plan.get("label") or "New KPI")
+        unit = str(kpi_plan.get("unit") or "count").lower()
+        direction = str(kpi_plan.get("direction") or "up").lower()
+        series, delta_pct = _generate_wireframe_series(
+            seed_key=f"{domain}|{label}|{unit}|{direction}|{prompt}|artifact",
+            unit=unit,
+            direction=direction,
+            periods=len(month_labels),
+        )
+        value = series[-1] if series else 0
+        kpi_payload = {
+            "id": kpi_id,
+            "label": label,
+            "intent": str(kpi_plan.get("intent") or f"Track {label.lower()}"),
+            "unit": unit,
+            "direction": direction,
+            "chart": str(kpi_plan.get("chart") or "line").lower(),
+            "value": float(value),
+            "value_display": _format_wireframe_value(value, unit),
+            "delta_pct": round(float(delta_pct), 2),
+            "sparkline": [float(v) for v in series],
+            "periods": month_labels,
+        }
+        return {
+            "artifact_type": "kpi",
+            "kpi": kpi_payload,
+            "logs": logs,
+        }
+
+    chart_plan = parsed.get("chart") if isinstance(parsed.get("chart"), dict) else {}
+    if not chart_plan:
+        defaults = _wireframe_default_chart_plans(kpis, chart_count=1)
+        chart_plan = defaults[0] if defaults else {"title": "New Chart", "type": "bar", "source_kpis": []}
+    chart_id = _next_unique_artifact_id("wchart", charts)
+    chart_payload = _wireframe_build_chart_payload(chart_plan, kpis, chart_id=chart_id)
+    return {
+        "artifact_type": "chart",
+        "chart": chart_payload,
+        "logs": logs,
+    }

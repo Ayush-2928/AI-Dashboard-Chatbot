@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireframe Maker</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        :root {
+            --bg: #070a12;
+            --bg-2: #0d1220;
+            --panel: #101725;
+            --border: rgba(34, 197, 94, 0.30);
+            --text: #f8fafc;
+            --muted: #b7b2df;
+            --accent: #22c55e;
+            --accent-2: #a78bfa;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background:
+                radial-gradient(circle at 12% 0%, rgba(167, 139, 250, 0.14) 0%, transparent 36%),
+                radial-gradient(circle at 88% 0%, rgba(34, 197, 94, 0.11) 0%, transparent 34%),
+                linear-gradient(180deg, #06080f 0%, var(--bg) 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .page {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 18px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .title {
+            font-size: 34px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            margin-top: 2px;
+            font-size: 13px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-radius: 12px;
+            color: var(--text);
+            text-decoration: none;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            font-size: 13px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 16px;
+        }
+
+        .panel {
+            background: linear-gradient(160deg, rgba(14, 20, 34, 0.95), rgba(10, 14, 24, 0.96));
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .left-panel h2, .right-panel h2 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            letter-spacing: 0.02em;
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #cbd5e1;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        textarea, input[type="text"], input[type="number"], input[type="file"] {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #0b1220;
+            color: var(--text);
+            padding: 10px;
+            font-size: 13px;
+            outline: none;
+            margin-bottom: 12px;
+        }
+
+        textarea:focus, input:focus {
+            border-color: rgba(34, 197, 94, 0.6);
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 11px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-generate {
+            width: 100%;
+            background: linear-gradient(90deg, var(--accent), #16a34a);
+            color: #052e16;
+            margin-bottom: 8px;
+        }
+
+        .btn-generate:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            font-size: 12px;
+            color: var(--muted);
+            min-height: 16px;
+        }
+
+        .chatbox {
+            margin-top: 10px;
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+            padding-top: 10px;
+        }
+
+        .chatbox textarea {
+            min-height: 80px;
+            resize: vertical;
+            margin-bottom: 8px;
+        }
+
+        .chatbox-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .chatbox select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #0b1220;
+            color: var(--text);
+            padding: 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            background: linear-gradient(90deg, rgba(167, 139, 250, 0.20), rgba(30, 41, 59, 0.85));
+            color: #e9e5ff;
+            margin-top: 8px;
+            border: 1px solid rgba(167, 139, 250, 0.35);
+        }
+
+        .domain-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            background: rgba(11, 18, 32, 0.72);
+        }
+
+        .domain-pill {
+            display: inline-flex;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(139, 92, 246, 0.2);
+            color: #ddd6fe;
+            border: 1px solid rgba(139, 92, 246, 0.35);
+        }
+
+        .wireframe-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .count-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .count-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 9px;
+            border: 1px solid rgba(167, 139, 250, 0.38);
+            background: rgba(40, 35, 66, 0.45);
+            color: #ddd6fe;
+        }
+
+        .wireframe-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .kpi-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+            background: linear-gradient(150deg, rgba(11, 18, 32, 0.84), rgba(12, 17, 28, 0.95));
+            min-height: 170px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #c4b5fd;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding-right: 24px;
+        }
+
+        .kpi-value {
+            font-size: 29px;
+            line-height: 1;
+            font-weight: 800;
+        }
+
+        .kpi-delta {
+            display: inline-flex;
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 999px;
+            width: fit-content;
+            font-weight: 700;
+        }
+
+        .delta-up {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+
+        .delta-down {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fecaca;
+        }
+
+        .kpi-intent {
+            font-size: 11px;
+            color: #cdd6ea;
+            margin-top: auto;
+        }
+
+        .sparkline {
+            width: 100%;
+            height: 54px;
+        }
+
+        .section-title {
+            margin: 16px 0 8px;
+            font-size: 13px;
+            color: #d8ccff;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .generated-chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .gen-chart-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(11, 18, 32, 0.72);
+            padding: 10px;
+        }
+
+        .gen-chart-title {
+            font-size: 12px;
+            color: #ddd6fe;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            font-weight: 700;
+            padding-right: 24px;
+        }
+
+        .gen-chart-plot {
+            width: 100%;
+            height: 220px;
+        }
+
+        .assumptions {
+            margin: 8px 0 0;
+            padding-left: 18px;
+            color: #cdd6ea;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .logs {
+            margin-top: 12px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            padding-top: 10px;
+            font-family: Consolas, monospace;
+            font-size: 11px;
+            color: #c4b5fd;
+            max-height: 160px;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+
+        .removable-card {
+            position: relative;
+        }
+
+        .remove-chip {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            border: 1px solid rgba(167, 139, 250, 0.38);
+            background: rgba(15, 23, 42, 0.88);
+            color: #ddd6fe;
+            font-size: 12px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .remove-chip:hover {
+            border-color: rgba(34, 197, 94, 0.65);
+            color: #86efac;
+            background: rgba(10, 18, 31, 0.96);
+        }
+
+        .placeholder {
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            color: var(--muted);
+            background: rgba(2, 6, 23, 0.35);
+        }
+
+        @media (max-width: 1200px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+            .wireframe-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
+            .wireframe-grid {
+                grid-template-columns: 1fr;
+            }
+            .generated-chart-grid {
+                grid-template-columns: 1fr;
+            }
+            .row {
+                grid-template-columns: 1fr;
+            }
+            .chatbox-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="topbar">
+            <div>
+                <div class="title">Wireframe Maker</div>
+                <div class="subtitle">Generate domain-focused KPI wireframes from text-only requirements.</div>
+            </div>
+            <a href="/" class="back-link">Back To Main Dashboard</a>
+        </div>
+
+        <div class="layout">
+            <section class="panel left-panel">
+                <h2>Input</h2>
+                <div class="hint">Provide description + KPI requirements + business context in one text box. Optional: attach a reference image.</div>
+
+                <label for="description">Requirement Description</label>
+                <textarea id="description" rows="10" placeholder="Example: Build an FMCG sales performance wireframe focused on brand growth, retailer reach, and region contribution. I need KPI cards for revenue, quantity, active customers, and conversion-like health metrics."></textarea>
+
+                <div class="row">
+                    <div>
+                        <label for="kpi_count">KPI Count</label>
+                        <input id="kpi_count" type="number" min="3" max="8" value="6">
+                    </div>
+                    <div>
+                        <label for="chart_count">Chart Count</label>
+                        <input id="chart_count" type="number" min="0" max="8" value="3">
+                    </div>
+                </div>
+
+                <label for="reference_image">Reference Image (Optional)</label>
+                <input id="reference_image" type="file" accept="image/*">
+
+                <button id="generate_btn" class="btn btn-generate" onclick="generateWireframe()">Generate Wireframe</button>
+                <div id="status" class="status"></div>
+
+                <div class="chatbox">
+                    <label for="artifact_prompt">AI Add (KPI/Chart)</label>
+                    <textarea id="artifact_prompt" placeholder="Example: add a chart showing regional contribution by active customers"></textarea>
+                    <div class="chatbox-row">
+                        <select id="artifact_hint">
+                            <option value="auto">Auto Decide</option>
+                            <option value="kpi">Add KPI</option>
+                            <option value="chart">Add Chart</option>
+                        </select>
+                        <button id="artifact_btn" class="btn btn-secondary" onclick="addArtifactWithAI()">Add With AI</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel right-panel">
+                <h2>Output</h2>
+                <div id="result_root" class="placeholder">No wireframe yet. Submit a requirement to generate one.</div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        let currentWireframeState = null;
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function setStatus(text, isError = false) {
+            const el = document.getElementById('status');
+            if (!el) return;
+            el.textContent = text || '';
+            el.style.color = isError ? '#fca5a5' : '#b7b2df';
+        }
+
+        function trendClass(delta) {
+            return Number(delta) >= 0 ? 'delta-up' : 'delta-down';
+        }
+
+        function trendText(delta) {
+            const n = Number(delta) || 0;
+            const sign = n >= 0 ? '+' : '';
+            return `${sign}${n.toFixed(1)}% vs baseline`;
+        }
+
+        async function generateWireframe() {
+            const descEl = document.getElementById('description');
+            const kpiCountEl = document.getElementById('kpi_count');
+            const chartCountEl = document.getElementById('chart_count');
+            const fileEl = document.getElementById('reference_image');
+            const btn = document.getElementById('generate_btn');
+
+            const description = (descEl?.value || '').trim();
+            if (!description) {
+                setStatus('Description is required.', true);
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('description', description);
+            fd.append('kpi_count', String(kpiCountEl?.value || '6'));
+            fd.append('chart_count', String(chartCountEl?.value || '3'));
+            if (fileEl && fileEl.files && fileEl.files[0]) {
+                fd.append('reference_image', fileEl.files[0]);
+            }
+
+            try {
+                btn.disabled = true;
+                setStatus('Generating wireframe...');
+
+                const res = await fetch('/api/wireframe/generate/', {
+                    method: 'POST',
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || `Request failed (${res.status})`);
+                }
+                currentWireframeState = data;
+                renderWireframe(data);
+                setStatus('Wireframe generated.');
+            } catch (err) {
+                setStatus(err?.message || 'Failed to generate wireframe.', true);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function addArtifactWithAI() {
+            const promptEl = document.getElementById('artifact_prompt');
+            const hintEl = document.getElementById('artifact_hint');
+            const btn = document.getElementById('artifact_btn');
+            const prompt = String(promptEl?.value || '').trim();
+
+            if (!currentWireframeState || !Array.isArray(currentWireframeState.kpis) || !currentWireframeState.kpis.length) {
+                setStatus('Generate base wireframe first.', true);
+                return;
+            }
+            if (!prompt) {
+                setStatus('Enter KPI/chart request first.', true);
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('prompt', prompt);
+            fd.append('artifact_hint', String(hintEl?.value || 'auto'));
+            fd.append('current_state', JSON.stringify(currentWireframeState));
+
+            try {
+                btn.disabled = true;
+                setStatus('Adding artifact with AI...');
+                const res = await fetch('/api/wireframe/add-artifact/', {
+                    method: 'POST',
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || `Request failed (${res.status})`);
+                }
+
+                const artifactType = String(data?.artifact_type || '').toLowerCase();
+                if (artifactType === 'kpi' && data?.kpi) {
+                    if (!Array.isArray(currentWireframeState.kpis)) currentWireframeState.kpis = [];
+                    currentWireframeState.kpis.push(data.kpi);
+                } else if (artifactType === 'chart' && data?.chart) {
+                    if (!Array.isArray(currentWireframeState.charts)) currentWireframeState.charts = [];
+                    currentWireframeState.charts.push(data.chart);
+                }
+                currentWireframeState.kpi_count = Array.isArray(currentWireframeState.kpis) ? currentWireframeState.kpis.length : 0;
+                currentWireframeState.chart_count = Array.isArray(currentWireframeState.charts) ? currentWireframeState.charts.length : 0;
+                currentWireframeState.logs = Array.isArray(data?.logs) ? data.logs : [];
+                renderWireframe(currentWireframeState);
+                if (promptEl) promptEl.value = '';
+                setStatus(`Added ${artifactType || 'artifact'} successfully.`);
+            } catch (err) {
+                setStatus(err?.message || 'Failed to add artifact.', true);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function removeWireframeKpi(index) {
+            if (!currentWireframeState || !Array.isArray(currentWireframeState.kpis)) return;
+            const idx = Number(index);
+            if (!Number.isInteger(idx) || idx < 0 || idx >= currentWireframeState.kpis.length) return;
+            currentWireframeState.kpis.splice(idx, 1);
+            currentWireframeState.kpi_count = currentWireframeState.kpis.length;
+            renderWireframe(currentWireframeState);
+            setStatus('KPI removed.');
+        }
+
+        function removeWireframeChart(index) {
+            if (!currentWireframeState || !Array.isArray(currentWireframeState.charts)) return;
+            const idx = Number(index);
+            if (!Number.isInteger(idx) || idx < 0 || idx >= currentWireframeState.charts.length) return;
+            currentWireframeState.charts.splice(idx, 1);
+            currentWireframeState.chart_count = currentWireframeState.charts.length;
+            renderWireframe(currentWireframeState);
+            setStatus('Chart removed.');
+        }
+
+        function renderWireframe(data) {
+            const root = document.getElementById('result_root');
+            const kpis = Array.isArray(data?.kpis) ? data.kpis : [];
+            const charts = Array.isArray(data?.charts) ? data.charts : [];
+            const assumptions = Array.isArray(data?.assumptions) ? data.assumptions : [];
+            const title = escapeHtml(data?.wireframe_title || 'Generated Wireframe');
+            const domain = escapeHtml(data?.domain || 'Business Performance');
+            const kpiCount = Number(data?.kpi_count || kpis.length || 0);
+            const chartCount = Number(data?.chart_count || charts.length || 0);
+
+            if (!kpis.length) {
+                root.innerHTML = '<div class="placeholder">No KPI wireframe returned.</div>';
+                return;
+            }
+
+            root.className = '';
+            root.innerHTML = `
+                <div class="domain-card">
+                    <div>
+                        <div class="wireframe-title">${title}</div>
+                        <div class="subtitle">Auto-inferred domain and synthetic KPI sample data</div>
+                        <div class="count-row">
+                            <span class="count-pill">KPI Count: ${kpiCount}</span>
+                            <span class="count-pill">Chart Count: ${chartCount}</span>
+                        </div>
+                    </div>
+                    <span class="domain-pill">${domain}</span>
+                </div>
+
+                <div class="wireframe-grid" id="kpi_wireframe_grid"></div>
+
+                <div class="section-title">Generated Charts</div>
+                <div class="generated-chart-grid" id="generated_chart_grid"></div>
+
+                <div class="section-title">Assumptions</div>
+                <ul class="assumptions">
+                    ${assumptions.map(a => `<li>${escapeHtml(a)}</li>`).join('')}
+                </ul>
+
+                <div class="section-title">Generation Logs</div>
+                <div class="logs" id="wire_logs"></div>
+            `;
+
+            const grid = document.getElementById('kpi_wireframe_grid');
+            kpis.forEach((kpi, idx) => {
+                const id = escapeHtml(kpi.id || `kpi_${Math.random()}`);
+                const label = escapeHtml(kpi.label || 'KPI');
+                const value = escapeHtml(kpi.value_display || '');
+                const delta = Number(kpi.delta_pct || 0);
+                const intent = escapeHtml(kpi.intent || '');
+
+                const card = document.createElement('div');
+                card.className = 'kpi-card removable-card';
+                card.innerHTML = `
+                    <button class="remove-chip" type="button" title="Remove KPI" onclick="removeWireframeKpi(${idx})">&times;</button>
+                    <div class="kpi-label">${label}</div>
+                    <div class="kpi-value">${value}</div>
+                    <div class="kpi-delta ${trendClass(delta)}">${trendText(delta)}</div>
+                    <div class="sparkline" id="spark_${id}"></div>
+                    <div class="kpi-intent">${intent}</div>
+                `;
+                grid.appendChild(card);
+            });
+
+            renderSparklines(kpis);
+            renderGeneratedCharts(charts, kpis);
+
+            const logEl = document.getElementById('wire_logs');
+            const logs = Array.isArray(data?.logs) ? data.logs : [];
+            logEl.textContent = logs.length ? logs.join('\n') : 'No logs.';
+        }
+
+        function renderSparklines(kpis) {
+            if (typeof Plotly === 'undefined') return;
+            kpis.forEach((kpi) => {
+                const id = `spark_${kpi.id}`;
+                const el = document.getElementById(id);
+                if (!el) return;
+                const y = Array.isArray(kpi.sparkline) ? kpi.sparkline.map(v => Number(v) || 0) : [];
+                const x = Array.isArray(kpi.periods) ? kpi.periods : y.map((_, i) => String(i + 1));
+
+                Plotly.newPlot(el, [{
+                    type: 'scatter',
+                    mode: 'lines',
+                    x,
+                    y,
+                    line: { color: '#22c55e', width: 2, shape: 'spline' },
+                    fill: 'tozeroy',
+                    fillcolor: 'rgba(34,197,94,0.16)'
+                }], {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    margin: { t: 2, l: 2, r: 2, b: 2 },
+                    xaxis: { visible: false, fixedrange: true },
+                    yaxis: { visible: false, fixedrange: true }
+                }, {
+                    displayModeBar: false,
+                    staticPlot: true,
+                    responsive: true
+                });
+            });
+        }
+
+        function renderGeneratedCharts(charts, kpis) {
+            const host = document.getElementById('generated_chart_grid');
+            if (!host) return;
+            host.innerHTML = '';
+            const items = Array.isArray(charts) ? charts : [];
+            if (!items.length) {
+                host.innerHTML = '<div class="placeholder">No generated charts yet. Use AI Add to create one.</div>';
+                return;
+            }
+
+            items.forEach((chart, idx) => {
+                const chartId = `gen_chart_${idx + 1}`;
+                const card = document.createElement('div');
+                card.className = 'gen-chart-card removable-card';
+                card.innerHTML = `
+                    <button class="remove-chip" type="button" title="Remove Chart" onclick="removeWireframeChart(${idx})">&times;</button>
+                    <div class="gen-chart-title">${escapeHtml(chart?.title || `Chart ${idx + 1}`)} (${escapeHtml(chart?.type || 'bar')})</div>
+                    <div class="gen-chart-plot" id="${chartId}"></div>
+                `;
+                host.appendChild(card);
+                renderGeneratedChartByType(chartId, chart);
+            });
+        }
+
+        function renderGeneratedChartByType(containerId, chart) {
+            if (typeof Plotly === 'undefined') return;
+            const type = String(chart?.type || 'bar').toLowerCase();
+            const x = Array.isArray(chart?.x) ? chart.x : [];
+            const y = Array.isArray(chart?.y) ? chart.y.map(v => Number(v) || 0) : [];
+            const baseLayout = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#d9e3f4', size: 10 },
+                margin: { t: 16, l: 36, r: 12, b: 46 },
+                xaxis: { tickangle: -25, fixedrange: true, showgrid: false },
+                yaxis: { fixedrange: true, gridcolor: 'rgba(167,139,250,0.18)' },
+                colorway: ['#22c55e', '#a78bfa', '#10b981', '#c084fc', '#34d399']
+            };
+
+            let traces = [];
+            let layout = { ...baseLayout };
+
+            if (type === 'pie') {
+                traces = [{
+                    type: 'pie',
+                    labels: x,
+                    values: y,
+                    hole: 0.45,
+                    textinfo: 'label+percent',
+                    marker: { colors: ['#22c55e', '#a78bfa', '#10b981', '#c084fc', '#4ade80', '#8b5cf6'] }
+                }];
+                layout = {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    margin: { t: 10, l: 10, r: 10, b: 10 },
+                    font: { color: '#d9e3f4', size: 10 },
+                    showlegend: false
+                };
+            } else if (type === 'line' || type === 'area') {
+                const series = Array.isArray(chart?.series) ? chart.series : [];
+                if (series.length > 0) {
+                    traces = series.map((s, idx) => ({
+                        type: 'scatter',
+                        mode: 'lines',
+                        x: Array.isArray(s?.x) ? s.x : x,
+                        y: Array.isArray(s?.y) ? s.y.map(v => Number(v) || 0) : y,
+                        name: String(s?.name || `Series ${idx + 1}`),
+                        line: { width: idx === 0 ? 3 : 2, shape: 'spline' },
+                        fill: (type === 'area' && idx === 0) ? 'tozeroy' : 'none',
+                        fillcolor: (type === 'area' && idx === 0) ? 'rgba(34,197,94,0.16)' : undefined,
+                    }));
+                } else {
+                    traces = [{
+                        type: 'scatter',
+                        mode: 'lines',
+                        x,
+                        y,
+                        line: { width: 3, shape: 'spline', color: '#22c55e' },
+                        fill: type === 'area' ? 'tozeroy' : 'none',
+                        fillcolor: type === 'area' ? 'rgba(34,197,94,0.16)' : undefined,
+                    }];
+                }
+                layout.legend = { orientation: 'h', y: -0.26, x: 0, font: { size: 10 } };
+            } else if (type === 'scatter') {
+                traces = [{
+                    type: 'scatter',
+                    mode: 'markers',
+                    x,
+                    y,
+                    marker: { size: 7, color: '#a78bfa', opacity: 0.85 },
+                }];
+            } else if (type === 'heatmap') {
+                traces = [{
+                    type: 'heatmap',
+                    x: Array.isArray(chart?.x) ? chart.x : [],
+                    y: Array.isArray(chart?.y) ? chart.y : [],
+                    z: Array.isArray(chart?.z) ? chart.z : [],
+                    colorscale: [
+                        [0.0, '#0a1220'],
+                        [0.30, '#17352a'],
+                        [0.62, '#22c55e'],
+                        [1.0, '#a78bfa']
+                    ],
+                }];
+                layout.xaxis = { tickangle: -25, fixedrange: true };
+                layout.yaxis = { fixedrange: true };
+            } else {
+                traces = [{
+                    type: 'bar',
+                    x,
+                    y,
+                    marker: { color: '#22c55e' },
+                }];
+            }
+
+            Plotly.newPlot(containerId, traces, layout, { displayModeBar: false, staticPlot: true, responsive: true });
+        }
+
+    </script>
+</body>
+</html>
