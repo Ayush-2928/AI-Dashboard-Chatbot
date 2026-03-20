@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿{% load static %}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -23,8 +24,7 @@
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            grid-template-rows: auto auto auto;
-            grid-auto-rows: minmax(120px, auto);
+            grid-auto-rows: auto;
             gap: 16px;
             min-height: 100vh;
             height: auto;
@@ -45,6 +45,10 @@
         .dashboard-grid > * {
             min-width: 0;
             min-height: 0;
+        }
+
+        .glass-panel[style*="grid-row: span 2"] {
+            align-self: stretch;
         }
         
         #chart_0 { grid-column: span 1; }
@@ -1355,6 +1359,385 @@
             color: #e4e4e7 !important;
         }
 
+        #upload-screen.launcher-screen {
+            position: relative;
+            inset: auto;
+            width: 100%;
+            height: 100dvh;
+            min-height: 100dvh;
+            overflow: hidden;
+            padding: 24px 20px 14px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            z-index: 50;
+            box-sizing: border-box;
+        }
+
+        .launcher-shell {
+            width: min(1200px, 100%);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        .launcher-branding {
+            width: min(860px, 100%);
+            padding-top: 16px !important;
+            padding-bottom: 16px !important;
+            max-height: 38vh;
+            flex-shrink: 0;
+            animation: launcherFadeIn 0.3s ease forwards;
+            opacity: 0;
+            transform: translateY(8px);
+            overflow: hidden;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .launcher-branding-inner {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            align-items: center;
+            gap: 18px;
+            width: 100%;
+        }
+
+        .launcher-branding-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .launcher-branding-right {
+            text-align: center;
+            border-left: 1px solid color-mix(in srgb, var(--app-border) 90%, transparent);
+            padding-left: 16px;
+        }
+
+        .launcher-branding-left h1,
+        .launcher-branding-left p {
+            text-align: center;
+        }
+
+        .launcher-branding-right {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .launcher-branding .text-6xl {
+            font-size: clamp(2.1rem, 4.6vw, 3.2rem);
+            line-height: 1;
+            margin-bottom: 10px !important;
+        }
+
+        .launcher-branding h1 {
+            font-size: clamp(1.75rem, 3.5vw, 2.5rem) !important;
+            margin-bottom: 8px !important;
+        }
+
+        .launcher-branding p {
+            margin-bottom: 14px !important;
+        }
+
+        .launcher-branding .primary-cta {
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+        }
+
+        .launcher-branding .secondary-cta {
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+        }
+
+        .launcher-label {
+            text-align: center;
+            min-height: 0;
+            padding: 10px 0 8px 0;
+            margin-top: 20px;
+            flex-shrink: 0;
+            animation: launcherFadeIn 0.3s ease forwards;
+            animation-delay: 0.12s;
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        .launcher-label-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e5e7eb;
+            line-height: 1.1;
+        }
+
+        .launcher-label-sub {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--app-muted);
+            line-height: 1.1;
+        }
+
+        .launcher-row {
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 12px;
+            display: flex;
+            gap: 20px;
+            flex: 1 1 0;
+            min-height: 0;
+            align-items: stretch;
+            animation: launcherFadeIn 0.3s ease forwards;
+            animation-delay: 0.2s;
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        .launcher-card {
+            width: calc((100% - 60px) / 4);
+            height: 100%;
+            border: 1px solid var(--app-border);
+            border-radius: 18px;
+            background: var(--app-bg-soft);
+            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+
+        .launcher-card.live-card:hover {
+            transform: translateY(-4px) scale(1.04);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+            border-color: color-mix(in srgb, var(--app-accent) 46%, var(--app-border));
+        }
+
+        .launcher-card.coming-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 34px rgba(0, 0, 0, 0.46);
+        }
+
+        .launcher-image {
+            position: relative;
+            flex: 1 1 0;
+            overflow: hidden;
+            border-bottom: 1px solid var(--app-border);
+        }
+
+        .launcher-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.25s ease, filter 0.25s ease;
+        }
+
+        .launcher-card.live-card:hover .launcher-image img {
+            transform: scale(1.04);
+            filter: saturate(1.06);
+        }
+
+        .launcher-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 35%, rgba(0, 0, 0, 0.18) 100%);
+            pointer-events: none;
+            transition: background 0.25s ease;
+        }
+
+        .launcher-card.live-card:hover .launcher-overlay {
+            background: linear-gradient(180deg, rgba(34, 197, 94, 0.06) 25%, rgba(0, 0, 0, 0.25) 100%);
+        }
+
+        .launcher-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            z-index: 2;
+        }
+
+        .launcher-badge.live {
+            background: color-mix(in srgb, var(--app-accent) 26%, rgba(15, 23, 42, 0.86));
+            border: 1px solid color-mix(in srgb, var(--app-accent) 40%, transparent);
+            color: #eafff2;
+        }
+
+        .launcher-badge.soon {
+            background: rgba(30, 41, 59, 0.78);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            color: #cbd5e1;
+        }
+
+        .launcher-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #7b818c;
+        }
+
+        .launcher-placeholder-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            border: 1px dashed rgba(148, 163, 184, 0.45);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #94a3b8;
+        }
+
+        .launcher-info {
+            height: 70px;
+            flex-shrink: 0;
+            padding: 14px 14px 12px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            background: color-mix(in srgb, var(--app-bg-soft) 88%, black 12%);
+        }
+
+        .launcher-info-main {
+            min-width: 0;
+        }
+
+        .launcher-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #f8fafc;
+            line-height: 1.12;
+            transition: color 0.25s ease;
+        }
+
+        .launcher-card.live-card:hover .launcher-title {
+            color: #86efac;
+        }
+
+        .launcher-subtitle {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.2;
+        }
+
+        .launcher-open {
+            border: 1px solid color-mix(in srgb, var(--app-accent) 45%, transparent);
+            color: #dcfce7;
+            background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+            border-radius: 999px;
+            padding: 6px 11px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .launcher-soon {
+            border: 1px solid rgba(148, 163, 184, 0.38);
+            color: #9aa1ab;
+            background: rgba(51, 65, 85, 0.35);
+            border-radius: 999px;
+            padding: 6px 11px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .launcher-row .launcher-card:nth-child(1) { animation: launcherRise 0.3s ease forwards; animation-delay: 0.24s; opacity: 0; transform: translateY(10px); }
+        .launcher-row .launcher-card:nth-child(2) { animation: launcherRise 0.3s ease forwards; animation-delay: 0.32s; opacity: 0; transform: translateY(10px); }
+        .launcher-row .launcher-card:nth-child(3) { animation: launcherRise 0.3s ease forwards; animation-delay: 0.40s; opacity: 0; transform: translateY(10px); }
+        .launcher-row .launcher-card:nth-child(4) { animation: launcherRise 0.3s ease forwards; animation-delay: 0.48s; opacity: 0; transform: translateY(10px); }
+
+        @keyframes launcherFadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes launcherRise {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 900px) {
+            #upload-screen.launcher-screen {
+                height: auto;
+                min-height: 100vh;
+                overflow: visible;
+                padding-bottom: 24px;
+            }
+
+            .launcher-shell {
+                height: auto;
+                display: block;
+            }
+
+            .launcher-row {
+                height: auto;
+                min-height: 0;
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 16px;
+            }
+
+            .launcher-card {
+                width: 100%;
+                min-height: 280px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .launcher-row {
+                grid-template-columns: 1fr;
+            }
+
+            .launcher-branding {
+                width: min(520px, 96vw);
+            }
+
+            .launcher-branding-inner {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .launcher-branding-left {
+                align-items: center;
+                text-align: center;
+                order: 1;
+            }
+
+            .launcher-branding-left h1,
+            .launcher-branding-left p {
+                text-align: center;
+            }
+
+            .launcher-branding-right {
+                align-items: center;
+                text-align: center;
+                border-left: none;
+                border-top: 1px solid color-mix(in srgb, var(--app-border) 90%, transparent);
+                padding-left: 0;
+                padding-top: 10px;
+                order: 2;
+            }
+        }
+
         .dashboard-title-text {
             color: var(--app-chart-title);
             letter-spacing: -0.02em;
@@ -2008,26 +2391,106 @@
 
     {% csrf_token %}
 
-        <div id="upload-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center">
-        <div class="upload-zone startup-card p-12 border-2 border-dashed rounded-3xl backdrop-blur-sm text-center">
-            <div class="text-6xl mb-4">Yuqta</div>
-            <h1 class="text-4xl font-bold mb-4 startup-title">
-                AI Dashboard 
-            </h1>
-            <p class="mb-6 text-sm startup-subtitle">Databricks-powered command center.</p>
-            <div class="flex flex-col items-center gap-3">
-                <button onclick="initDatabricksMode()" class="font-bold py-3 px-8 rounded-full transition-all shadow-lg hover:shadow-xl text-sm primary-cta">
-                    Create Dashboard 
-                </button>
-                <button onclick="initEmptyDashboard()" class="font-semibold py-2 px-6 rounded-full transition-all text-xs secondary-cta">
-                    Generate Empty Dashboard 
-                </button>
+        <div id="upload-screen" class="launcher-screen">
+            <div class="launcher-shell">
+                <div class="upload-zone startup-card border-2 border-dashed rounded-3xl backdrop-blur-sm launcher-branding">
+                    <div class="launcher-branding-inner">
+                        <div class="launcher-branding-left">
+                            <div class="text-6xl mb-4">Yuqta</div>
+                            <h1 class="text-4xl font-bold mb-4 startup-title">
+                                AI Dashboard
+                            </h1>
+                            <p class="mb-6 text-sm startup-subtitle">Databricks-powered command center.</p>
+                        </div>
+                        <div class="launcher-branding-right">
+                            <button onclick="initDatabricksMode()" class="font-bold py-3 px-8 rounded-full transition-all shadow-lg hover:shadow-xl text-sm primary-cta">
+                                Create AI Dashboard
+                            </button>
+                            <button onclick="initEmptyDashboard()" class="font-semibold py-2 px-6 rounded-full transition-all text-xs secondary-cta">
+                                Generate Empty Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="launcher-label">
+                    <div class="launcher-label-title">Your Dashboards</div>
+                    <div class="launcher-label-sub">Click a dashboard to open it</div>
+                </div>
+
+                <div class="launcher-row">
+                    <a href="/dashboard" class="launcher-card live-card" aria-label="Open Sales Cockpit">
+                        <div class="launcher-image">
+                            <img src="{% static 'Sales.png' %}" alt="Sales Cockpit">
+                            <div class="launcher-overlay"></div>
+                            <span class="launcher-badge live">Live</span>
+                        </div>
+                        <div class="launcher-info">
+                            <div class="launcher-info-main">
+                                <div class="launcher-title">Sales Cockpit</div>
+                                <div class="launcher-subtitle">MTD - Region - AI Charts</div>
+                            </div>
+                            <span class="launcher-open">Open -></span>
+                        </div>
+                    </a>
+
+                    <div class="launcher-card coming-card" aria-label="New dashboard coming soon">
+                        <div class="launcher-image">
+                            <div class="launcher-placeholder">
+                                <div class="launcher-placeholder-icon">*</div>
+                                <div>Coming Soon</div>
+                            </div>
+                            <span class="launcher-badge soon">Coming Soon</span>
+                        </div>
+                        <div class="launcher-info">
+                            <div class="launcher-info-main">
+                                <div class="launcher-title">New Dashboard</div>
+                                <div class="launcher-subtitle">Available soon</div>
+                            </div>
+                            <span class="launcher-soon">Soon</span>
+                        </div>
+                    </div>
+
+                    <div class="launcher-card coming-card" aria-label="New dashboard coming soon">
+                        <div class="launcher-image">
+                            <div class="launcher-placeholder">
+                                <div class="launcher-placeholder-icon">*</div>
+                                <div>Coming Soon</div>
+                            </div>
+                            <span class="launcher-badge soon">Coming Soon</span>
+                        </div>
+                        <div class="launcher-info">
+                            <div class="launcher-info-main">
+                                <div class="launcher-title">New Dashboard</div>
+                                <div class="launcher-subtitle">Available soon</div>
+                            </div>
+                            <span class="launcher-soon">Soon</span>
+                        </div>
+                    </div>
+
+                    <div class="launcher-card coming-card" aria-label="New dashboard coming soon">
+                        <div class="launcher-image">
+                            <div class="launcher-placeholder">
+                                <div class="launcher-placeholder-icon">*</div>
+                                <div>Coming Soon</div>
+                            </div>
+                            <span class="launcher-badge soon">Coming Soon</span>
+                        </div>
+                        <div class="launcher-info">
+                            <div class="launcher-info-main">
+                                <div class="launcher-title">New Dashboard</div>
+                                <div class="launcher-subtitle">Available soon</div>
+                            </div>
+                            <span class="launcher-soon">Soon</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="loader" class="hidden mt-2 flex items-center gap-3 loader-caption text-sm">
+                    <div class="loader"></div> Creating Dashboard
+                </div>
             </div>
         </div>
-        <div id="loader" class="hidden mt-6 flex items-center gap-3 loader-caption text-sm">
-            <div class="loader"></div> Creating Dashboard
-        </div>
-    </div>
 
     <div id="dashboard-screen" class="hidden dashboard-grid">
         
@@ -2064,6 +2527,7 @@
                         <button class="theme-option" data-theme-id="sunset" onclick="selectTheme('sunset')">Sunset Ember</button>
                         <button class="theme-option" data-theme-id="midnight_berry" onclick="selectTheme('midnight_berry')">Midnight Berry</button>
                         <button class="theme-option" data-theme-id="frost" onclick="selectTheme('frost')">Frost Slate</button>
+                        <button class="theme-option" data-theme-id="everest" onclick="selectTheme('everest')">Everest Spice</button>
                     </div>
                 </div>
                 <button id="open-glossary-btn" onclick="toggleGlossarySidebar()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
@@ -2244,6 +2708,13 @@
         let customKpiPopupDragging = false;
         let customKpiPopupOffset = { x: 0, y: 0 };
         let chartSlotIds = ['chart_0', 'chart_1', 'chart_2', 'chart_3', 'chart_4'];
+        let indiaGeoJsonCache = null;
+        const INDIA_GEOJSON_URLS = [
+            'https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson',
+            'https://cdn.jsdelivr.net/gh/geohacker/india@master/state/india_state.geojson',
+            'https://raw.githubusercontent.com/udit-001/india-maps-data/master/geojson/india.geojson',
+            'https://raw.githubusercontent.com/india-in-data/kashmir/master/kashmir_geo_final.geojson'
+        ];
         let chartLibrary = [];
         let chartLibrarySeq = 0;
         let glossarySeq = 0;
@@ -2454,6 +2925,44 @@
                 waterfallTotal: '#0891b2',
                 sparkline: '#0ea5e9',
                 gradientClass: 'from-blue-500 to-cyan-500'
+            },
+            everest: {
+                id: 'everest',
+                label: 'Everest Spice',
+                appBg: '#ffffff',
+                appBgGradient: 'linear-gradient(135deg, #ffffff 0%, #fff5eb 100%)',
+                appBgSoft: '#fff5eb',
+                appBgSoft2: '#fff0e0',
+                appBorder: 'rgba(220, 80, 20, 0.20)',
+                appText: '#1a0800',
+                appMuted: '#8b3a0a',
+                accent: '#E31E24',
+                accentStrong: '#E31E24',
+                linkHover: '#ffcc99',
+                purple: '#e87722',
+                purpleStrong: '#cc6600',
+                purpleSoft: '#ffd5a8',
+                panelBg: 'rgba(255, 245, 235, 0.95)',
+                panelBorder: 'rgba(220, 80, 20, 0.25)',
+                kpiBg1: 'rgba(255, 248, 240, 0.98)',
+                kpiBg2: 'rgba(255, 240, 224, 0.96)',
+                chartPrimary: '#E31E24',
+                chartSecondary: '#e87722',
+                chartTitle: '#1a0800',
+                chartFont: '#5c2a00',
+                chartGrid: 'rgba(220, 80, 20, 0.12)',
+                legendBg: 'rgba(255, 245, 235, 0.92)',
+                legendBorder: 'rgba(220, 80, 20, 0.25)',
+                appSurface: 'rgba(255, 248, 240, 0.98)',
+                piePalette: ['#dc5014', '#e87722', '#b83e0a', '#f4a460', '#cc6600', '#ff7f3f', '#8b2500', '#ffcc99', '#d2691e', '#ff6600', '#a0522d', '#ffd5a8'],
+                heatmapScale: [[0, '#1a0800'], [0.16, '#4a1500'], [0.34, '#8b2500'], [0.52, '#b83e0a'], [0.72, '#dc5014'], [0.88, '#f4a460'], [1, '#fff5e6']],
+                treemapScale: [[0, '#4a1500'], [0.6, '#b83e0a'], [1, '#f4a460']],
+                waterfallInc: '#E31E24',
+                waterfallDec: '#ef4444',
+                waterfallTotal: '#e87722',
+                sparkline: '#e87722',
+                liveDot: '#E31E24',
+                gradientClass: 'from-orange-600 to-red-700'
             }
         };
         let activeThemeId = 'default';
@@ -2727,9 +3236,41 @@
 
         function applyAdaptiveInsertLayout(data, options = {}) {
             const charts = Array.isArray(data?.charts) ? data.charts : [];
+            if (!charts.length) return;
+
+            const reservedTop = _computeChartReservedTop(500);
+            const firstChart = charts[0];
+            const isMapLayout = firstChart && String(firstChart.type || '').toLowerCase() === 'india_map';
+
+            if (isMapLayout) {
+                chartSlotIds.forEach((id, idx) => {
+                    const panel = document.getElementById(id);
+                    if (!panel || panel.style.display === 'none') return;
+                    const chart = idx < charts.length ? charts[idx] : null;
+                    if (!chart) return;
+
+                    if (idx === 0) {
+                        panel.style.gridColumn = 'span 2';
+                        panel.style.gridRow = 'span 2';
+                        panel.style.minHeight = '520px';
+                        panel.style.height = '520px';
+                    } else if (idx === 1 || idx === 2) {
+                        panel.style.gridColumn = 'span 1';
+                        panel.style.gridRow = 'span 1';
+                        panel.style.minHeight = '248px';
+                        panel.style.height = '248px';
+                    } else {
+                        panel.style.gridColumn = 'span 1';
+                        panel.style.gridRow = 'span 1';
+                        panel.style.minHeight = '260px';
+                        panel.style.height = '260px';
+                    }
+                });
+                return;
+            }
+
             const rows = _buildChartRowsForCompaction(charts, 4);
             const preferStored = options.preferStored !== false;
-            const reservedTop = _computeChartReservedTop(500);
 
             const spanByIndex = new Map();
             const rowHeightByIndex = new Map();
@@ -2793,6 +3334,7 @@
 
                 const span = spanByIndex.get(idx) || 1;
                 panel.style.gridColumn = `span ${span}`;
+                panel.style.gridRow = 'span 1';
                 const resolvedMinH = _resolveChartMinHeight(chart, span, charts.length, idx, reservedTop);
                 const rowAlignedHeight = rowHeightByIndex.get(idx) || resolvedMinH;
                 panel.style.minHeight = `${rowAlignedHeight}px`;
@@ -3915,11 +4457,37 @@
                 merged.charts = merged.charts.map(existingChart => {
                     const keep = cloneChart(existingChart);
                     if (!keep || keep._removed) return keep;
+                    let source = incomingCharts.find(c => c && c.id === keep.id) || null;
 
-                    const source = incomingCharts[sourceIdx] || null;
+                    if (!source) {
+                        while (sourceIdx < incomingCharts.length) {
+                            const candidate = incomingCharts[sourceIdx];
+                            sourceIdx += 1;
+                            if (candidate && String(candidate.type || '').toLowerCase() === 'india_map' && String(keep.type || '').toLowerCase() !== 'india_map') {
+                                continue;
+                            }
+                            source = candidate || null;
+                            break;
+                        }
+                    } else {
+                        const foundIdx = incomingCharts.findIndex(c => c && c.id === keep.id);
+                        if (foundIdx >= sourceIdx) sourceIdx = foundIdx + 1;
+                    }
+
                     if (!source) return keep;
-                    sourceIdx += 1;
                     if (source._refresh_failed) return keep;
+
+                    const keepType = String(keep.type || '').toLowerCase();
+                    const srcType = String(source.type || '').toLowerCase();
+                    if (keepType === 'india_map' && srcType === 'india_map') {
+                        _copyChartDataFields(keep, source);
+                        if (source.map_meta) keep.map_meta = cloneDashboardPayload(source.map_meta);
+                        if (source.region_col !== undefined) keep.region_col = source.region_col || keep.region_col;
+                        if (source.metric_col !== undefined) keep.metric_col = source.metric_col || keep.metric_col;
+                        if (source.sql !== undefined) keep.sql = source.sql;
+                        keep.original = createChartSnapshot(keep);
+                        return keep;
+                    }
 
                     _copyChartDataFields(keep, source);
                     if (source.sql !== undefined) keep.sql = source.sql;
@@ -3959,6 +4527,7 @@
             if (t === 'table') return 'Table';
             if (t === 'treemap') return 'Treemap';
             if (t === 'waterfall') return 'Waterfall';
+            if (t === 'india_map') return 'India Map';
             return type || 'Chart';
         }
 
@@ -5923,6 +6492,11 @@
                 console.warn(`No data for ${containerId}`);
                 return;
             }
+            const safeSparkData = data
+                .map(v => Number(v))
+                .filter(v => Number.isFinite(v))
+                .map(v => Math.max(0, v));
+            if (!safeSparkData.length) return;
             
             const container = document.getElementById(containerId);
             if (!container) {
@@ -5933,8 +6507,8 @@
             console.log(`Container ${containerId} found, dimensions:`, container.offsetWidth, 'x', container.offsetHeight);
             
             const trace = {
-                y: data,
-                x: data.map((_, i) => i),
+                y: safeSparkData,
+                x: safeSparkData.map((_, i) => i),
                 type: 'scatter',
                 mode: 'lines',
                 line: { 
@@ -5989,7 +6563,8 @@
             if (!Array.isArray(data)) return 0;
             const clean = data
                 .map(v => Number(v))
-                .filter(v => Number.isFinite(v));
+                .filter(v => Number.isFinite(v))
+                .map(v => Math.max(0, v));
 
             if (clean.length < 2) return 0;
 
@@ -6134,6 +6709,648 @@
             }
         }
 
+        function _looksLikeIndiaStateGeoJson(gj) {
+            const features = Array.isArray(gj && gj.features) ? gj.features : [];
+            if (features.length < 15) return false;
+
+            const key = detectGeoStateKey(gj);
+            const uniq = new Set();
+            for (const f of features) {
+                const name = _extractMapFeatureName(f, key);
+                const norm = _normalizeMapName(name);
+                if (!norm) continue;
+                if (/^\d+$/.test(norm)) continue;
+                uniq.add(norm);
+            }
+            return uniq.size >= 10;
+        }
+
+        async function loadIndiaGeoJson() {
+            if (indiaGeoJsonCache) return indiaGeoJsonCache;
+            for (const url of INDIA_GEOJSON_URLS) {
+                try {
+                    const r = await fetch(url, { cache: 'force-cache' });
+                    if (!r.ok) continue;
+                    const gj = await r.json();
+                    if (gj && Array.isArray(gj.features) && gj.features.length && _looksLikeIndiaStateGeoJson(gj)) {
+                        indiaGeoJsonCache = gj;
+                        return gj;
+                    }
+                } catch (_) {
+                    continue;
+                }
+            }
+            return null;
+        }
+
+        function detectGeoStateKey(geojson) {
+            const props = geojson?.features?.[0]?.properties || {};
+            const candidates = ['st_nm', 'ST_NM', 'state_name', 'STATE', 'NAME_1', 'name'];
+            for (const k of candidates) {
+                if (Object.prototype.hasOwnProperty.call(props, k)) return k;
+            }
+            const keys = Object.keys(props || {});
+            return keys.length ? keys[0] : 'name';
+        }
+
+        function _normalizeMapName(v) {
+            return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        }
+
+        function _extractMapFeatureName(feature, stateKey) {
+            if (!feature || !feature.properties) return '';
+            return String(
+                feature.properties[stateKey]
+                || feature.properties.NAME_1
+                || feature.properties.name
+                || feature.properties.st_nm
+                || ''
+            ).trim();
+        }
+
+        function _getGeometryCentroid(geometry) {
+            if (!geometry || !geometry.type || !geometry.coordinates) return null;
+
+            let points = [];
+            if (geometry.type === 'Polygon') {
+                points = Array.isArray(geometry.coordinates[0]) ? geometry.coordinates[0] : [];
+            } else if (geometry.type === 'MultiPolygon') {
+                const poly = Array.isArray(geometry.coordinates[0]) ? geometry.coordinates[0] : [];
+                points = Array.isArray(poly[0]) ? poly[0] : [];
+            }
+
+            if (!Array.isArray(points) || !points.length) return null;
+            let lonSum = 0;
+            let latSum = 0;
+            let n = 0;
+            for (const p of points) {
+                if (!Array.isArray(p) || p.length < 2) continue;
+                const lon = Number(p[0]);
+                const lat = Number(p[1]);
+                if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+                lonSum += lon;
+                latSum += lat;
+                n += 1;
+            }
+            if (!n) return null;
+            return { lon: lonSum / n, lat: latSum / n };
+        }
+
+        function _resolveMapRegions(chart) {
+            const meta = chart && chart.map_meta ? chart.map_meta : {};
+            if (Array.isArray(meta.regions) && meta.regions.length) {
+                return meta.regions.map(r => ({
+                    name: String(r?.name || ''),
+                    value: Number(r?.value) || 0,
+                    pct: Number(r?.pct) || 0,
+                })).filter(r => r.name);
+            }
+
+            const x = Array.isArray(chart?.x) ? chart.x : [];
+            const y = Array.isArray(chart?.y) ? chart.y : [];
+            const pairs = [];
+            for (let i = 0; i < Math.min(x.length, y.length); i++) {
+                pairs.push({
+                    name: String(x[i] || ''),
+                    value: Number(y[i]) || 0,
+                });
+            }
+            const total = pairs.reduce((s, p) => s + Math.abs(Number(p.value) || 0), 0);
+            return pairs.map(p => ({
+                name: p.name,
+                value: Number(p.value) || 0,
+                pct: total > 0 ? ((Number(p.value) || 0) / total) * 100 : 0,
+            })).filter(r => r.name);
+        }
+
+        async function renderIndiaMapOnElement(container, chart) {
+            if (!container) return;
+
+            container.style.position = 'relative';
+            container.style.width = '100%';
+            container.style.height = '100%';
+            container.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--app-muted);font-size:12px;">
+                    Loading map...
+                </div>`;
+
+            const meta = chart && chart.map_meta ? chart.map_meta : {};
+            let regions = _resolveMapRegions(chart);
+            const REGION_MERGE_MAP = {
+                'north 1': 'North',
+                'north1': 'North',
+                'north-1': 'North',
+                'north 2': 'North',
+                'north2': 'North',
+                'north-2': 'North',
+                'south 1': 'South',
+                'south1': 'South',
+                'south-1': 'South',
+                'south 2': 'South',
+                'south2': 'South',
+                'south-2': 'South',
+                'east 1': 'East',
+                'east1': 'East',
+                'west 1': 'West',
+                'west1': 'West',
+            };
+            const mergedMap = {};
+            regions.forEach(r => {
+                const key = String((r && r.name) || '').toLowerCase().trim();
+                const mergedName = REGION_MERGE_MAP[key] || String((r && r.name) || '');
+                if (!mergedMap[mergedName]) {
+                    mergedMap[mergedName] = { name: mergedName, value: 0, pct: 0 };
+                }
+                mergedMap[mergedName].value += Number((r && r.value) || 0);
+                mergedMap[mergedName].pct += Number((r && r.pct) || 0);
+            });
+            const mergedRegions = Object.values(mergedMap);
+            regions = mergedRegions;
+            const metricLabel = String(meta.metric_label || chart?.ylabel || 'Value');
+
+            if (!regions.length) {
+                container.innerHTML = `
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--app-muted);">
+                        <div style="font-size:13px;font-weight:600;">No Region Data</div>
+                        <div style="font-size:11px;margin-top:4px;">
+                            ${meta.region_col ? `Column '${meta.region_col}' returned no data` : 'No region/geography column detected in data'}
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            const normalizedRegionMap = {};
+            regions.forEach(r => {
+                normalizedRegionMap[_normalizeMapName(r.name)] = {
+                    value: Number(r.value) || 0,
+                    pct: Number(r.pct) || 0,
+                    display_name: String(r.name || ''),
+                };
+            });
+
+            const regionToStates = (meta && typeof meta.region_to_states === 'object' && meta.region_to_states)
+                ? meta.region_to_states
+                : {};
+            const mappingType = String(meta.mapping_type || 'direct').toLowerCase();
+
+            // Build reverse lookup: geo-state -> data-region.
+            const stateToRegion = {};
+            Object.entries(regionToStates).forEach(([regionName, states]) => {
+                const normRegionName = _normalizeMapName(regionName);
+                const matchingDataRegion = regions.find(r => {
+                    const rNorm = _normalizeMapName(r && r.name);
+                    return rNorm === normRegionName
+                        || rNorm.includes(normRegionName)
+                        || normRegionName.includes(rNorm);
+                });
+                if (!matchingDataRegion) return;
+                if (!Array.isArray(states)) return;
+                states.forEach((state) => {
+                    const normState = _normalizeMapName(state);
+                    if (!normState) return;
+                    stateToRegion[normState] = {
+                        value: Number(matchingDataRegion.value) || 0,
+                        pct: Number(matchingDataRegion.pct) || 0,
+                        display_name: String(matchingDataRegion.name || ''),
+                    };
+                });
+            });
+            console.log('[MAP] DB regions:', regions.map(r => r.name));
+            console.log('[MAP] stateToRegion keys count:', Object.keys(stateToRegion).length);
+            console.log('[MAP] regionToStates keys:', Object.keys(regionToStates));
+            const STATE_ALIASES = {
+                westbengal: 'west bengal',
+                wb: 'west bengal',
+                orissa: 'odisha',
+                odisha: 'orissa',
+                uttaranchal: 'uttarakhand',
+                uttarakhand: 'uttaranchal',
+                jammuandkashmir: 'jammuandkashmir',
+                dadraandnagarhaveli: 'dadraandnagarhavelianddamananddiu',
+                damananddiu: 'dadraandnagarhavelianddamananddiu',
+            };
+
+            const matchFeatureToRegion = (featureName, feature) => {
+                if (feature && feature.properties && feature.properties._forced_north) {
+                    const northRegion = regions.find(r => {
+                        const n = _normalizeMapName(r && r.name);
+                        return n.includes('north') || n === 'north1' || n === 'north2';
+                    });
+                    if (northRegion) {
+                        return {
+                            value: Number(northRegion.value) || 0,
+                            pct: Number(northRegion.pct) || 0,
+                            display_name: String(northRegion.name || ''),
+                        };
+                    }
+                    return null;
+                }
+
+                const norm = _normalizeMapName(featureName);
+                if (!norm) return null;
+
+                // 1) Direct match
+                if (normalizedRegionMap[norm]) return normalizedRegionMap[norm];
+
+                // 2) State -> business-region mapping
+                if (mappingType === 'business_region' && stateToRegion[norm]) {
+                    return stateToRegion[norm];
+                }
+
+                // 3) Partial direct match (safe only for direct state/geo datasets)
+                if (mappingType !== 'business_region') {
+                    const entries = Object.entries(normalizedRegionMap);
+                    for (const [k, data] of entries) {
+                        if (!k) continue;
+                        if (norm.includes(k) || k.includes(norm)) return data;
+                    }
+                }
+
+                // 4) Partial state mapping match
+                if (mappingType === 'business_region') {
+                    const mappedEntries = Object.entries(stateToRegion);
+                    for (const [normState, data] of mappedEntries) {
+                        if (!normState) continue;
+                        if (norm.includes(normState) || normState.includes(norm)) return data;
+                    }
+                }
+
+                // 5) Alias-normalized fallback
+                const aliasRaw = STATE_ALIASES[norm] || norm;
+                const aliasNorm = _normalizeMapName(aliasRaw);
+                if (aliasNorm !== norm) {
+                    if (stateToRegion[aliasNorm]) return stateToRegion[aliasNorm];
+                    if (normalizedRegionMap[aliasNorm]) return normalizedRegionMap[aliasNorm];
+                    if (mappingType === 'business_region') {
+                        const mappedEntries = Object.entries(stateToRegion);
+                        for (const [normState, data] of mappedEntries) {
+                            if (!normState) continue;
+                            if (aliasNorm.includes(normState) || normState.includes(aliasNorm)) return data;
+                        }
+                    } else {
+                        const entries = Object.entries(normalizedRegionMap);
+                        for (const [k, data] of entries) {
+                            if (!k) continue;
+                            if (aliasNorm.includes(k) || k.includes(aliasNorm)) return data;
+                        }
+                    }
+                }
+
+                return null;
+            };
+
+            try {
+                const geojson = await loadIndiaGeoJson();
+                if (!geojson) {
+                    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--app-muted);">GeoJSON unavailable</div>';
+                    return;
+                }
+
+                if (!geojson.__kashmirMerged) {
+                    const KASHMIR_GEOJSON_URL = 'https://raw.githubusercontent.com/india-in-data/kashmir/master/kashmir_geo_final.geojson';
+                    try {
+                        const kashmirRes = await fetch(KASHMIR_GEOJSON_URL, { cache: 'force-cache' });
+                        if (kashmirRes.ok) {
+                            const kashmirGj = await kashmirRes.json();
+                            if (kashmirGj && Array.isArray(kashmirGj.features)) {
+                                if (!Array.isArray(geojson.features)) geojson.features = [];
+                                kashmirGj.features.forEach(f => {
+                                    if (!f || !f.geometry || !f.geometry.coordinates || !f.geometry.coordinates.length) return;
+                                    const props = (f.properties && typeof f.properties === 'object') ? f.properties : {};
+                                    const isDisputed = props && props.TYPE === 'Disputed';
+                                    props._forced_north = true;
+                                    props._disputed = isDisputed;
+                                    f.properties = props;
+                                    geojson.features.push(f);
+                                });
+                            }
+                        }
+                    } catch (_) {
+                        // Best-effort supplemental Kashmir overlay.
+                    }
+                    geojson.__kashmirMerged = true;
+                }
+
+                const stateKey = detectGeoStateKey(geojson);
+                const features = Array.isArray(geojson.features)
+                    ? geojson.features.filter(f => f && f.geometry && f.geometry.coordinates)
+                    : [];
+                const heatColors = [
+                    '#C1440E',
+                    '#E8A838',
+                    '#3D6B35',
+                    '#1B6CA8',
+                    '#8B5E3C'
+                ];
+
+                const matched = [];
+                features.forEach((f, idx) => {
+                    if (
+                        f
+                        && f.properties
+                        && f.properties._forced_north
+                        && (!f.properties[stateKey] || !String(f.properties[stateKey]).trim())
+                    ) {
+                        const fallbackName = String(
+                            f.properties.NAME_1
+                            || f.properties.name
+                            || f.properties.st_nm
+                            || f.properties.district
+                            || `kashmir_feature_${idx + 1}`
+                        ).trim();
+                        if (fallbackName) {
+                            f.properties[stateKey] = fallbackName;
+                        }
+                    }
+                    const featureName = _extractMapFeatureName(f, stateKey);
+                    const hit = matchFeatureToRegion(featureName, f);
+                    if (!hit) return;
+                    matched.push({
+                        featureName,
+                        feature: f,
+                        value: Number(hit.value) || 0,
+                        pct: Number(hit.pct) || 0,
+                        display_name: String(hit.display_name || featureName || ''),
+                    });
+                });
+
+                if (!matched.length) {
+                    const regionNames = regions.map(r => String(r && r.name ? r.name : '')).filter(Boolean).join(', ');
+                    container.innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--app-muted);padding:20px;text-align:center;">
+                            <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Region Mapping Needed</div>
+                            <div style="font-size:11px;margin-bottom:6px;">
+                                DB regions: <b>${regionNames || 'N/A'}</b>
+                            </div>
+                            <div style="font-size:10px;opacity:0.7;">
+                                Add these region names to the BUSINESS_REGION_TO_STATES mapping in utils.py
+                            </div>
+                        </div>`;
+                    return;
+                }
+
+                const values = matched.map(m => m.value);
+                const maxValue = Math.max(...values, 1);
+                const minValue = Math.min(...values, 0);
+                const regionColorOverrides = {
+                    north: '#C1440E',
+                    east: '#E8A838',
+                    south: '#3D6B35',
+                    west: '#1B6CA8',
+                    central: '#8B5E3C',
+                };
+                const getColorForValue = (value, regionName = '') => {
+                    const normRegion = _normalizeMapName(regionName);
+                    if (regionColorOverrides[normRegion]) {
+                        return regionColorOverrides[normRegion];
+                    }
+                    const v = Number(value) || 0;
+                    if (maxValue === minValue) return heatColors[Math.floor(heatColors.length / 2)];
+                    const ratio = (v - minValue) / (maxValue - minValue);
+                    const bounded = Math.max(0, Math.min(1, ratio));
+                    const idx = Math.min(heatColors.length - 1, Math.floor(bounded * heatColors.length));
+                    return heatColors[idx];
+                };
+                const regionColorIndex = {};
+                const regionColorList = [];
+                const buildDiscreteColorscale = (colors) => {
+                    if (!Array.isArray(colors) || !colors.length) return [[0, '#cccccc'], [1, '#cccccc']];
+                    if (colors.length === 1) return [[0, colors[0]], [1, colors[0]]];
+                    const n = colors.length;
+                    const scale = [];
+                    for (let i = 0; i < n; i += 1) {
+                        const left = i / n;
+                        const right = (i + 1) / n;
+                        scale.push([left, colors[i]]);
+                        scale.push([right, colors[i]]);
+                    }
+                    scale[0][0] = 0;
+                    scale[scale.length - 1][0] = 1;
+                    return scale;
+                };
+                matched.forEach(m => {
+                    const key = _normalizeMapName(m.display_name);
+                    if (!Object.prototype.hasOwnProperty.call(regionColorIndex, key)) {
+                        regionColorIndex[key] = regionColorList.length;
+                        regionColorList.push(getColorForValue(m.value, m.display_name));
+                    }
+                    m._colorIndex = regionColorIndex[key];
+                });
+                const colorscale = buildDiscreteColorscale(regionColorList);
+                const disputedFeatureNames = [];
+                matched.forEach(m => {
+                    if (m.feature && m.feature.properties && m.feature.properties._disputed) {
+                        disputedFeatureNames.push(m.featureName);
+                    }
+                });
+                if (disputedFeatureNames.length) {
+                    console.log('[MAP] Disputed Kashmir features matched:', disputedFeatureNames);
+                }
+
+                const mainChoroplethTrace = {
+                    type: 'choropleth',
+                    geojson: geojson,
+                    locations: matched.map(m => m.featureName),
+                    z: matched.map(m => Number(m._colorIndex) || 0),
+                    customdata: matched.map(m => ({
+                        display_name: m.display_name,
+                        value: m.value,
+                        pct: m.pct,
+                        metric_label: metricLabel,
+                    })),
+                    hovertemplate:
+                        '<b>%{customdata.display_name}</b><br>'
+                        + '%{customdata.metric_label}: <b>%{customdata.value:,.2f}</b><br>'
+                        + 'Share: <b>%{customdata.pct:.1f}%</b>'
+                        + '<extra></extra>',
+                    featureidkey: `properties.${stateKey}`,
+                    zmin: 0,
+                    zmax: Math.max(regionColorList.length - 1, 1),
+                    colorscale: colorscale,
+                    showscale: false,
+                    marker: {
+                        line: { color: 'rgba(0,0,0,0)', width: 0 },
+                    },
+                };
+
+                const regionGroups = {};
+                matched.forEach(m => {
+                    const key = String(m.display_name || '').trim();
+                    if (!key) return;
+                    if (!regionGroups[key]) regionGroups[key] = [];
+                    regionGroups[key].push(m);
+                });
+
+                const labelTraces = [];
+                Object.entries(regionGroups).forEach(([_, groupFeatures]) => {
+                    let bestFeature = null;
+                    let bestArea = -1;
+                    groupFeatures.forEach(m => {
+                        try {
+                            const geom = m && m.feature ? m.feature.geometry : null;
+                            const coords = geom && geom.type === 'Polygon'
+                                ? geom.coordinates[0]
+                                : (geom && geom.type === 'MultiPolygon' ? geom.coordinates[0]?.[0] : []);
+                            if (!Array.isArray(coords) || !coords.length) return;
+                            const lons = coords.map(c => Number(c[0])).filter(Number.isFinite);
+                            const lats = coords.map(c => Number(c[1])).filter(Number.isFinite);
+                            if (!lons.length || !lats.length) return;
+                            const area = (Math.max(...lons) - Math.min(...lons)) * (Math.max(...lats) - Math.min(...lats));
+                            if (area > bestArea) {
+                                bestArea = area;
+                                bestFeature = m;
+                            }
+                        } catch (_) {
+                            // Ignore malformed geometry.
+                        }
+                    });
+
+                    if (!bestFeature) return;
+                    try {
+                        const geom = bestFeature && bestFeature.feature ? bestFeature.feature.geometry : null;
+                        const coords = geom && geom.type === 'Polygon'
+                            ? geom.coordinates[0]
+                            : (geom && geom.type === 'MultiPolygon' ? geom.coordinates[0]?.[0] : []);
+                        if (!Array.isArray(coords) || !coords.length) return;
+                        const valid = coords.filter(c => Array.isArray(c) && c.length >= 2 && Number.isFinite(Number(c[0])) && Number.isFinite(Number(c[1])));
+                        if (!valid.length) return;
+                        const lons = valid.map(c => Number(c[0]));
+                        const lats = valid.map(c => Number(c[1]));
+                        let lon = (Math.min(...lons) + Math.max(...lons)) / 2;
+                        let lat = (Math.min(...lats) + Math.max(...lats)) / 2;
+                        const regionKey = _normalizeMapName(bestFeature.display_name);
+                        const labelOffset = {
+                            west: { lon: 1.75, lat: 0.0 },
+                            south: { lon: 0.95, lat: 3.0 },
+                        };
+                        if (labelOffset[regionKey]) {
+                            lon += labelOffset[regionKey].lon;
+                            lat += labelOffset[regionKey].lat;
+                        }
+
+                        labelTraces.push({
+                            type: 'scattergeo',
+                            mode: 'text',
+                            lon: [lon],
+                            lat: [lat],
+                            text: [`${bestFeature.pct.toFixed(1)}%`],
+                            textposition: 'middle center',
+                            customdata: [{
+                                display_name: bestFeature.display_name,
+                                value: bestFeature.value,
+                                pct: bestFeature.pct,
+                                metric_label: metricLabel,
+                            }],
+                            hovertemplate:
+                                '<b>%{customdata.display_name}</b><br>'
+                                + '%{customdata.metric_label}: <b>%{customdata.value:,.2f}</b><br>'
+                                + 'Share: <b>%{customdata.pct:.1f}%</b>'
+                                + '<extra></extra>',
+                            textfont: {
+                                color: '#ffffff',
+                                size: 11,
+                                family: 'Outfit, Segoe UI, Arial',
+                            },
+                            showlegend: false,
+                        });
+                    } catch (_) {
+                        // Skip label when centroid cannot be computed.
+                    }
+                });
+
+                const layout = {
+                    title: {
+                        text: 'Region Performance Map',
+                        font: {
+                            size: 13,
+                            color: (getActiveTheme().chartTitle || '#ffffff'),
+                            family: 'Outfit, Segoe UI, Arial',
+                        },
+                        x: 0.5,
+                        xanchor: 'center',
+                        y: 0.98,
+                        yanchor: 'top',
+                    },
+                    geo: {
+                        projection: { type: 'mercator' },
+                        fitbounds: 'geojson',
+                        domain: { x: [0, 1], y: [0, 1] },
+                        resolution: 50,
+                        showland: false,
+                        showocean: false,
+                        showcountries: false,
+                        showcoastlines: false,
+                        showframe: false,
+                        showlakes: false,
+                        showrivers: false,
+                        bgcolor: 'rgba(0,0,0,0)',
+                        landcolor: 'rgba(0,0,0,0)',
+                    },
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    margin: { l: 0, r: 0, t: 22, b: 0 },
+                    dragmode: false,
+                };
+
+                container.innerHTML = '';
+                await Plotly.newPlot(
+                    container,
+                    [mainChoroplethTrace, ...labelTraces],
+                    layout,
+                    {
+                        displayModeBar: false,
+                        responsive: true,
+                        staticPlot: false,
+                        scrollZoom: false,
+                    }
+                );
+
+                const legendItems = [...regions]
+                    .sort((a, b) => (Number(b.pct) || 0) - (Number(a.pct) || 0))
+                    .map(r => {
+                        const name = String(r && r.name ? r.name : '');
+                        const pct = Number(r && r.pct ? r.pct : 0);
+                        const value = Number(r && r.value ? r.value : 0);
+                        const color = getColorForValue(value, name);
+                        return `
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                                <div style="width:12px;height:12px;border-radius:2px;background:${color};flex-shrink:0;"></div>
+                                <span style="font-size:10px;color:#e2e8f0;white-space:nowrap;">${escapeHtml(name)}</span>
+                                <span style="font-size:10px;color:#94a3b8;margin-left:auto;padding-left:8px;">${pct.toFixed(1)}%</span>
+                            </div>`;
+                    }).join('');
+
+                const legend = document.createElement('div');
+                legend.className = 'india-map-legend';
+                legend.style.cssText = `
+                    position: absolute;
+                    bottom: 12px;
+                    right: 12px;
+                    background: rgba(15, 23, 42, 0.85);
+                    border: 1px solid rgba(148, 163, 184, 0.25);
+                    border-radius: 8px;
+                    padding: 8px 10px;
+                    backdrop-filter: blur(8px);
+                    z-index: 10;
+                    pointer-events: none;
+                    min-width: 140px;
+                `;
+                legend.innerHTML = `
+                    <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">
+                        Region Share
+                    </div>
+                    ${legendItems}
+                `;
+                container.appendChild(legend);
+            } catch (e) {
+                console.error('[MAP] Render error:', e);
+                container.innerHTML = `
+                    <div style="text-align:center;padding:20px;color:var(--app-muted);font-size:12px;">
+                        Map render failed: ${String(e && e.message ? e.message : e)}
+                    </div>`;
+            }
+        }
+
         function renderSingleChart(container, chart, color, isModal = false) {
             const activeTheme = getActiveTheme();
             const commonLayout = {
@@ -6155,6 +7372,10 @@
 
             let trace = { marker: { color: color } };
             const chartType = String(chart.type || 'bar').toLowerCase();
+            if (chartType === 'india_map') {
+                renderIndiaMapOnElement(container, chart);
+                return;
+            }
             const showDataLabels = Boolean(chart && chart.showDataLabels);
             const legendCategoryCount = (chartType === 'pie')
                 ? (Array.isArray(chart.x) ? chart.x.length : 0)
@@ -6715,6 +7936,13 @@
 
             const plotEl = document.getElementById(`plot-${chartId}`);
             initWidgetInteractionsForElement(el, chartId, 'chart');
+            const chartType = String(chart.type || '').toLowerCase();
+            if (chartType === 'india_map') {
+                if (plotEl) {
+                    renderIndiaMapOnElement(plotEl, chart);
+                }
+                return;
+            }
 
             if (!hasRenderableChartData(chart)) {
                 if (plotEl) {
@@ -7214,9 +8442,12 @@
                 const kpiId = ensureKpiId(k);
                 const sparklineId = `sparkline_${kpiId}`;
                 const trendData = k.sparkline || [];
-                const trendChange = calculateTrend(trendData);
+                const validTrendData = Array.isArray(trendData)
+                    ? trendData.map(v => Number(v)).filter(v => Number.isFinite(v) && v >= 0)
+                    : [];
+                const trendChange = calculateTrend(validTrendData);
                 const isPositive = trendChange >= 0;
-                const trendWindowLabel = getKpiTrendWindowLabel(trendData);
+                const trendWindowLabel = getKpiTrendWindowLabel(validTrendData);
 
                 const kpiDiv = document.createElement('div');
                 kpiDiv.className = `kpi-card ${pendingKpiReplaceLibraryId ? 'kpi-replace-target' : ''}`;
@@ -7246,12 +8477,17 @@
                     const kpiId = ensureKpiId(k);
                     const sparklineId = `sparkline_${kpiId}`;
                     const trendData = k.sparkline || [];
+                    const validTrendData = Array.isArray(trendData)
+                        ? trendData.map(v => Number(v)).filter(v => Number.isFinite(v) && v >= 0)
+                        : [];
 
                     const container = document.getElementById(sparklineId);
                     if (!container) return;
-                    if (trendData.length === 0) return;
-
-                    createSparkline(sparklineId, trendData, getActiveTheme().sparkline || getThemeColor());
+                    createSparkline(
+                        sparklineId,
+                        validTrendData.length ? validTrendData : [0, 0, 0, 0, 0, 0],
+                        getActiveTheme().sparkline || getThemeColor()
+                    );
                 });
             }, 180);
             
@@ -7281,4 +8517,6 @@
 
 
 </html>
+
+
 

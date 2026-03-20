@@ -1,0 +1,3177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Cockpit</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --panel: #ffffff;
+            --text: #1f1f1f;
+            --muted: #5f5f5f;
+            --line: #cccccc;
+            --red: #cc0000;
+            --red-2: #e00000;
+            --amber: #f5a800;
+            --amber-2: #ffc000;
+            --green: #1c8d4a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", Arial, sans-serif;
+            height: 100%;
+            min-height: 100%;
+            overflow-x: hidden;
+        }
+
+        .page {
+            min-height: 100vh;
+            width: 100%;
+            padding: 0;
+            background: var(--bg);
+        }
+
+        .top-strip {
+            background: #cc0000;
+            color: #fff;
+            display: grid;
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+            gap: 0;
+            padding: 0 12px;
+            align-items: center;
+            min-height: 55px;
+            border-radius: 0;
+        }
+
+        .strip-item {
+            min-width: 0;
+            min-height: 55px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-right: 10px;
+        }
+
+        .strip-label {
+            font-size: 11px;
+            font-weight: 400;
+            opacity: 0.95;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+        }
+
+        .strip-value {
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: 0.1px;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0;
+            padding: 6px 12px;
+            flex-wrap: wrap;
+            background: #fff;
+            min-height: 52px;
+        }
+
+        .top-actions-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .month-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #7a2525;
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+        }
+
+        .month-inline select {
+            min-width: 130px;
+            height: 34px;
+            border: 1px solid #d53f3f;
+            border-radius: 0;
+            padding: 0 8px;
+            font-size: 13px;
+        }
+
+        .btn {
+            border: 1px solid #cfcfcf;
+            background: #fff;
+            color: #222;
+            padding: 0 12px;
+            height: 36px;
+            border-radius: 0;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--red-2);
+            border-color: #b30000;
+            color: #fff;
+        }
+
+        .btn-soft {
+            background: #fff7f7;
+            border-color: #f0b4b4;
+            color: #981818;
+        }
+
+        .btn-amber {
+            background: var(--amber-2);
+            border-color: #d6a000;
+            color: #302200;
+        }
+
+        .filters {
+            border: 0;
+            background: #fff;
+            padding: 8px 12px;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+            gap: 8px;
+            align-items: end;
+            margin: 0;
+        }
+
+        .field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #7a2525;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .field select,
+        .field input[type="file"],
+        .field textarea,
+        .field input[type="text"] {
+            width: 100%;
+            border: 1px solid #d53f3f;
+            border-radius: 0;
+            background: #fff;
+            color: #222;
+            font-size: 13px;
+            padding: 6px 8px;
+            min-height: 34px;
+        }
+
+        .filters .actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+            align-self: end;
+        }
+
+        #btnApplyFilters {
+            min-height: 34px;
+            padding: 0 12px;
+            white-space: nowrap;
+        }
+
+        .cockpit-grid {
+            display: grid;
+            grid-template-columns: calc((100% - 24px) * 0.30) calc((100% - 24px) * 0.40) calc((100% - 24px) * 0.30);
+            gap: 12px;
+            align-items: stretch;
+            padding: 0 12px 12px 12px;
+            height: calc(100vh - 140px);
+            min-height: calc(100vh - 140px);
+        }
+
+        .panel {
+            border: 2px solid #cc0000;
+            background: var(--panel);
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            padding: 0;
+            background: #fff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .left-panel,
+        .left-panel * {
+            box-sizing: border-box;
+        }
+
+        .cockpit-title {
+            background: #cc0000;
+            color: #fff;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            padding: 12px;
+            margin: 0;
+            border-bottom: 2px solid #cc0000;
+        }
+
+        .kpi-grid {
+            margin: 8px 8px 8px 8px;
+            padding: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            width: calc(100% - 16px);
+        }
+
+        .kpi-box {
+            border: 2px solid #cc0000;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+        }
+
+        .kpi-box .v {
+            font-size: clamp(1.2rem, 2.5vw, 2rem);
+            font-weight: 900;
+            line-height: 1;
+            color: #1e1e1e;
+        }
+
+        .kpi-box .l {
+            margin-top: 4px;
+            color: #666;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .kpi-row {
+            margin: 0 8px 8px 8px;
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+            height: 82px;
+            min-height: 82px;
+            max-height: 82px;
+            width: calc(100% - 16px);
+            box-sizing: border-box;
+        }
+
+        .kpi-box-wide {
+            flex: 0 0 60%;
+            min-height: 82px;
+            max-height: 82px;
+            height: 82px;
+        }
+
+        .kpi-box-wide .v {
+            font-size: clamp(1.2rem, 2.5vw, 2rem);
+        }
+
+        .kpi-mini-stack {
+            flex: 1 1 40%;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            height: 82px;
+            min-height: 82px;
+            max-height: 82px;
+            box-sizing: border-box;
+        }
+
+        .kpi-mini {
+            border: 2px solid #cc0000;
+            flex: 1 1 50%;
+            min-height: 0;
+            height: 50%;
+            display: grid;
+            grid-template-columns: 50px 1fr;
+            background: #fff;
+            box-sizing: border-box;
+        }
+
+        .kpi-mini + .kpi-mini {
+            border-top: 0;
+        }
+
+        .kpi-mini .kv {
+            border-left: 1px solid #efefef;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            font-size: 16px;
+            font-weight: 900;
+            color: #1a7f3f;
+            padding: 0 8px;
+            text-align: right;
+        }
+
+        .kpi-mini .kv.pos {
+            color: #1a7f3f;
+        }
+
+        .kpi-mini .kv.neg {
+            color: #b82121;
+        }
+
+        .kpi-mini .kn {
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 700;
+            border-right: 1px solid #efefef;
+            text-transform: uppercase;
+            color: #303030;
+            width: 50px;
+        }
+
+        .mini-chart-wrap {
+            margin: 0 8px 8px 8px;
+            border: 2px solid #cc0000;
+            background: #fff;
+            padding: 8px;
+            width: calc(100% - 16px);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 150px;
+        }
+
+        #cardDailyBars .chart-plot {
+            height: 140px !important;
+            min-height: 140px !important;
+            flex: 1 1 auto;
+        }
+
+        .small-metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 800;
+            margin-bottom: 3px;
+            color: #2a2a2a;
+        }
+
+        .rrr-drr-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .rrr-drr-item {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .rd-label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #2a2a2a;
+        }
+
+        .rd-value {
+            font-size: 12px;
+            font-weight: 800;
+            color: #2a2a2a;
+        }
+
+        .run-rate-rail {
+            position: relative;
+            height: 10px;
+            background: #ececec;
+            border: 1px solid #d7d7d7;
+            margin: 0 0 10px 0;
+            overflow: visible;
+        }
+
+        .run-rate-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: #f5a800;
+            z-index: 1;
+        }
+
+        .run-rate-target {
+            position: absolute;
+            top: -5px;
+            left: 0;
+            width: 3px;
+            height: 20px;
+            background: #1c8d4a;
+            z-index: 3;
+        }
+
+        .outlet-box {
+            margin: 0 8px 8px 8px;
+            border: 2px solid #cc0000;
+            background: #fff;
+            padding: 8px;
+            width: calc(100% - 16px);
+            box-sizing: border-box;
+        }
+
+        .visited-row {
+            margin-top: 8px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border: 2px solid #cc0000;
+            min-height: 36px;
+        }
+
+        .visited-title {
+            background: #cc0000;
+            color: #fff;
+            font-weight: 800;
+            font-size: 13px;
+            line-height: 1.1;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .visited-value {
+            font-size: 18px;
+            font-weight: 900;
+            color: #2e7d32;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .center-panel {
+            display: block;
+            position: relative;
+            background: transparent;
+            border: none;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: transparent;
+            border: none;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 0;
+        }
+
+        .chart-card {
+            border: 1px solid #cc0000;
+            background: #ffffff;
+            position: relative;
+            min-height: 0;
+            padding: 8px;
+            overflow: hidden;
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-card h3 {
+            margin: 0 0 2px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #282828;
+            font-weight: 900;
+            flex: 0 0 auto;
+            line-height: 1.2;
+        }
+
+        #cardMap h3 {
+            font-size: 14px;
+            color: #111;
+        }
+
+        #cardMap {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            padding: 8px 4px 4px 4px;
+            border: 2px solid #cc0000;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        #cardDonut h3 {
+            display: block;
+        }
+
+        .chart-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 6px;
+            z-index: 3;
+        }
+
+        .chart-actions .a {
+            border: 1px solid #dfdfdf;
+            background: #fff;
+            color: #333;
+            border-radius: 2px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+
+        .chart-actions .danger {
+            border-color: #f0b6b6;
+            color: #8a1818;
+            background: #fff9f9;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+        }
+
+        .chart-card:hover .chart-actions .danger {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .chart-plot {
+            width: 100%;
+            height: auto;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        #plotMap {
+            flex: 1;
+            min-height: 0;
+            height: 100% !important;
+        }
+
+        #cardDonut {
+            position: absolute;
+            bottom: 10px;
+            right: 0;
+            width: 340px;
+            max-width: 340px;
+            max-height: 220px;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            outline: none !important;
+            border-radius: 0;
+            padding: 0;
+            z-index: 10;
+            pointer-events: none !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            pointer-events: auto !important;
+        }
+
+        #donutTitle {
+            margin: 0 0 2px 0;
+            margin-left: 75px;
+            color: #cc0000;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            text-align: left;
+            pointer-events: none;
+            display: block;
+            white-space: normal;
+        }
+
+        #cardDonut.chart-card {
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+
+        #cardDonut .chart-plot {
+            height: 100%;
+            width: 100%;
+        }
+
+        #donutRow {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-end;
+            width: 100%;
+            height: 186px;
+            pointer-events: auto;
+        }
+
+        #plotDonut {
+            width: 140px !important;
+            height: 140px !important;
+            margin-right: 30px;
+            flex: 0 0 auto;
+        }
+
+        #donutLegend {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            padding: 8px;
+            margin-right: 15px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.5);
+            max-width: 130px;
+            color: #ffffff;
+            font-size: 10px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 0 0 auto;
+        }
+
+        .donut-legend-item {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .donut-legend-swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex: 0 0 auto;
+        }
+
+        .donut-legend-text {
+            color: #ffffff;
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+
+        #cardBusinessChannel,
+        #cardAccountGroup,
+        #cardCategoryContribution {
+            padding: 6px;
+            min-height: 0;
+            height: 100%;
+            flex: 1 1 0;
+        }
+
+        #cardBusinessChannel h3,
+        #cardAccountGroup h3,
+        #cardCategoryContribution h3 {
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            padding: 6px 0 2px 0;
+            margin: 0;
+            line-height: 1.2;
+            white-space: normal;
+        }
+
+        .contrib-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex: 0 0 auto;
+            margin-bottom: 2px;
+        }
+
+        .contrib-header h3 {
+            margin: 0;
+            flex: 1 1 auto;
+        }
+
+        .contrib-toggle-btn {
+            border: 1px solid #d8b2b2;
+            background: #fff7f7;
+            color: #7f1818;
+            border-radius: 2px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            cursor: pointer;
+            min-width: 64px;
+            height: 22px;
+            flex: 0 0 auto;
+        }
+
+        .contrib-toggle-btn:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        #plotBusinessChannel,
+        #plotAccountGroup,
+        #plotCategoryContribution {
+            height: 100% !important;
+            min-height: 0 !important;
+            flex: 1;
+        }
+
+        .right-shared-legend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 6px 0;
+            font-size: 11px;
+            color: #222;
+            flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+            background: #fff;
+            border: 1px solid #cc0000;
+        }
+
+        .right-shared-legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .right-shared-legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            display: inline-block;
+            flex: 0 0 auto;
+        }
+
+        .cockpit-grid.compact .cockpit-title {
+            font-size: 18px;
+            padding: 8px;
+        }
+
+        .cockpit-grid.compact .kpi-box .v {
+            font-size: clamp(1rem, 2vw, 1.55rem);
+        }
+
+        .cockpit-grid.compact .kpi-box .l {
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        .cockpit-grid.compact .kpi-row {
+            height: 74px;
+            min-height: 74px;
+            max-height: 74px;
+            margin-bottom: 6px;
+        }
+
+        .cockpit-grid.compact .kpi-box-wide,
+        .cockpit-grid.compact .kpi-mini-stack {
+            height: 74px;
+            min-height: 74px;
+            max-height: 74px;
+        }
+
+        .cockpit-grid.compact .kpi-mini .kn {
+            font-size: 10px;
+            width: 44px;
+            grid-template-columns: 44px 1fr;
+        }
+
+        .cockpit-grid.compact .kpi-mini {
+            grid-template-columns: 44px 1fr;
+        }
+
+        .cockpit-grid.compact .kpi-mini .kv {
+            font-size: 14px;
+            padding: 0 6px;
+        }
+
+        .cockpit-grid.compact .mini-chart-wrap {
+            padding: 6px;
+            margin-bottom: 6px;
+        }
+
+        .cockpit-grid.compact #plotDailyBars {
+            height: 112px !important;
+            min-height: 112px !important;
+        }
+
+        .cockpit-grid.compact .outlet-box {
+            padding: 6px;
+            margin-bottom: 6px;
+        }
+
+        .cockpit-grid.compact .visited-title {
+            font-size: 12px;
+            padding: 6px 8px;
+        }
+
+        .cockpit-grid.compact .visited-value {
+            font-size: 16px;
+        }
+
+        .custom-wrap {
+            margin-top: 12px;
+            border: 2px solid #cc0000;
+            background: #ffffff;
+            padding: 12px;
+        }
+
+        .custom-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .mini-chart-wrap,
+        .outlet-box {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .base-close-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            border: 1px solid #f0b6b6;
+            background: #fff9f9;
+            color: #8a1818;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 3px 8px;
+            cursor: pointer;
+            z-index: 4;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+        }
+
+        .chart-card:hover .base-close-btn,
+        .mini-chart-wrap:hover .base-close-btn,
+        .outlet-box:hover .base-close-btn {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(250, 250, 250, 0.96);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+            padding: 18px;
+        }
+
+        .upload-card {
+            width: min(820px, 96vw);
+            border: 1px solid #e7b1b1;
+            background: #fff;
+            padding: 18px;
+            border-radius: 12px;
+        }
+
+        .upload-title {
+            margin: 0 0 10px 0;
+            font-size: 30px;
+            color: #9d1111;
+            font-weight: 900;
+        }
+
+        .upload-sub {
+            margin: 0 0 10px 0;
+            color: #575757;
+        }
+
+        .upload-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+        }
+
+        .status {
+            margin-top: 8px;
+            min-height: 20px;
+            font-size: 13px;
+            color: #7c1515;
+            font-weight: 600;
+        }
+
+        .side {
+            position: fixed;
+            top: 10px;
+            right: -460px;
+            width: 440px;
+            height: calc(100vh - 20px);
+            border: 1px solid #e2b6b6;
+            background: #fff;
+            z-index: 1300;
+            transition: right 0.2s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .side.open {
+            right: 10px;
+        }
+
+        .side-head {
+            padding: 10px;
+            border-bottom: 1px solid #efefef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .side-title {
+            font-weight: 900;
+            color: #7f1414;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 0.7px;
+        }
+
+        .side-body {
+            flex: 1;
+            overflow: auto;
+            padding: 10px;
+        }
+
+        .chart-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .chart-item {
+            border: 1px solid #ececec;
+            border-radius: 8px;
+            padding: 8px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 8px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .chart-item .nm {
+            color: #333;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .chart-item .rm {
+            border: 1px solid #efb3b3;
+            color: #8e1717;
+            background: #fff7f7;
+            border-radius: 6px;
+            font-size: 11px;
+            padding: 3px 7px;
+            cursor: pointer;
+        }
+
+        .ai-box {
+            border-top: 1px solid #efefef;
+            padding: 10px;
+            display: grid;
+            gap: 8px;
+            background: #fffdfd;
+        }
+
+        .ai-box textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .logs {
+            border: 1px solid #efefef;
+            background: #fafafa;
+            border-radius: 8px;
+            min-height: 70px;
+            max-height: 180px;
+            overflow: auto;
+            padding: 8px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 11px;
+            line-height: 1.35;
+            color: #333;
+            white-space: pre-wrap;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            border: 1px solid #e6b9b9;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            padding: 8px 12px;
+            z-index: 1400;
+            color: #7f1717;
+            font-size: 13px;
+            font-weight: 700;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .drag-on .chart-card {
+            cursor: move;
+            outline: 1px dashed #da9e9e;
+        }
+
+        @media (max-width: 1600px) {
+            .cockpit-grid {
+                grid-template-columns: calc((100% - 24px) * 0.30) calc((100% - 24px) * 0.40) calc((100% - 24px) * 0.30);
+            }
+
+            .kpi-box .v {
+                font-size: 36px;
+            }
+
+            .kpi-box .l {
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 1300px) {
+            .filters {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .cockpit-grid {
+                grid-template-columns: 1fr;
+                height: auto !important;
+                min-height: 0 !important;
+            }
+
+            .center-panel {
+                grid-template-rows: minmax(460px, auto) minmax(240px, auto);
+            }
+
+            .right-panel {
+                grid-template-rows: none;
+            }
+
+            .custom-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="top-strip">
+            <div class="strip-item"><div class="strip-label">Date</div><div class="strip-value" id="hdrDate">-</div></div>
+            <div class="strip-item"><div class="strip-label">Working Days</div><div class="strip-value" id="hdrWorking">-</div></div>
+            <div class="strip-item"><div class="strip-label">Days Lapsed</div><div class="strip-value" id="hdrLapsed">-</div></div>
+            <div class="strip-item"><div class="strip-label">Days Left</div><div class="strip-value" id="hdrLeft">-</div></div>
+            <div class="strip-item"><div class="strip-label">Account Group</div><div class="strip-value" id="hdrAccount">All</div></div>
+            <div class="strip-item"><div class="strip-label">BCRA & Dairy</div><div class="strip-value" id="hdrBcra">All</div></div>
+            <div class="strip-item"><div class="strip-label">Brand Filter</div><div class="strip-value" id="hdrBrand">All</div></div>
+            <div class="strip-item"><div class="strip-label">Value/Volume</div><div class="strip-value" id="hdrValueMode">Value</div></div>
+        </div>
+
+        <div class="top-actions">
+            <div class="top-actions-left">
+                <div class="month-inline">
+                    <span>Month:</span>
+                    <select id="fMonth"></select>
+                </div>
+            </div>
+            <div class="top-actions-left">
+                <button class="btn" id="btnOpenCharts">Open Charts</button>
+                <button class="btn btn-primary" id="btnAiCharts">AI Chart Generation</button>
+                <button class="btn btn-amber" id="btnRearrange">Rearrange Dashboard</button>
+                <button class="btn btn-soft" id="btnNewAnalysis">New Analysis</button>
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="field">
+                <label>Account Group</label>
+                <select id="fAccount"></select>
+            </div>
+            <div class="field">
+                <label>BCRA & Dairy</label>
+                <select id="fBcra"></select>
+            </div>
+            <div class="field">
+                <label>Brand</label>
+                <select id="fBrand"></select>
+            </div>
+            <div class="field">
+                <label>Value / Volume</label>
+                <select id="fValueMode">
+                    <option value="value">Value In Cr's</option>
+                    <option value="volume">Volume</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Donut Mode</label>
+                <select id="fDonutMode">
+                    <option value="business_channel">Business Channel</option>
+                    <option value="region">Region</option>
+                </select>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" id="btnApplyFilters">Apply Filters</button>
+            </div>
+        </div>
+
+        <div class="cockpit-grid" id="cockpitGrid">
+            <div class="panel left-panel" id="cardLeftPanel">
+                <h1 class="cockpit-title">SALES - COCKPIT</h1>
+                <div class="kpi-grid">
+                    <div class="kpi-box"><div class="v" id="kMsp">-</div><div class="l">MSP</div></div>
+                    <div class="kpi-box"><div class="v" id="kLe">-</div><div class="l">LE</div></div>
+                </div>
+                <div class="kpi-row">
+                    <div class="kpi-box kpi-box-wide"><div class="v" id="kMtd">-</div><div class="l">MTD</div></div>
+                    <div class="kpi-mini-stack">
+                        <div class="kpi-mini">
+                            <div class="kn">SLY</div>
+                            <div class="kv" id="kSly">-</div>
+                        </div>
+                        <div class="kpi-mini">
+                            <div class="kn">SEQ</div>
+                            <div class="kv" id="kSeq">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="kpi-row">
+                    <div class="kpi-box kpi-box-wide"><div class="v" id="kEco">-</div><div class="l">ECO (IN CR'S)</div></div>
+                    <div class="kpi-mini-stack">
+                        <div class="kpi-mini">
+                            <div class="kn">SLY</div>
+                            <div class="kv pos" id="kEcoSly">-</div>
+                        </div>
+                        <div class="kpi-mini">
+                            <div class="kn">SEQ</div>
+                            <div class="kv pos" id="kEcoSeq">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mini-chart-wrap" id="cardDailyBars">
+                    <div style="display:flex; flex-direction:column; gap:2px; margin-bottom:4px;">
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span style="font-size:12px; font-weight:800; color:#2a2a2a; min-width:35px;">RRR :</span>
+                            <span style="font-size:12px; font-weight:800; color:#2a2a2a;" id="kRrr">-</span>
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span style="font-size:12px; font-weight:800; color:#2a2a2a; min-width:35px;">DRR :</span>
+                            <span style="font-size:12px; font-weight:800; color:#2a2a2a;" id="kDrr">-</span>
+                        </div>
+                    </div>
+                    <div class="chart-plot" id="plotDailyBars"></div>
+                </div>
+                <div class="outlet-box" id="cardOutlets">
+                    <div class="visited-row">
+                        <div class="visited-title">Visited Outlets</div>
+                        <div class="visited-value" id="kVisited">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel center-panel" id="cardCenterPanel">
+                <div class="chart-card" id="cardMap">
+                    <h3>Region Performance Map</h3>
+                    <div class="chart-plot" id="plotMap"></div>
+                    <div id="cardDonut">
+                        <h3 id="donutTitle">Business Channel wise Contribution %</h3>
+                        <div id="donutRow">
+                            <div class="chart-plot" id="plotDonut"></div>
+                            <div id="donutLegend"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel right-panel" id="cardRightPanel">
+                <div class="chart-card" id="cardBusinessChannel">
+                    <div class="contrib-header">
+                        <h3>Business Channel Contribution</h3>
+                        <button class="contrib-toggle-btn" id="btnToggleBusinessChannel" type="button">Bottom 4</button>
+                    </div>
+                    <div class="chart-plot" id="plotBusinessChannel"></div>
+                </div>
+                <div class="chart-card" id="cardAccountGroup">
+                    <div class="contrib-header">
+                        <h3>Brand Contribution</h3>
+                        <button class="contrib-toggle-btn" id="btnToggleAccountGroup" type="button">Bottom 4</button>
+                    </div>
+                    <div class="chart-plot" id="plotAccountGroup"></div>
+                </div>
+                <div class="chart-card" id="cardCategoryContribution">
+                    <div class="contrib-header">
+                        <h3>Category Contribution</h3>
+                        <button class="contrib-toggle-btn" id="btnToggleCategoryContribution" type="button">Bottom 4</button>
+                    </div>
+                    <div class="chart-plot" id="plotCategoryContribution"></div>
+                </div>
+                <div class="right-shared-legend" id="rightSharedLegend">
+                    <span class="right-shared-legend-item">
+                        <span class="right-shared-legend-swatch" style="background:#CC0000;"></span>
+                        <span>CMTD</span>
+                    </span>
+                    <span class="right-shared-legend-item">
+                        <span class="right-shared-legend-swatch" style="background:#F5A800;"></span>
+                        <span>LYMTD</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="custom-wrap hidden" id="customWrap">
+            <div class="custom-grid" id="customGrid"></div>
+        </div>
+    </div>
+
+    <div class="overlay" id="uploadOverlay">
+        <div class="upload-card">
+            <h2 class="upload-title">Choose Data Source</h2>
+            <p class="upload-sub">Use Databricks templates or upload an Excel `.xlsx` file.</p>
+            <div class="upload-row">
+                <button class="btn btn-primary" id="btnUseDatabricks">Use Databricks</button>
+            </div>
+            <p class="upload-sub" style="margin:8px 0 4px 0;">or upload Excel</p>
+            <div class="upload-row">
+                <input type="file" id="uploadFile" accept=".xlsx" />
+                <button class="btn btn-primary" id="btnUpload">Upload & Build</button>
+            </div>
+            <div class="status" id="uploadStatus"></div>
+        </div>
+    </div>
+
+    <div class="side" id="chartsSide">
+        <div class="side-head">
+            <div class="side-title">Charts</div>
+            <button class="btn" id="btnCloseChartsSide">Close</button>
+        </div>
+        <div class="side-body">
+            <div class="chart-list" id="chartList"></div>
+        </div>
+    </div>
+
+    <div class="side" id="aiSide">
+        <div class="side-head">
+            <div class="side-title">AI Chart Generation</div>
+            <button class="btn" id="btnCloseAiSide">Close</button>
+        </div>
+        <div class="side-body">
+            <div class="field">
+                <label>Prompt</label>
+                <textarea id="aiPrompt" placeholder="Example: Value trend by region"></textarea>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <button class="btn btn-primary" id="btnGenerateChart">Generate Chart</button>
+                <button class="btn" id="btnClearLogs">Clear Logs</button>
+            </div>
+            <div class="status" id="aiStatus"></div>
+            <div class="logs" id="aiLogs"></div>
+        </div>
+        <div class="ai-box">
+            <div style="font-size:12px; color:#6a6a6a; font-weight:600;">LLM receives metadata only (column names), not row data.</div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const state = {
+            payload: null,
+            customCharts: [],
+            hiddenChartIds: new Set(),
+            rearrangeOn: false,
+            dragId: null,
+            aiBusy: false,
+            dataSource: null,
+        };
+
+        const contribViewMode = {
+            plotBusinessChannel: 'top',
+            plotAccountGroup: 'top',
+            plotCategoryContribution: 'top',
+        };
+
+        const contribToggleButtonByPlot = {
+            plotBusinessChannel: 'btnToggleBusinessChannel',
+            plotAccountGroup: 'btnToggleAccountGroup',
+            plotCategoryContribution: 'btnToggleCategoryContribution',
+        };
+
+        const contribTableKeyByPlot = {
+            plotBusinessChannel: 'business_channel_contribution',
+            plotAccountGroup: 'account_group_contribution',
+            plotCategoryContribution: 'category_contribution',
+        };
+
+        const baseCards = [
+            { id: 'cardMap', name: 'Region Performance Map' },
+            { id: 'cardDonut', name: 'Contribution Donut', closable: false },
+            { id: 'cardBusinessChannel', name: 'Business Channel Contribution', closable: false },
+            { id: 'cardAccountGroup', name: 'Brand Contribution', closable: false },
+            { id: 'cardCategoryContribution', name: 'Category Contribution', closable: false },
+            { id: 'cardDailyBars', name: 'Daily Bars (D1/D2/D3/L3)' },
+            { id: 'cardOutlets', name: 'Outlet Mix' },
+        ];
+        const NO_CLOSE_IDS = ['cardDonut'];
+
+        function num(v) {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg || '';
+            t.classList.add('show');
+            clearTimeout(showToast._tm);
+            showToast._tm = setTimeout(() => t.classList.remove('show'), 5000);
+        }
+
+        function fmt(v) {
+            if (v === null || v === undefined || v === '') return '-';
+            return String(v);
+        }
+
+        function getActiveFilters() {
+            return {
+                account_group: document.getElementById('fAccount').value || 'All',
+                bcra_dairy: document.getElementById('fBcra').value || 'All',
+                brand: document.getElementById('fBrand').value || 'All',
+                selected_month: document.getElementById('fMonth').value || '',
+                value_mode: document.getElementById('fValueMode').value || 'value',
+                donut_mode: document.getElementById('fDonutMode').value || 'business_channel',
+            };
+        }
+
+        function setBusy(el, flag, textWhenBusy) {
+            if (!el) return;
+            if (flag) {
+                el.dataset.prev = el.textContent;
+                el.textContent = textWhenBusy || 'Working...';
+                el.disabled = true;
+            } else {
+                if (el.dataset.prev) el.textContent = el.dataset.prev;
+                el.disabled = false;
+            }
+        }
+
+        async function postForm(url, formData) {
+            const res = await fetch(url, { method: 'POST', body: formData });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) {
+                throw new Error(data.error || `Request failed: ${res.status}`);
+            }
+            return data;
+        }
+
+        function fillSelect(selectEl, options, selected) {
+            const current = selected || 'All';
+            selectEl.innerHTML = '';
+            (options || []).forEach(opt => {
+                const o = document.createElement('option');
+                o.value = String(opt);
+                o.textContent = String(opt);
+                if (String(opt) === String(current)) o.selected = true;
+                selectEl.appendChild(o);
+            });
+            if (!selectEl.options.length) {
+                const o = document.createElement('option');
+                o.value = 'All';
+                o.textContent = 'All';
+                selectEl.appendChild(o);
+            }
+        }
+
+        function formatMonthLabel(v) {
+            const s = String(v || '').trim();
+            const m = /^(\d{4})-(\d{2})$/.exec(s);
+            if (!m) return s || 'Latest';
+            const y = Number(m[1]);
+            const mm = Number(m[2]);
+            const d = new Date(y, Math.max(0, mm - 1), 1);
+            if (Number.isNaN(d.getTime())) return s;
+            return d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+        }
+
+        function fillMonthSelect(selectEl, options, selected) {
+            const vals = Array.isArray(options) ? options.filter(Boolean).map(String) : [];
+            const current = String(selected || vals[0] || '');
+            selectEl.innerHTML = '';
+            vals.forEach(v => {
+                const o = document.createElement('option');
+                o.value = v;
+                o.textContent = formatMonthLabel(v);
+                if (v === current) o.selected = true;
+                selectEl.appendChild(o);
+            });
+            if (!selectEl.options.length) {
+                const o = document.createElement('option');
+                o.value = '';
+                o.textContent = 'Latest';
+                selectEl.appendChild(o);
+            }
+        }
+
+        function updateHeader(payload) {
+            const h = payload?.header || {};
+            const sel = payload?.filters?.selected || {};
+            document.getElementById('hdrDate').textContent = fmt(h.date);
+            document.getElementById('hdrWorking').textContent = fmt(h.working_days);
+            document.getElementById('hdrLapsed').textContent = fmt(h.days_lapsed);
+            document.getElementById('hdrLeft').textContent = fmt(h.days_left);
+            document.getElementById('hdrAccount').textContent = fmt(sel.account_group || 'All');
+            document.getElementById('hdrBcra').textContent = fmt(sel.bcra_dairy || 'All');
+            document.getElementById('hdrBrand').textContent = fmt(sel.brand || 'All');
+            document.getElementById('hdrValueMode').textContent = (sel.value_mode || 'value') === 'volume' ? 'Volume' : "Value In Cr's";
+        }
+
+        function updateFilters(payload) {
+            const opts = payload?.filters?.options || {};
+            const selected = payload?.filters?.selected || {};
+            fillSelect(document.getElementById('fAccount'), opts.account_group || ['All'], selected.account_group || 'All');
+            fillSelect(document.getElementById('fBcra'), opts.bcra_dairy || ['All'], selected.bcra_dairy || 'All');
+            fillSelect(document.getElementById('fBrand'), opts.brand || ['All'], selected.brand || 'All');
+            fillMonthSelect(document.getElementById('fMonth'), opts.months || [], selected.selected_month || '');
+            document.getElementById('fValueMode').value = selected.value_mode || 'value';
+            document.getElementById('fDonutMode').value = selected.donut_mode || 'business_channel';
+        }
+
+        function applyGridViewportHeight() {
+            const grid = document.getElementById('cockpitGrid');
+            if (!grid) return;
+            if (window.innerWidth <= 1300) {
+                grid.style.height = 'auto';
+                grid.style.minHeight = '0';
+                grid.classList.remove('compact');
+                return;
+            }
+            const topStrip = document.querySelector('.top-strip');
+            const topActions = document.querySelector('.top-actions');
+            const filters = document.querySelector('.filters');
+            const stripH = topStrip ? topStrip.getBoundingClientRect().height : 0;
+            const actionsH = topActions ? topActions.getBoundingClientRect().height : 0;
+            const filtersH = filters ? filters.getBoundingClientRect().height : 0;
+            // Keep a small safety buffer for borders/sub-pixel rounding to avoid tiny first-load scroll.
+            const chromeH = stripH + actionsH + filtersH + 8;
+            const available = Math.max(420, Math.floor(window.innerHeight - chromeH));
+            grid.style.height = `${available}px`;
+            grid.style.minHeight = `${available}px`;
+            if (available < 680) grid.classList.add('compact');
+            else grid.classList.remove('compact');
+        }
+
+        function updateKpis(payload) {
+            const k = payload?.kpis || {};
+            const rrrRaw = num(k?.rrr?.raw ?? k?.rrr);
+            const drrRaw = num(k?.drr?.raw ?? k?.drr);
+            document.getElementById('kMsp').textContent = fmt(k.msp?.display);
+            document.getElementById('kLe').textContent = fmt(k.le?.display);
+            document.getElementById('kMtd').textContent = fmt(k.mtd?.display);
+            {
+                const ecoRaw = Number(k?.eco?.value);
+                document.getElementById('kEco').textContent = Number.isFinite(ecoRaw) ? ecoRaw.toFixed(1) : fmt(k.eco?.display);
+            }
+            document.getElementById('kRrr').textContent = rrrRaw.toFixed(2);
+            document.getElementById('kDrr').textContent = drrRaw.toFixed(2);
+            document.getElementById('kVisited').textContent = (k.visited_outlets || 0).toLocaleString();
+
+            const sly = num(k.sly_pct);
+            const seq = num(k.seq_pct);
+            const slyEl = document.getElementById('kSly');
+            const seqEl = document.getElementById('kSeq');
+            slyEl.textContent = `${sly.toFixed(2)}%`;
+            seqEl.textContent = `${seq.toFixed(2)}%`;
+            slyEl.className = `kv ${sly >= 0 ? 'pos' : 'neg'}`;
+            seqEl.className = `kv ${seq >= 0 ? 'pos' : 'neg'}`;
+
+            const ecoSlyEl = document.getElementById('kEcoSly');
+            const ecoSeqEl = document.getElementById('kEcoSeq');
+            const ecoSly = num(k.eco_sly);
+            const ecoSeq = num(k.eco_seq);
+            if (ecoSlyEl) {
+                ecoSlyEl.textContent = `${ecoSly.toFixed(2)}%`;
+                ecoSlyEl.className = `kv ${ecoSly >= 0 ? 'pos' : 'neg'}`;
+            }
+            if (ecoSeqEl) {
+                ecoSeqEl.textContent = `${ecoSeq.toFixed(2)}%`;
+                ecoSeqEl.className = `kv ${ecoSeq >= 0 ? 'pos' : 'neg'}`;
+            }
+
+        }
+
+        function updateRunRateProgress(rrr, drr) {
+            const fill = document.getElementById('runRateFill');
+            const target = document.getElementById('runRateTarget');
+            if (!fill || !target) return;
+            const safeR = num(rrr);
+            const safeD = num(drr);
+            const maxRate = Math.max(safeR, safeD, 1) * 1.1;
+            const dPct = Math.min((safeD / maxRate) * 100, 100);
+            const rPct = Math.min((safeR / maxRate) * 100, 100);
+            fill.style.width = `${dPct}%`;
+            fill.style.background = '#f5a800';
+            target.style.left = `${rPct}%`;
+            target.style.display = 'block';
+        }
+
+        function plotDailyBars(payload) {
+            const data = payload?.charts?.daily_bars || {};
+            const labels = data.labels || [];
+            const values = (data.values || []).map(v => num(v));
+            const rrr = num(data.rrr);
+            const drr = num(payload?.kpis?.drr);
+            const maxBar = Math.max(...values, 1);
+            const showRrrLine = !(rrr > (2 * maxBar));
+            const yMax = Math.max(...values, (showRrrLine ? rrr : 0), drr, 1) * 1.18;
+
+            Plotly.newPlot('plotDailyBars', [
+                {
+                    type: 'bar',
+                    x: labels,
+                    y: values,
+                    marker: { color: '#f5a800' },
+                    text: values.map(v => v.toFixed(2)),
+                    textfont: { size: 11, color: '#111' },
+                    textposition: 'outside',
+                    cliponaxis: false,
+                    showlegend: false,
+                    hovertemplate: '%{x}: %{y:.2f}<extra></extra>',
+                },
+            ], {
+                margin: { l: 8, r: 8, t: 12, b: 34 },
+                paper_bgcolor: '#ffffff',
+                plot_bgcolor: '#ffffff',
+                showlegend: false,
+                shapes: [
+                    ...(
+                        showRrrLine
+                            ? [{
+                                type: 'line',
+                                xref: 'paper',
+                                yref: 'y',
+                                x0: 0,
+                                x1: 1,
+                                y0: rrr,
+                                y1: rrr,
+                                line: { color: '#2e7d32', width: 2 },
+                                layer: 'above',
+                            }]
+                            : []
+                    ),
+                    {
+                        type: 'line',
+                        xref: 'paper',
+                        yref: 'y',
+                        x0: 0,
+                        x1: 1,
+                        y0: drr,
+                        y1: drr,
+                        line: { color: '#b22222', width: 2 },
+                        layer: 'above',
+                    },
+                ],
+                annotations: [
+                    ...(
+                        showRrrLine
+                            ? [{
+                                xref: 'paper',
+                                yref: 'y',
+                                x: 0.01,
+                                y: rrr,
+                                text: `RRR: ${rrr.toFixed(2)}`,
+                                showarrow: false,
+                                xanchor: 'left',
+                                yanchor: 'bottom',
+                                font: { size: 10, color: '#2e7d32', family: 'Segoe UI, Arial' },
+                                bgcolor: 'rgba(255,255,255,0.85)',
+                            }]
+                            : []
+                    ),
+                    {
+                        xref: 'paper',
+                        yref: 'y',
+                        x: 0.01,
+                        y: drr,
+                        text: `DRR: ${drr.toFixed(2)}`,
+                        showarrow: false,
+                        xanchor: 'left',
+                        yanchor: 'top',
+                        font: { size: 10, color: '#b22222', family: 'Segoe UI, Arial' },
+                        bgcolor: 'rgba(255,255,255,0.85)',
+                    },
+                ],
+                xaxis: { tickfont: { size: 11, color: '#666' } },
+                yaxis: {
+                    showgrid: false,
+                    zeroline: false,
+                    showticklabels: false,
+                    range: [0, yMax],
+                },
+            }, { displayModeBar: false, responsive: true });
+        }
+
+        function getContribRows(table, targetId) {
+            const labels = Array.isArray(table?.labels) ? table.labels : [];
+            const cmtd = Array.isArray(table?.cmtd) ? table.cmtd : [];
+            const lymtd = Array.isArray(table?.lymtd) ? table.lymtd : [];
+            const rows = labels.map((label, idx) => ({
+                label: String(label || ''),
+                cmtd: Number(cmtd[idx]) || 0,
+                lymtd: Number(lymtd[idx]) || 0,
+            }));
+            const hasBottom = rows.length > 4;
+            const view = contribViewMode[targetId] === 'bottom' ? 'bottom' : 'top';
+            const activeView = hasBottom ? view : 'top';
+            const sliced = activeView === 'bottom' ? rows.slice(4, 8) : rows.slice(0, 4);
+            return { rows: sliced, hasBottom, activeView };
+        }
+
+        function updateContribToggleButton(targetId, hasBottom, activeView) {
+            const btnId = contribToggleButtonByPlot[targetId];
+            const btn = btnId ? document.getElementById(btnId) : null;
+            if (!btn) return;
+            if (!hasBottom) {
+                btn.disabled = true;
+                btn.textContent = 'Top 4';
+                return;
+            }
+            btn.disabled = false;
+            btn.textContent = activeView === 'bottom' ? 'Top 4' : 'Bottom 4';
+        }
+
+        function renderContribPlot(targetId, table, title) {
+            const { rows, hasBottom, activeView } = getContribRows(table, targetId);
+            updateContribToggleButton(targetId, hasBottom, activeView);
+            const yLabels = rows.map((r) => r.label);
+            const cmtd = rows.map((r) => r.cmtd);
+            const lymtd = rows.map((r) => r.lymtd);
+            const fmt1 = (v) => {
+                const n = Number(v) || 0;
+                return n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            };
+            const maxVal = Math.max(
+                0,
+                ...cmtd.map((v) => Number(v) || 0),
+                ...lymtd.map((v) => Number(v) || 0),
+            ) * 1.15;
+            Plotly.newPlot(targetId, [
+                {
+                    type: 'bar',
+                    orientation: 'h',
+                    y: yLabels,
+                    x: cmtd,
+                    marker: { color: '#CC0000' },
+                    name: 'CMTD',
+                    showlegend: false,
+                    text: cmtd.map(fmt1),
+                    textposition: 'outside',
+                    cliponaxis: true,
+                    textfont: { size: 11, color: '#111' },
+                    customdata: yLabels,
+                    hovertemplate: '<b>%{customdata}</b><br>CMTD: %{x:.2f}<extra></extra>',
+                },
+                {
+                    type: 'bar',
+                    orientation: 'h',
+                    y: yLabels,
+                    x: lymtd,
+                    marker: { color: '#F5A800' },
+                    name: 'LYMTD',
+                    showlegend: false,
+                    text: lymtd.map(fmt1),
+                    textposition: 'outside',
+                    cliponaxis: true,
+                    textfont: { size: 11, color: '#111' },
+                    customdata: yLabels,
+                    hovertemplate: '<b>%{customdata}</b><br>LYMTD: %{x:.2f}<extra></extra>',
+                },
+            ], {
+                barmode: 'group',
+                bargap: 0.2,
+                margin: { l: 110, r: 50, t: 5, b: 5 },
+                paper_bgcolor: '#ffffff',
+                plot_bgcolor: '#ffffff',
+                showlegend: false,
+                xaxis: {
+                    showgrid: false,
+                    range: [0, maxVal > 0 ? maxVal : 1],
+                    autorange: false,
+                    showticklabels: false,
+                    tickfont: { size: 9 },
+                },
+                yaxis: { tickangle: 0, automargin: true, tickfont: { size: 11, color: '#111' } },
+            }, { displayModeBar: false, responsive: true });
+        }
+
+        let indiaGeoJsonPromise = null;
+        let kashmirGeoJsonPromise = null;
+        let mapFeatureLogDone = false;
+        const INDIA_GEOJSON_URLS = [
+            'https://raw.githubusercontent.com/datameet/maps/master/States/Admin2.geojson',
+            'https://raw.githubusercontent.com/AnujTiwari/India-State-and-Country-Shapefile-Updated-Jan-2020/master/India_State_Boundary.geojson',
+            'https://raw.githubusercontent.com/HindustanTimesLabs/shapefiles/master/india/state_ut/india_states_uts.geojson',
+            'https://raw.githubusercontent.com/AnimeshShaw/india-map-geojson/main/india_state_claimed.geojson',
+            'https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson',
+            'https://cdn.jsdelivr.net/gh/geohacker/india@master/state/india_state.geojson',
+            'https://raw.githubusercontent.com/udit-001/india-maps-data/master/geojson/india.geojson'
+        ];
+        const KASHMIR_GEOJSON_URLS = [
+            'https://raw.githubusercontent.com/india-in-data/kashmir/master/kashmir_geo_final.geojson',
+            'https://raw.githubusercontent.com/india-in-data/kashmir/master/kashmir_ladakh_siachen.json',
+            'https://raw.githubusercontent.com/india-in-data/kashmir/master/kashmir_geo.geojson',
+        ];
+        const REGION_TO_STATES = {
+            'north 1': [
+                'Jammu and Kashmir',
+                'Jammu & Kashmir',
+                'Jammu And Kashmir',
+                'JAMMU AND KASHMIR',
+                'J&K',
+                'JK',
+                'jk',
+                'Jammu',
+                'Kashmir',
+                'Ladakh',
+                'LADAKH',
+                'Leh',
+                'Leh Ladakh',
+                'Leh and Kargil',
+                'Leh & Kargil',
+                'Kargil',
+                'Himachal Pradesh',
+                'Punjab',
+                'Uttarakhand',
+                'Uttaranchal',
+                'Chandigarh',
+            ],
+            'north 2': [
+                'Haryana',
+                'Delhi',
+                'Rajasthan',
+                'Uttar Pradesh',
+            ],
+            'south 1': ['Andhra Pradesh', 'Telangana', 'Karnataka'],
+            'south 2': ['Tamil Nadu', 'Kerala', 'Puducherry', 'Lakshadweep', 'Andaman and Nicobar Islands'],
+            east: ['Bihar', 'Jharkhand', 'Odisha', 'Orissa', 'West Bengal', 'Assam', 'Meghalaya', 'Manipur', 'Tripura', 'Nagaland', 'Arunachal Pradesh', 'Mizoram', 'Sikkim'],
+            west: ['Gujarat', 'Maharashtra', 'Goa', 'Dadra and Nagar Haveli and Daman and Diu', 'Dadra and Nagar Haveli', 'Daman and Diu'],
+            central: ['Madhya Pradesh', 'Chhattisgarh'],
+            north: [
+                'Jammu and Kashmir',
+                'Jammu & Kashmir',
+                'Jammu And Kashmir',
+                'JAMMU AND KASHMIR',
+                'J&K',
+                'JK',
+                'jk',
+                'Jammu',
+                'Kashmir',
+                'Ladakh',
+                'LADAKH',
+                'Leh',
+                'Leh Ladakh',
+                'Leh and Kargil',
+                'Leh & Kargil',
+                'Kargil',
+                'Gilgit-Baltistan',
+                'Gilgit Baltistan',
+                'Azad Kashmir',
+                'Azad Jammu and Kashmir',
+                'Pakistan Occupied Kashmir',
+                'POK',
+                'Aksai Chin',
+                'Jammu and Kashmir',
+                'Himachal Pradesh',
+                'Punjab',
+                'Uttarakhand',
+                'Uttaranchal',
+            ],
+        };
+        const REGION_COLOR_BY_KEY = {
+            'north 1': '#8B0000',
+            'north 2': '#CC0000',
+            'south 1': '#006400',
+            'south 2': '#228B22',
+            east: '#FF8C00',
+            west: '#DAA520',
+            central: '#4169E1',
+            north: '#8B0000',
+            south: '#228B22',
+        };
+        const REGION_FIXED_ORDER = ['north 1', 'north 2', 'south 1', 'south 2', 'east', 'west', 'central', 'north', 'south'];
+
+        function _normName(v) {
+            return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function _isExcludedIslandFeature(feature) {
+            const props = feature?.properties || {};
+            const rawValues = [
+                props.NAME_1,
+                props.ST_NM,
+                props.st_nm,
+                props.state_name,
+                props.STATE,
+                props.name,
+                props.region,
+                props.VARNAME_1,
+                props.varname_1,
+                ...Object.values(props || {}),
+            ];
+            const norms = rawValues
+                .map((v) => _normName(v))
+                .filter(Boolean);
+            const hasAndamanNicobar = norms.some((n) => n.includes('andaman') || n.includes('nicobar'));
+            const hasLakshadweep = norms.some((n) => n.includes('lakshadweep') || n.includes('laccadive'));
+            return hasAndamanNicobar || hasLakshadweep;
+        }
+
+        function canonicalRegionKey(v) {
+            const n = _normName(v);
+            const alias = {
+                north1: 'north 1',
+                north2: 'north 2',
+                south1: 'south 1',
+                south2: 'south 2',
+                central: 'central',
+                east: 'east',
+                west: 'west',
+                north: 'north',
+            };
+            return alias[n] || n;
+        }
+
+        function regionLabel(v) {
+            return String(canonicalRegionKey(v) || '').toUpperCase();
+        }
+
+        function regionColor(v) {
+            const rk = canonicalRegionKey(v);
+            return REGION_COLOR_BY_KEY[rk] || '#777777';
+        }
+
+        function buildDiscreteColorscale(colors) {
+            const vals = Array.isArray(colors) && colors.length ? colors : ['#cf2f2f'];
+            const n = vals.length;
+            if (n === 1) return [[0, vals[0]], [1, vals[0]]];
+            const scale = [];
+            for (let i = 0; i < n; i += 1) {
+                const left = i / n;
+                const right = (i + 1) / n;
+                scale.push([left, vals[i]]);
+                scale.push([right, vals[i]]);
+            }
+            scale[0][0] = 0;
+            scale[scale.length - 1][0] = 1;
+            return scale;
+        }
+
+        async function loadIndiaGeoJson() {
+            if (indiaGeoJsonPromise) return indiaGeoJsonPromise;
+            indiaGeoJsonPromise = (async () => {
+                for (const url of INDIA_GEOJSON_URLS) {
+                    try {
+                        const r = await fetch(url, { cache: 'force-cache' });
+                        if (!r.ok) continue;
+                        const gj = await r.json();
+                        if (gj && Array.isArray(gj.features) && gj.features.length) return gj;
+                    } catch (_) { /* try next */ }
+                }
+                return null;
+            })();
+            return indiaGeoJsonPromise;
+        }
+
+        async function loadKashmirGeoJson() {
+            if (kashmirGeoJsonPromise) return kashmirGeoJsonPromise;
+            kashmirGeoJsonPromise = (async () => {
+                for (const url of KASHMIR_GEOJSON_URLS) {
+                    try {
+                        const r = await fetch(url, { cache: 'force-cache' });
+                        if (!r.ok) continue;
+                        const gj = await r.json();
+                        if (gj && Array.isArray(gj.features) && gj.features.length) {
+                            console.log('Kashmir GeoJSON loaded:', url, 'features:', gj.features.length);
+                            gj.features.forEach((f) => console.log(
+                                'KASHMIR FEATURE:',
+                                f?.properties?.NAME_1
+                                || f?.properties?.name
+                                || f?.properties?.region
+                                || JSON.stringify(f?.properties || {})
+                            ));
+                            return gj;
+                        }
+                    } catch (_) { /* try next */ }
+                }
+                return null;
+            })();
+            return kashmirGeoJsonPromise;
+        }
+
+        function detectGeoStateKey(geojson) {
+            const props = geojson?.features?.[0]?.properties || {};
+            const candidates = ['st_nm', 'ST_NM', 'state_name', 'STATE', 'NAME_1', 'VARNAME_1', 'varname_1', 'name'];
+            for (const k of candidates) {
+                if (Object.prototype.hasOwnProperty.call(props, k)) return k;
+            }
+            const keys = Object.keys(props || {});
+            return keys.length ? keys[0] : 'name';
+        }
+
+        function resolveStateName(rawState, featureNameByNorm) {
+            const n = _normName(rawState);
+            if (!n) return null;
+            if (featureNameByNorm[n]) return featureNameByNorm[n];
+            const alias = {
+                nctofdelhi: 'delhi',
+                odisha: 'orissa',
+                orissa: 'odisha',
+                andamanandnicobarislands: 'andamannicobar',
+                dadraandnagarhavelianddamananddiu: 'dadranagarhaveli',
+                jammukashmir: 'jammuandkashmir',
+                jammuandkashmir: 'jammukashmir',
+                jk: 'jammuandkashmir',
+                jammu: 'jammuandkashmir',
+                kashmir: 'jammuandkashmir',
+                jammukashmirladakh: 'jammuandkashmir',
+                uttaranchal: 'uttarakhand',
+                uttarakhand: 'uttaranchal',
+                pakistanoccupiedkashmir: 'azadjammuandkashmir',
+                azadjammuandkashmir: 'pakistanoccupiedkashmir',
+                pok: 'azadjammuandkashmir',
+                gilgitbaltistan: 'gilgit',
+                gilgit: 'gilgitbaltistan',
+                azadkashmir: 'azadjammuandkashmir',
+                aksaichin: 'aksai',
+                aksai: 'aksaichin',
+                ladakh: 'ladakh',
+                leh: 'ladakh',
+                lehladakh: 'ladakh',
+                lehandkargil: 'ladakh',
+                lehkargil: 'ladakh',
+                kargil: 'ladakh',
+            };
+            const n2 = alias[n] || n;
+            if (featureNameByNorm[n2]) return featureNameByNorm[n2];
+            const keys = Object.keys(featureNameByNorm);
+            const partial = keys.find(k => k.includes(n2) || n2.includes(k));
+            return partial ? featureNameByNorm[partial] : null;
+        }
+
+        function _collectGeoCoords(coords, out) {
+            if (!Array.isArray(coords)) return;
+            if (coords.length >= 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+                const lon = Number(coords[0]);
+                const lat = Number(coords[1]);
+                if (Number.isFinite(lat) && Number.isFinite(lon)) out.push({ lat, lon });
+                return;
+            }
+            coords.forEach(c => _collectGeoCoords(c, out));
+        }
+
+        function _featureCentroid(feature) {
+            const pts = [];
+            _collectGeoCoords(feature?.geometry?.coordinates, pts);
+            if (!pts.length) return null;
+            let latSum = 0;
+            let lonSum = 0;
+            let count = 0;
+            pts.forEach(p => {
+                if (Number.isFinite(p.lat) && Number.isFinite(p.lon)) {
+                    latSum += p.lat;
+                    lonSum += p.lon;
+                    count += 1;
+                }
+            });
+            if (!count) return null;
+            return { lat: latSum / count, lon: lonSum / count };
+        }
+
+        function _ringArea(ring) {
+            if (!Array.isArray(ring) || ring.length < 3) return 0;
+            let area = 0;
+            for (let i = 0; i < ring.length; i += 1) {
+                const a = ring[i];
+                const b = ring[(i + 1) % ring.length];
+                if (!Array.isArray(a) || !Array.isArray(b)) continue;
+                const ax = Number(a[0]); const ay = Number(a[1]);
+                const bx = Number(b[0]); const by = Number(b[1]);
+                if (!Number.isFinite(ax) || !Number.isFinite(ay) || !Number.isFinite(bx) || !Number.isFinite(by)) continue;
+                area += (ax * by) - (bx * ay);
+            }
+            return area / 2;
+        }
+
+        function _ringCentroid(ring) {
+            const area = _ringArea(ring);
+            const absArea = Math.abs(area);
+            if (absArea < 1e-9) return null;
+            let cx = 0;
+            let cy = 0;
+            for (let i = 0; i < ring.length; i += 1) {
+                const a = ring[i];
+                const b = ring[(i + 1) % ring.length];
+                if (!Array.isArray(a) || !Array.isArray(b)) continue;
+                const ax = Number(a[0]); const ay = Number(a[1]);
+                const bx = Number(b[0]); const by = Number(b[1]);
+                if (!Number.isFinite(ax) || !Number.isFinite(ay) || !Number.isFinite(bx) || !Number.isFinite(by)) continue;
+                const cross = (ax * by) - (bx * ay);
+                cx += (ax + bx) * cross;
+                cy += (ay + by) * cross;
+            }
+            cx /= (6 * area);
+            cy /= (6 * area);
+            if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null;
+            return { lon: cx, lat: cy, area: absArea };
+        }
+
+        function _featureLargestPolygonCentroid(feature) {
+            const geom = feature?.geometry || {};
+            let best = null;
+            let bestArea = -1;
+
+            const considerRing = (ring) => {
+                const c = _ringCentroid(ring);
+                if (!c) return;
+                if (c.area > bestArea) {
+                    bestArea = c.area;
+                    best = c;
+                }
+            };
+
+            if (geom.type === 'Polygon') {
+                const outer = (geom.coordinates || [])[0];
+                considerRing(outer);
+            } else if (geom.type === 'MultiPolygon') {
+                (geom.coordinates || []).forEach((poly) => {
+                    const outer = (poly || [])[0];
+                    considerRing(outer);
+                });
+            }
+
+            return best;
+        }
+
+        function _buildDisputedBoundaryCoords(geojson, stateKey, disputedStateNames) {
+            const wanted = new Set((disputedStateNames || []).map(s => _normName(s)));
+            if (!wanted.size) return { lat: [], lon: [] };
+            const lat = [];
+            const lon = [];
+
+            const pushRing = (ring) => {
+                if (!Array.isArray(ring)) return;
+                ring.forEach(pt => {
+                    if (Array.isArray(pt) && pt.length >= 2) {
+                        const lo = Number(pt[0]);
+                        const la = Number(pt[1]);
+                        if (Number.isFinite(la) && Number.isFinite(lo)) {
+                            lat.push(la);
+                            lon.push(lo);
+                        }
+                    }
+                });
+                lat.push(null);
+                lon.push(null);
+            };
+
+            (geojson?.features || []).forEach((f) => {
+                const rawName = String(
+                    f?.properties?.[stateKey]
+                    || f?.properties?.NAME_1
+                    || f?.properties?.name
+                    || f?.properties?.region
+                    || f?.properties?.st_nm
+                    || ''
+                ).trim();
+                if (!wanted.has(_normName(rawName))) return;
+                const geom = f?.geometry || {};
+                if (geom.type === 'Polygon') {
+                    (geom.coordinates || []).forEach((ring) => pushRing(ring));
+                } else if (geom.type === 'MultiPolygon') {
+                    (geom.coordinates || []).forEach((poly) => {
+                        (poly || []).forEach((ring) => pushRing(ring));
+                    });
+                }
+            });
+
+            return { lat, lon };
+        }
+
+        function buildMapFallbackMarkers(pts) {
+            return pts.map((p) => {
+                const rk = canonicalRegionKey(p.region);
+                const fillColor = regionColor(rk);
+                return {
+                type: 'scattergeo',
+                mode: 'markers+text',
+                lat: [p.lat],
+                lon: [p.lon],
+                text: [`${Number(p.pct || 0).toFixed(2)}%`],
+                customdata: [regionLabel(p.region)],
+                hovertemplate: '%{customdata}<extra></extra>',
+                textposition: 'middle center',
+                marker: {
+                    size: [20 + Math.min(20, Math.sqrt(Math.abs(num(p.value))) / 4)],
+                    color: fillColor,
+                    line: { color: '#2f2f2f', width: 1.2 },
+                    opacity: 0.95,
+                },
+                textfont: { color: fillColor, size: 12, family: 'Segoe UI' },
+                showlegend: false,
+            };
+            });
+        }
+
+        async function plotMap(payload) {
+            const pts = payload?.charts?.map_points || [];
+            const commonLayout = {
+                margin: { l: 0, r: 0, t: 0, b: 0 },
+                paper_bgcolor: '#ffffff',
+                dragmode: false,
+                geo: {
+                    projection: { type: 'mercator' },
+                    fitbounds: 'locations',
+                    resolution: 50,
+                    showland: false,
+                    showocean: false,
+                    showlakes: false,
+                    showrivers: false,
+                    showcountries: false,
+                    showframe: false,
+                    showcoastlines: false,
+                    bgcolor: '#ffffff',
+                    landcolor: '#ffffff',
+                    countrycolor: '#ffffff',
+                    domain: { x: [0, 0.92], y: [0, 1] },
+                },
+            };
+
+            const geojson = await loadIndiaGeoJson();
+            if (!geojson) {
+                Plotly.newPlot('plotMap', buildMapFallbackMarkers(pts), commonLayout, {
+                    displayModeBar: false, responsive: true, scrollZoom: false, doubleClick: false
+                });
+                return;
+            }
+            const kashmirGeoJson = await loadKashmirGeoJson();
+            if (kashmirGeoJson && Array.isArray(kashmirGeoJson.features) && !geojson.__kashmir_merged) {
+                const tagged = kashmirGeoJson.features.map((f) => ({
+                    ...f,
+                    properties: { ...(f?.properties || {}), _forced_region: 'north' },
+                }));
+                geojson.features = [
+                    ...(geojson.features || []),
+                    ...tagged,
+                ];
+                geojson.__kashmir_merged = true;
+            }
+            geojson.features = (geojson.features || []).filter((f) =>
+                Boolean(
+                    f
+                    && f.geometry
+                    && Array.isArray(f.geometry.coordinates)
+                    && f.geometry.coordinates.length > 0
+                ) && !_isExcludedIslandFeature(f)
+            );
+            if (!mapFeatureLogDone) {
+                (geojson.features || []).forEach((f) => {
+                    const p = f?.properties || {};
+                    console.log('FEATURE:',
+                        p.NAME_1
+                        || p.name
+                        || p.st_nm
+                        || p.TERRITORY
+                        || JSON.stringify(p)
+                    );
+                });
+                mapFeatureLogDone = true;
+            }
+
+            const stateKey = detectGeoStateKey(geojson);
+            (geojson.features || []).forEach((f) => {
+                const p = { ...(f?.properties || {}) };
+                const fallbackName = String(
+                    p[stateKey]
+                    || p.NAME_1
+                    || p.name
+                    || p.st_nm
+                    || p.district
+                    || p.region
+                    || ''
+                ).trim();
+                if (!fallbackName) {
+                    f.properties = p;
+                    return;
+                }
+                if (!String(p[stateKey] || '').trim()) p[stateKey] = fallbackName;
+                if (!String(p.NAME_1 || '').trim()) p.NAME_1 = fallbackName;
+                if (!String(p.name || '').trim()) p.name = fallbackName;
+                if (!String(p.st_nm || '').trim()) p.st_nm = fallbackName;
+                if (!String(p.region || '').trim()) p.region = fallbackName;
+                f.properties = p;
+            });
+            const featureNameByNorm = {};
+            (geojson.features || []).forEach(f => {
+                const p = f?.properties || {};
+                const names = [
+                    p[stateKey],
+                    p.NAME_1,
+                    p.name,
+                    p.region,
+                    p.st_nm,
+                    p.district,
+                    p.STATE,
+                    p.VARNAME_1,
+                    p.varname_1,
+                ].map((v) => String(v || '').trim()).filter(Boolean);
+                const canonicalName = names[0] || '';
+                if (!canonicalName) return;
+                names.forEach((nm) => { featureNameByNorm[_normName(nm)] = canonicalName; });
+            });
+            const northStateNorm = new Set((REGION_TO_STATES.north || []).map((s) => _normName(s)));
+
+            const getRegionForState = (stateName, altStateName = '') => {
+                const candidates = [stateName, altStateName].filter(Boolean);
+                for (const cand of candidates) {
+                    const norm = _normName(cand);
+                    if (!norm) continue;
+                    for (const [rk, states] of Object.entries(REGION_TO_STATES)) {
+                        for (const s of (states || [])) {
+                            const sn = _normName(s);
+                            if (!sn) continue;
+                            if (sn === norm || norm.includes(sn) || sn.includes(norm)) return rk;
+                            const matched = resolveStateName(s, featureNameByNorm);
+                            if (matched && _normName(matched) === norm) return rk;
+                        }
+                    }
+                }
+                return '';
+            };
+
+            const getRegionKeyForFeature = (feature) => {
+                const forced = canonicalRegionKey(feature?.properties?._forced_region || '');
+                if (forced) return forced;
+                const primaryName = String(
+                    feature?.properties?.[stateKey]
+                    || feature?.properties?.NAME_1
+                    || feature?.properties?.name
+                    || feature?.properties?.region
+                    || feature?.properties?.st_nm
+                    || feature?.properties?.district
+                    || ''
+                ).trim();
+                const varName = String(feature?.properties?.['VARNAME_1'] || feature?.properties?.['varname_1'] || '').trim();
+                return getRegionForState(primaryName, varName);
+            };
+
+            (geojson.features || []).forEach((f) => {
+                const primaryName = String(f?.properties?.[stateKey] || '').trim();
+                const varName = String(f?.properties?.['VARNAME_1'] || f?.properties?.['varname_1'] || '').trim();
+                const debugName = primaryName
+                    || varName
+                    || String(f?.properties?.NAME_1 || f?.properties?.name || f?.properties?.region || f?.properties?.st_nm || f?.properties?.district || '').trim()
+                    || 'UNKNOWN';
+                if (!getRegionKeyForFeature(f)) {
+                    console.warn('UNMATCHED FEATURE:', debugName, f?.properties || {});
+                }
+            });
+
+            const stateRows = [];
+            pts.forEach(p => {
+                const rk = canonicalRegionKey(p.region);
+                const states = REGION_TO_STATES[rk] || [];
+                states.forEach(st => {
+                    const matched = resolveStateName(st, featureNameByNorm);
+                    if (matched) {
+                        stateRows.push({
+                            state: matched,
+                            region: rk,
+                            pct: Number(p.pct || 0),
+                            score: Number(p.score || 0),
+                        });
+                    }
+                });
+            });
+
+            const uniqueByState = {};
+            stateRows.forEach(r => { if (!uniqueByState[r.state]) uniqueByState[r.state] = r; });
+            const mappedStateNorm = new Set(Object.keys(uniqueByState).map((s) => _normName(s)));
+            const northPoint = pts.find((p) => canonicalRegionKey(p.region) === 'north') || null;
+            const northPct = Number(northPoint?.pct || 0);
+            const northScore = Number(northPoint?.score || 0);
+
+            (geojson.features || []).forEach((f, idx) => {
+                // Highest-priority path: honor forced region tags from merged Kashmir GeoJSON.
+                const forcedRegion = canonicalRegionKey(f?.properties?._forced_region || '');
+                if (forcedRegion) {
+                    const primaryNameForced = String(f?.properties?.[stateKey] || '').trim();
+                    const varNameForced = String(f?.properties?.['VARNAME_1'] || f?.properties?.['varname_1'] || '').trim();
+                    const rawNameForced = primaryNameForced
+                        || varNameForced
+                        || String(f?.properties?.NAME_1 || f?.properties?.name || f?.properties?.region || f?.properties?.st_nm || f?.properties?.district || '').trim()
+                        || `forced_feature_${idx + 1}`;
+
+                    const baseLocation = String(rawNameForced).trim() || `forced_feature_${idx + 1}`;
+                    let locationKey = baseLocation;
+                    if (Object.prototype.hasOwnProperty.call(uniqueByState, locationKey)) {
+                        locationKey = `${baseLocation}__${idx + 1}`;
+                    }
+
+                    if (!f.properties) f.properties = {};
+                    f.properties[stateKey] = locationKey;
+
+                    const forcedPoint = pts.find((p) => canonicalRegionKey(p.region) === forcedRegion) || null;
+                    const forcedPct = Number(forcedPoint?.pct || 0);
+                    const forcedScore = Number(forcedPoint?.score || 0);
+
+                    uniqueByState[locationKey] = {
+                        state: locationKey,
+                        region: forcedRegion,
+                        pct: forcedPct,
+                        score: forcedScore,
+                    };
+                    mappedStateNorm.add(_normName(locationKey));
+                    return;
+                }
+
+                const primaryName = String(f?.properties?.[stateKey] || '').trim();
+                const varName = String(f?.properties?.['VARNAME_1'] || f?.properties?.['varname_1'] || '').trim();
+                const rawName = primaryName
+                    || varName
+                    || String(f?.properties?.NAME_1 || f?.properties?.name || f?.properties?.region || f?.properties?.st_nm || f?.properties?.district || '').trim();
+                const norm = _normName(rawName);
+                if (!norm) return;
+                const centroid = _featureCentroid(f);
+                const resolvedRegion = getRegionKeyForFeature(f);
+                const isAssigned = mappedStateNorm.has(norm) || mappedStateNorm.has(_normName(varName)) || Boolean(resolvedRegion);
+                const isNorthKeyword = ['jammu', 'kashmir', 'ladakh', 'leh', 'gilgit', 'azad', 'pok', 'aksai'].some((k) => norm.includes(k));
+                const isNorthernLatLon = Boolean(
+                    centroid
+                    && Number.isFinite(centroid.lat)
+                    && Number.isFinite(centroid.lon)
+                    && centroid.lat > 32.0
+                    && centroid.lon > 70.0
+                    && centroid.lon < 80.0
+                );
+                if (!isAssigned && (isNorthKeyword || isNorthernLatLon)) {
+                    if (!northStateNorm.has(norm)) {
+                        REGION_TO_STATES.north.push(rawName);
+                        northStateNorm.add(norm);
+                    }
+                    uniqueByState[rawName] = {
+                        state: rawName,
+                        region: 'north',
+                        pct: northPct,
+                        score: northScore,
+                    };
+                    mappedStateNorm.add(norm);
+                }
+            });
+
+            const rows = Object.values(uniqueByState);
+            if (!rows.length) {
+                Plotly.newPlot('plotMap', buildMapFallbackMarkers(pts), commonLayout, {
+                    displayModeBar: false, responsive: true, scrollZoom: false, doubleClick: false
+                });
+                return;
+            }
+            const present = new Set();
+            rows.forEach((r) => { if (r?.region) present.add(canonicalRegionKey(r.region)); });
+            pts.forEach((p) => { if (p?.region) present.add(canonicalRegionKey(p.region)); });
+            const regionOrder = REGION_FIXED_ORDER.filter((rk) => present.has(rk));
+            const regionColorMap = {};
+            regionOrder.forEach((rk) => {
+                regionColorMap[rk] = regionColor(rk);
+            });
+            const zVals = rows.map(r => Math.max(0, regionOrder.indexOf(canonicalRegionKey(r.region))));
+            const zMax = Math.max(1, regionOrder.length - 1);
+
+            const regionPctMap = {};
+            pts.forEach((p) => {
+                const rk = canonicalRegionKey(p.region);
+                if (!rk) return;
+                regionPctMap[rk] = Number(p.pct || 0);
+            });
+
+            const stateToRegion = {};
+            rows.forEach((r) => {
+                const k = String(r.state || '').trim();
+                if (!k) return;
+                stateToRegion[k] = canonicalRegionKey(r.region);
+            });
+
+            const regionLabelPoints = [];
+            regionOrder.forEach((rk) => {
+                const pctVal = Number(regionPctMap[rk] || 0);
+                if (Number(pctVal.toFixed(2)) === 0) return;
+                let best = null;
+                let bestArea = -1;
+                (geojson.features || []).forEach((f) => {
+                    const st = String(f?.properties?.[stateKey] || '').trim();
+                    const mappedRegion = stateToRegion[st];
+                    if (mappedRegion !== rk) return;
+                    const c = _featureLargestPolygonCentroid(f);
+                    if (!c) return;
+                    if (c.area > bestArea) {
+                        bestArea = c.area;
+                        best = c;
+                    }
+                });
+                if (!best) return;
+                regionLabelPoints.push({
+                    region: rk,
+                    lat: best.lat,
+                    lon: best.lon,
+                    text: `${pctVal.toFixed(2)}%`,
+                });
+            });
+
+            const traces = [];
+            const addChoroplethTrace = (sourceRows, lineColor, lineWidth) => {
+                if (!sourceRows || !sourceRows.length) return;
+                traces.push({
+                    type: 'choropleth',
+                    geojson,
+                    featureidkey: `properties.${stateKey}`,
+                    locations: sourceRows.map(r => r.state),
+                    z: sourceRows.map(r => Math.max(0, regionOrder.indexOf(canonicalRegionKey(r.region)))),
+                    text: sourceRows.map(r => String(r.region || '').toUpperCase()),
+                    hovertemplate: '%{text}<extra></extra>',
+                    colorscale: buildDiscreteColorscale(regionOrder.map(rk => regionColorMap[rk])),
+                    zmin: 0,
+                    zmax: zMax,
+                    showscale: false,
+                    marker: { line: { color: lineColor, width: lineWidth } },
+                });
+            };
+            addChoroplethTrace(rows, 'rgba(255,255,255,0.9)', 0.3);
+
+            if (regionLabelPoints.length) {
+                traces.push({
+                    type: 'scattergeo',
+                    mode: 'text',
+                    lat: regionLabelPoints.map((p) => p.lat - 0.03),
+                    lon: regionLabelPoints.map((p) => p.lon + 0.03),
+                    text: regionLabelPoints.map((p) => p.text),
+                    hoverinfo: 'skip',
+                    textfont: { color: 'rgba(0,0,0,0.82)', size: 13, family: 'Segoe UI, Arial, sans-serif' },
+                    showlegend: false,
+                });
+                traces.push({
+                    type: 'scattergeo',
+                    mode: 'text',
+                    lat: regionLabelPoints.map((p) => p.lat),
+                    lon: regionLabelPoints.map((p) => p.lon),
+                    text: regionLabelPoints.map((p) => p.text),
+                    customdata: regionLabelPoints.map((p) => regionLabel(p.region)),
+                    hovertemplate: '%{customdata}<extra></extra>',
+                    textfont: { color: '#ffffff', size: 13, family: 'Segoe UI Black, Segoe UI, Arial, sans-serif' },
+                    showlegend: false,
+                });
+            }
+
+            Plotly.newPlot('plotMap', traces, commonLayout, {
+                displayModeBar: false, responsive: true, scrollZoom: false, doubleClick: false
+            });
+        }
+
+        function plotDonut(payload) {
+            const d = payload?.charts?.donut || {};
+            const labels = d.labels || [];
+            const vals = d.values || [];
+            const title = (d.mode || 'business_channel') === 'region'
+                ? 'Region wise Contribution %'
+                : 'Business Channel wise Contribution %';
+            const donutTitleEl = document.getElementById('donutTitle');
+            if (donutTitleEl) donutTitleEl.textContent = title;
+            const donutPalette = ['#8B0000', '#cc0000', '#2e7d32', '#e57373', '#1f77b4', '#f08e2c', '#3ca73c', '#d62728'];
+            const truncateLegend = (s) => {
+                const t = String(s || '').trim();
+                if (!t) return 'Unknown';
+                return t.length > 16 ? `${t.slice(0, 16)}...` : t;
+            };
+            const donutLegendEl = document.getElementById('donutLegend');
+            if (donutLegendEl) {
+                donutLegendEl.innerHTML = labels.map((label, idx) => {
+                    const swatch = donutPalette[idx % donutPalette.length];
+                    const safeText = truncateLegend(label)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                    return `
+                        <div class="donut-legend-item" title="${String(label || '').replace(/"/g, '&quot;')}">
+                            <span class="donut-legend-swatch" style="background:${swatch};"></span>
+                            <span class="donut-legend-text">${safeText}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            const traces = [{
+                type: 'pie',
+                labels,
+                values: vals,
+                hole: 0.42,
+                domain: { x: [0.00, 1.00], y: [0.02, 0.98] },
+                textinfo: 'percent',
+                textposition: 'inside',
+                textfont: { size: 12, color: '#fff' },
+                hovertemplate: '<b>%{label}</b><extra></extra>',
+                marker: {
+                    colors: donutPalette
+                },
+            }];
+            const layout = {
+                margin: { t: 5, b: 5, l: 5, r: 5 },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                showlegend: false,
+                width: 130,
+                height: 130,
+                autosize: false,
+            };
+            Plotly.newPlot('plotDonut', traces, layout, {
+                displayModeBar: false,
+                responsive: true,
+                staticPlot: false,
+            }).then(() => {
+                const donutSvg = document.querySelector('#plotDonut svg');
+                if (donutSvg) donutSvg.style.background = 'transparent';
+                const donutDiv = document.getElementById('plotDonut');
+                if (donutDiv) {
+                    donutDiv.style.background = 'transparent';
+                    const bg = donutDiv.querySelector('.bg');
+                    if (bg) bg.style.fill = 'none';
+                }
+            }).catch(() => {});
+        }
+
+        function renderBaseCharts(payload) {
+            const charts = payload?.charts || {};
+            plotDailyBars(payload);
+            plotMap(payload);
+            plotDonut(payload);
+            renderContribPlot('plotBusinessChannel', charts.business_channel_contribution, 'Business Channel Contribution');
+            renderContribPlot('plotAccountGroup', charts.account_group_contribution, 'Brand Contribution');
+            renderContribPlot('plotCategoryContribution', charts.category_contribution, 'Category Contribution');
+        }
+
+        function toggleContribView(targetId) {
+            const charts = state?.payload?.charts || {};
+            const tableKey = contribTableKeyByPlot[targetId];
+            if (!tableKey) return;
+            const table = charts[tableKey] || {};
+            const labels = Array.isArray(table.labels) ? table.labels : [];
+            if (labels.length <= 4) return;
+            contribViewMode[targetId] = contribViewMode[targetId] === 'bottom' ? 'top' : 'bottom';
+            renderBaseCharts(state.payload);
+        }
+
+        function chartVisible(chartId) {
+            return !state.hiddenChartIds.has(chartId);
+        }
+
+        function applyVisibility() {
+            baseCards.forEach(c => {
+                const el = document.getElementById(c.id);
+                if (!el) return;
+                el.classList.toggle('hidden', !chartVisible(c.id));
+            });
+            state.customCharts.forEach(c => {
+                const el = document.getElementById(`custom-${c.id}`);
+                if (!el) return;
+                el.classList.toggle('hidden', !chartVisible(`custom-${c.id}`));
+            });
+        }
+
+        function wireBaseCloseButtons() {
+            baseCards.forEach(c => {
+                const host = document.getElementById(c.id);
+                if (!host) return;
+                if (NO_CLOSE_IDS.includes(c.id)) {
+                    const existingNoClose = host.querySelector('.base-close-btn');
+                    if (existingNoClose) existingNoClose.remove();
+                    return;
+                }
+                if (c.closable === false) {
+                    const existing = host.querySelector('.base-close-btn');
+                    if (existing) existing.remove();
+                    return;
+                }
+                if (window.getComputedStyle(host).position === 'static') {
+                    host.style.position = 'relative';
+                }
+                let btn = host.querySelector('.base-close-btn');
+                if (!btn) {
+                    btn = document.createElement('button');
+                    btn.className = 'base-close-btn';
+                    btn.type = 'button';
+                    btn.textContent = 'x';
+                    host.appendChild(btn);
+                }
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    state.hiddenChartIds.add(c.id);
+                    applyVisibility();
+                    renderChartList();
+                };
+            });
+        }
+
+        function mkPlotLayoutBg() {
+            return { paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff' };
+        }
+
+        function buildCustomTrace(chart) {
+            const t = (chart?.type || 'bar').toLowerCase();
+            const series = Array.isArray(chart?.series) ? chart.series : [];
+            if (series.length && (t === 'line' || t === 'bar' || t === 'scatter')) {
+                if (t === 'line') {
+                    return series.map((s, idx) => ({
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: String(s.name || `Series ${idx + 1}`),
+                        x: s.x || [],
+                        y: s.y || [],
+                    }));
+                }
+                if (t === 'scatter') {
+                    return series.map((s, idx) => ({
+                        type: 'scatter',
+                        mode: 'markers',
+                        name: String(s.name || `Series ${idx + 1}`),
+                        x: s.x || [],
+                        y: s.y || [],
+                    }));
+                }
+                return series.map((s, idx) => ({
+                    type: 'bar',
+                    name: String(s.name || `Series ${idx + 1}`),
+                    x: s.x || [],
+                    y: s.y || [],
+                }));
+            }
+            if (t === 'line') {
+                return [{
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    x: chart.x || [],
+                    y: chart.y || [],
+                    line: { color: '#cc0000', width: 3 },
+                    marker: { size: 7, color: '#f5a800' },
+                }];
+            }
+            if (t === 'scatter') {
+                return [{
+                    type: 'scatter',
+                    mode: 'markers',
+                    x: chart.x || [],
+                    y: chart.y || [],
+                    marker: { size: 9, color: '#cc0000', opacity: 0.9, line: { color: '#b98900', width: 1 } },
+                }];
+            }
+            if (t === 'pie') {
+                return [{
+                    type: 'pie',
+                    labels: chart.x || [],
+                    values: chart.y || [],
+                    hole: 0.48,
+                    marker: {
+                        colors: ['#cc0000', '#f08e2c', '#f5a800', '#e65c5c', '#a33d3d', '#f6cb53', '#db8f4e', '#ffd773']
+                    },
+                    textinfo: 'percent+label',
+                }];
+            }
+            if (t === 'heatmap') {
+                return [{
+                    type: 'heatmap',
+                    x: chart.x || [],
+                    y: chart.y || [],
+                    z: chart.z || [],
+                    colorscale: [[0, '#fff3d6'], [0.35, '#f5a800'], [0.7, '#de5454'], [1, '#cc0000']],
+                    colorbar: { title: chart.ylabel || 'Value', thickness: 10 },
+                }];
+            }
+            if (t === 'table') {
+                const rows = chart.rows || [];
+                const columns = chart.columns || [chart.xlabel || 'X', chart.ylabel || 'Y'];
+                const colA = rows.map(r => r[0]);
+                const colB = rows.map(r => r[1]);
+                return [{
+                    type: 'table',
+                    header: {
+                        values: columns,
+                        fill: { color: '#cc0000' },
+                        font: { color: '#fff', size: 12 },
+                        align: 'left',
+                    },
+                    cells: {
+                        values: [colA, colB],
+                        fill: { color: '#fff' },
+                        align: 'left',
+                        font: { color: '#222', size: 12 },
+                    },
+                }];
+            }
+            return [{
+                type: 'bar',
+                x: chart.x || [],
+                y: chart.y || [],
+                marker: { color: '#f5a800', line: { color: '#cc0000', width: 1 } },
+            }];
+        }
+
+        function renderOneCustomChart(chart) {
+            const wrap = document.createElement('div');
+            wrap.className = 'chart-card';
+            wrap.id = `custom-${chart.id}`;
+            wrap.draggable = state.rearrangeOn;
+            wrap.dataset.chartId = chart.id;
+            wrap.innerHTML = `
+                <div class="chart-actions">
+                    <button class="a" data-act="edit">Edit</button>
+                    <button class="a" data-act="reset">Reset</button>
+                    <button class="a" data-act="expand">Expand</button>
+                    <button class="a danger" data-act="remove">x</button>
+                </div>
+                <h3>${String(chart.title || 'Custom Chart')}</h3>
+                <div class="chart-plot" id="plot-custom-${chart.id}" style="min-height:220px;"></div>
+            `;
+            const plotId = `plot-custom-${chart.id}`;
+            const traces = buildCustomTrace(chart);
+            const t = (chart?.type || 'bar').toLowerCase();
+            const hasSeries = Array.isArray(chart?.series) && chart.series.length > 0;
+            const layout = {
+                ...mkPlotLayoutBg(),
+                margin: { l: 42, r: 16, t: 14, b: 48 },
+                xaxis: { title: chart.xlabel || '', automargin: true, tickangle: t === 'bar' ? -40 : 0 },
+                yaxis: { title: chart.ylabel || '', automargin: true },
+                barmode: (hasSeries && t === 'bar') ? 'group' : undefined,
+                showlegend: t === 'pie' || t === 'heatmap' || hasSeries,
+                legend: { orientation: 'h', x: 0, y: -0.2 },
+            };
+            // Defer plotting until card is attached to DOM.
+            wrap.__plotConfig = { plotId, traces, layout };
+
+            wrap.querySelector('[data-act="remove"]').addEventListener('click', () => {
+                state.customCharts = state.customCharts.filter(c => c.id !== chart.id);
+                renderCustomCharts();
+                renderChartList();
+                showToast('Custom chart removed');
+            });
+            wrap.querySelector('[data-act="reset"]').addEventListener('click', async () => {
+                try {
+                    await refreshSingleCustomChart(chart.id);
+                    showToast('Chart reset to current filters');
+                } catch (e) {
+                    showToast(`Reset failed: ${e.message}`);
+                }
+            });
+            wrap.querySelector('[data-act="edit"]').addEventListener('click', async () => {
+                const userPrompt = window.prompt('Edit with AI: enter your instruction for this chart');
+                if (!userPrompt || !userPrompt.trim()) return;
+                try {
+                    await generateChartWithPrompt(userPrompt.trim(), chart.id);
+                    showToast('Chart updated');
+                } catch (e) {
+                    showToast(`Edit failed: ${e.message}`);
+                }
+            });
+            wrap.querySelector('[data-act="expand"]').addEventListener('click', () => {
+                const side = document.getElementById('aiSide');
+                side.classList.remove('open');
+                const w = window.open('', '_blank');
+                if (!w) return;
+                w.document.write('<html><head><title>Expanded Chart</title><script src="https://cdn.plot.ly/plotly-2.35.2.min.js"><\/script></head><body style="margin:0"><div id="p" style="width:100vw;height:100vh"></div></body></html>');
+                w.document.close();
+                setTimeout(() => {
+                    w.Plotly.newPlot('p', traces, layout, { responsive: true });
+                }, 200);
+            });
+
+            wireDrag(wrap);
+            return wrap;
+        }
+
+        function wireDrag(card) {
+            card.addEventListener('dragstart', e => {
+                if (!state.rearrangeOn) return e.preventDefault();
+                state.dragId = card.id;
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            card.addEventListener('dragover', e => {
+                if (!state.rearrangeOn) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            card.addEventListener('drop', e => {
+                if (!state.rearrangeOn) return;
+                e.preventDefault();
+                const fromId = state.dragId;
+                const toId = card.id;
+                if (!fromId || !toId || fromId === toId) return;
+                const parent = card.parentElement;
+                const fromEl = document.getElementById(fromId);
+                const toEl = document.getElementById(toId);
+                if (!parent || !fromEl || !toEl || fromEl.parentElement !== parent || toEl.parentElement !== parent) return;
+                parent.insertBefore(fromEl, toEl);
+            });
+        }
+
+        function renderCustomCharts() {
+            const grid = document.getElementById('customGrid');
+            grid.innerHTML = '';
+            state.customCharts.forEach(chart => {
+                const card = renderOneCustomChart(chart);
+                grid.appendChild(card);
+                const cfg = card.__plotConfig;
+                if (cfg && cfg.plotId) {
+                    Plotly.newPlot(cfg.plotId, cfg.traces, cfg.layout, { displayModeBar: false, responsive: true });
+                }
+            });
+            const wrap = document.getElementById('customWrap');
+            if (wrap) wrap.classList.toggle('hidden', state.customCharts.length === 0);
+            applyVisibility();
+        }
+
+        function collectAllCharts() {
+            const base = baseCards.map(c => ({ id: c.id, title: c.name, custom: false }));
+            const custom = state.customCharts.map(c => ({ id: `custom-${c.id}`, title: c.title || 'Custom Chart', custom: true, rawId: c.id }));
+            return [...base, ...custom];
+        }
+
+        function renderChartList() {
+            const list = document.getElementById('chartList');
+            list.innerHTML = '';
+            collectAllCharts().forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'chart-item';
+                const checked = chartVisible(item.id) ? 'checked' : '';
+                row.innerHTML = `
+                    <input type="checkbox" ${checked} />
+                    <div class="nm" title="${item.title}">${item.title}</div>
+                    ${item.custom ? '<button class="rm">Remove</button>' : '<span></span>'}
+                `;
+                const ck = row.querySelector('input[type="checkbox"]');
+                ck.addEventListener('change', () => {
+                    if (ck.checked) state.hiddenChartIds.delete(item.id);
+                    else state.hiddenChartIds.add(item.id);
+                    applyVisibility();
+                });
+                if (item.custom) {
+                    row.querySelector('.rm').addEventListener('click', () => {
+                        state.customCharts = state.customCharts.filter(c => c.id !== item.rawId);
+                        renderCustomCharts();
+                        renderChartList();
+                    });
+                }
+                list.appendChild(row);
+            });
+        }
+
+        function renderAll(payload) {
+            state.payload = payload || {};
+            state.dataSource = String((payload && payload.data_source) || state.dataSource || 'excel');
+            applyGridViewportHeight();
+            updateHeader(payload);
+            updateFilters(payload);
+            updateKpis(payload);
+            renderBaseCharts(payload);
+            wireBaseCloseButtons();
+            renderChartList();
+            applyVisibility();
+        }
+
+        async function initDatabricksSource() {
+            const status = document.getElementById('uploadStatus');
+            const btn = document.getElementById('btnUseDatabricks');
+            status.textContent = '';
+            setBusy(btn, true, 'Connecting...');
+            try {
+                const fd = new FormData();
+                const payload = await postForm('/api/dashboard/databricks-init/', fd);
+                renderAll(payload);
+                document.getElementById('uploadOverlay').classList.add('hidden');
+                showToast('Databricks data loaded');
+            } catch (e) {
+                status.textContent = e.message;
+            } finally {
+                setBusy(btn, false);
+            }
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('uploadFile');
+            const status = document.getElementById('uploadStatus');
+            const btn = document.getElementById('btnUpload');
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+                status.textContent = 'Choose a .xlsx file first.';
+                return;
+            }
+            if (!String(file.name || '').toLowerCase().endsWith('.xlsx')) {
+                status.textContent = 'Only .xlsx files are supported.';
+                return;
+            }
+            status.textContent = '';
+            setBusy(btn, true, 'Uploading...');
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                const payload = await postForm('/api/dashboard/upload/', fd);
+                renderAll(payload);
+                document.getElementById('uploadOverlay').classList.add('hidden');
+                showToast('Dataset uploaded');
+            } catch (e) {
+                status.textContent = e.message;
+            } finally {
+                setBusy(btn, false);
+            }
+        }
+
+        async function applyFilters() {
+            const btn = document.getElementById('btnApplyFilters');
+            setBusy(btn, true, 'Applying...');
+            try {
+                const fd = new FormData();
+                fd.append('filters', JSON.stringify(getActiveFilters()));
+                const payload = await postForm('/api/dashboard/data/', fd);
+                renderAll(payload);
+                await refreshAllCustomCharts();
+                showToast('Filters applied');
+            } catch (e) {
+                showToast(`Filter apply failed: ${e.message}`);
+            } finally {
+                setBusy(btn, false);
+            }
+        }
+
+        function setAiStatus(text) {
+            document.getElementById('aiStatus').textContent = text || '';
+        }
+
+        function appendLogs(lines) {
+            const el = document.getElementById('aiLogs');
+            if (!Array.isArray(lines) || !lines.length) return;
+            const chunk = lines.map(x => String(x)).join('\n');
+            el.textContent = el.textContent ? `${el.textContent}\n${chunk}` : chunk;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function callCustomChartApi(prompt, existingChart) {
+            const fd = new FormData();
+            fd.append('prompt', prompt);
+            fd.append('filters', JSON.stringify(getActiveFilters()));
+            if (existingChart) fd.append('existing_chart', JSON.stringify(existingChart));
+            return postForm('/api/dashboard/custom-chart/', fd);
+        }
+
+        async function generateChartWithPrompt(prompt, chartIdToReplace = null) {
+            if (state.aiBusy) return;
+            state.aiBusy = true;
+            setAiStatus('Generating chart...');
+            const existing = chartIdToReplace ? state.customCharts.find(c => c.id === chartIdToReplace) : null;
+            try {
+                const res = await callCustomChartApi(prompt, existing || null);
+                appendLogs(res.logs || []);
+                const chart = res.chart;
+                if (!chart || !chart.id) throw new Error('Invalid chart response');
+                if (chartIdToReplace) {
+                    state.customCharts = state.customCharts.map(c => c.id === chartIdToReplace ? chart : c);
+                } else {
+                    state.customCharts.unshift(chart);
+                }
+                renderCustomCharts();
+                renderChartList();
+                setAiStatus('Chart generated');
+            } finally {
+                state.aiBusy = false;
+            }
+        }
+
+        async function refreshSingleCustomChart(chartId) {
+            const idx = state.customCharts.findIndex(c => c.id === chartId);
+            if (idx < 0) return;
+            const existing = state.customCharts[idx];
+            const res = await callCustomChartApi('__refresh__', existing);
+            appendLogs(res.logs || []);
+            if (res.chart && res.chart.id) {
+                state.customCharts[idx] = res.chart;
+                renderCustomCharts();
+                renderChartList();
+            }
+        }
+
+        async function refreshAllCustomCharts() {
+            if (!state.customCharts.length) return;
+            setAiStatus('Refreshing custom charts on current filters...');
+            const next = [];
+            for (const c of state.customCharts) {
+                try {
+                    const res = await callCustomChartApi('__refresh__', c);
+                    appendLogs(res.logs || []);
+                    if (res.chart && res.chart.id) next.push(res.chart);
+                    else next.push(c);
+                } catch (_) {
+                    next.push(c);
+                }
+            }
+            state.customCharts = next;
+            renderCustomCharts();
+            renderChartList();
+            setAiStatus('');
+        }
+
+        function resetToNewAnalysis() {
+            state.payload = null;
+            state.customCharts = [];
+            state.hiddenChartIds.clear();
+            renderCustomCharts();
+            renderChartList();
+            document.getElementById('uploadOverlay').classList.remove('hidden');
+            document.getElementById('uploadStatus').textContent = '';
+            document.getElementById('uploadFile').value = '';
+            showToast('Start a new upload');
+        }
+
+        function toggleRearrange() {
+            state.rearrangeOn = !state.rearrangeOn;
+            const btn = document.getElementById('btnRearrange');
+            btn.textContent = state.rearrangeOn ? 'Rearrange: ON' : 'Rearrange Dashboard';
+            document.body.classList.toggle('drag-on', state.rearrangeOn);
+            document.querySelectorAll('.chart-card').forEach(el => {
+                el.draggable = state.rearrangeOn;
+            });
+        }
+
+        document.getElementById('btnUseDatabricks').addEventListener('click', initDatabricksSource);
+        document.getElementById('btnUpload').addEventListener('click', uploadExcel);
+        document.getElementById('btnApplyFilters').addEventListener('click', applyFilters);
+        document.getElementById('fMonth').addEventListener('change', () => {
+            applyFilters();
+        });
+        document.getElementById('btnNewAnalysis').addEventListener('click', resetToNewAnalysis);
+        document.getElementById('btnRearrange').addEventListener('click', toggleRearrange);
+        document.getElementById('btnOpenCharts').addEventListener('click', () => {
+            document.getElementById('chartsSide').classList.toggle('open');
+        });
+        document.getElementById('btnAiCharts').addEventListener('click', () => {
+            const aiPanel = document.getElementById('aiSide');
+            const chartsPanel = document.getElementById('chartsSide');
+            chartsPanel.classList.remove('open');
+            aiPanel.classList.toggle('open');
+            if (aiPanel.classList.contains('open')) {
+                const box = document.getElementById('aiPrompt');
+                if (box) box.focus();
+            }
+        });
+        document.getElementById('btnCloseChartsSide').addEventListener('click', () => {
+            document.getElementById('chartsSide').classList.remove('open');
+        });
+        document.getElementById('btnCloseAiSide').addEventListener('click', () => {
+            document.getElementById('aiSide').classList.remove('open');
+        });
+        document.getElementById('btnClearLogs').addEventListener('click', () => {
+            document.getElementById('aiLogs').textContent = '';
+        });
+        document.getElementById('btnToggleBusinessChannel').addEventListener('click', () => {
+            toggleContribView('plotBusinessChannel');
+        });
+        document.getElementById('btnToggleAccountGroup').addEventListener('click', () => {
+            toggleContribView('plotAccountGroup');
+        });
+        document.getElementById('btnToggleCategoryContribution').addEventListener('click', () => {
+            toggleContribView('plotCategoryContribution');
+        });
+        document.getElementById('btnGenerateChart').addEventListener('click', async () => {
+            const prompt = (document.getElementById('aiPrompt').value || '').trim();
+            if (!prompt) {
+                setAiStatus('Enter a prompt first.');
+                return;
+            }
+            try {
+                await generateChartWithPrompt(prompt, null);
+                showToast('Chart added');
+            } catch (e) {
+                setAiStatus(`Failed: ${e.message}`);
+                showToast(`Generation failed: ${e.message}`);
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            applyGridViewportHeight();
+            const ids = [
+                'plotDailyBars', 'plotMap', 'plotDonut',
+                'plotBusinessChannel', 'plotAccountGroup', 'plotCategoryContribution',
+            ];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) Plotly.Plots.resize(el);
+            });
+            state.customCharts.forEach(c => {
+                const el = document.getElementById(`plot-custom-${c.id}`);
+                if (el) Plotly.Plots.resize(el);
+            });
+        });
+        applyGridViewportHeight();
+    </script>
+</body>
+</html>

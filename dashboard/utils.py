@@ -295,6 +295,329 @@ def _is_date_dtype(dtype):
     return "date" in d or "timestamp" in d or "time" in d
 
 
+def _detect_region_column(schema_columns, column_names):
+    """
+    Auto-detect the best region/geography column from schema.
+    Priority order: explicit region > zone > state > territory > city > area > district.
+    """
+    priority_keywords = [
+        [
+            "region",
+            "region_name",
+            "customer_region_name",
+            "customer_region",
+            "customer region name",
+            "customer region",
+            "region name",
+            "customer_som_name",
+            "customer_asm_name",
+        ],
+        ["zone", "zone_name", "sales_zone"],
+        ["state", "state_name", "st_nm"],
+        ["territory", "territory_name"],
+        ["city", "city_name"],
+        ["area", "area_name"],
+        ["district", "district_name"],
+    ]
+
+    col_type_lookup = {str(c).lower(): t for c, t in (schema_columns or [])}
+    cols = [str(c).strip() for c in (column_names or []) if str(c).strip()]
+
+    for keyword_group in priority_keywords:
+        for keyword in keyword_group:
+            for col in cols:
+                if str(col).lower() == keyword.lower():
+                    return col, str(col_type_lookup.get(str(col).lower(), "STRING"))
+
+    for keyword_group in priority_keywords:
+        for keyword in keyword_group:
+            for col in cols:
+                if keyword.lower() in str(col).lower():
+                    return col, str(col_type_lookup.get(str(col).lower(), "STRING"))
+
+    # Third pass: normalized exact match (remove spaces/underscores).
+    for keyword_group in priority_keywords:
+        for keyword in keyword_group:
+            kw_norm = re.sub(r"[\s_]+", "", str(keyword).lower())
+            for col in cols:
+                col_norm = re.sub(r"[\s_]+", "", str(col).lower())
+                if col_norm == kw_norm:
+                    return col, str(col_type_lookup.get(str(col).lower(), "STRING"))
+
+    # Fourth pass: normalized partial match.
+    for keyword_group in priority_keywords:
+        for keyword in keyword_group:
+            kw_norm = re.sub(r"[\s_]+", "", str(keyword).lower())
+            for col in cols:
+                col_norm = re.sub(r"[\s_]+", "", str(col).lower())
+                if kw_norm in col_norm or col_norm in kw_norm:
+                    return col, str(col_type_lookup.get(str(col).lower(), "STRING"))
+
+    # Fifth pass: strip common join prefixes and retry.
+    join_prefixes = ["customer_", "product_", "dim_", "fact_"]
+    for keyword_group in priority_keywords:
+        for keyword in keyword_group:
+            for col in cols:
+                col_stripped = str(col).lower()
+                for prefix in join_prefixes:
+                    if col_stripped.startswith(prefix):
+                        col_stripped = col_stripped[len(prefix):]
+                        break
+                if col_stripped == str(keyword).lower():
+                    return col, str(col_type_lookup.get(str(col).lower(), "STRING"))
+
+    return None, None
+
+
+def _detect_map_metric_column(schema_columns, num_cols, preferred_names=None):
+    """
+    Auto-detect the best numeric metric column for map aggregation.
+    Prefers revenue/sales/amount style fields.
+    """
+    preferred = preferred_names or [
+        "netamount",
+        "net_amount",
+        "gross_value",
+        "grossvalue",
+        "revenue",
+        "sales",
+        "amount",
+        "value",
+        "total_value",
+        "invoiceamount",
+        "invoice_amount",
+        "billed_amount",
+    ]
+    _ = schema_columns
+    col_lower_map = {str(c).lower(): c for c in (num_cols or [])}
+
+    for pref in preferred:
+        if pref.lower() in col_lower_map:
+            return col_lower_map[pref.lower()]
+
+    return num_cols[0] if num_cols else None
+
+
+def _build_map_chart_from_databricks(
+    connection,
+    source_table_base,
+    source_table_query,
+    where_sql,
+    column_names,
+    schema_columns,
+    num_cols,
+    logs=None,
+):
+    """
+    Build a dynamic india_map chart from live Databricks data.
+    """
+    map_chart = {
+        "id": "chart_0",
+        "title": "Region Performance Map",
+        "type": "india_map",
+        "xlabel": "Region",
+        "ylabel": "Value",
+        "sql": "",
+        "x": [],
+        "y": [],
+        "z": [],
+        "region_col": "",
+        "metric_col": "",
+        "columns": [],
+        "rows": [],
+        "labels": [],
+        "parents": [],
+        "values": [],
+        "measure": [],
+        "map_meta": {
+            "region_col": "",
+            "metric_col": "",
+            "metric_label": "Value",
+            "total": 0.0,
+            "regions": [],
+            "region_to_states": {},
+            "mapping_type": "direct",
+        },
+    }
+    if logs is not None:
+        logs.append(
+            f"[MAP] Scanning {len(column_names)} columns for region: "
+            f"{[c for c in column_names if 'region' in str(c).lower() or 'zone' in str(c).lower() or 'area' in str(c).lower()]}"
+        )
+
+    region_col, _region_col_type = _detect_region_column(schema_columns, column_names)
+    if not region_col:
+        if logs is not None:
+            logs.append("[MAP] No region/geography column detected; map will be empty")
+        map_chart["title"] = "Region Performance Map (No Region Column Detected)"
+        return map_chart
+
+    metric_col = _detect_map_metric_column(schema_columns, num_cols)
+    use_count = metric_col is None
+
+    map_chart["region_col"] = region_col
+    map_chart["metric_col"] = metric_col or "COUNT(*)"
+    map_chart["xlabel"] = region_col.replace("_", " ").title()
+    map_chart["ylabel"] = (metric_col or "Count").replace("_", " ").title()
+
+    region_ident = _quote_identifier(region_col)
+    agg_expr = "COUNT(*)" if use_count else f"SUM({_quote_identifier(metric_col)})"
+    metric_label = "Count" if use_count else metric_col.replace("_", " ").title()
+
+    map_sql = (
+        f"SELECT CAST({region_ident} AS STRING) AS x, "
+        f"{agg_expr} AS y "
+        f"FROM {DATABRICKS_LOGICAL_VIEW_NAME} "
+        f"WHERE {region_ident} IS NOT NULL "
+        f"AND TRIM(CAST({region_ident} AS STRING)) != '' "
+        f"GROUP BY 1 "
+        f"ORDER BY 2 DESC "
+        f"LIMIT 30"
+    )
+
+    if logs is not None:
+        logs.append(f"[MAP] Region col='{region_col}' metric col='{metric_col or 'COUNT(*)'}'")
+
+    # Use base source when possible; switch to joined source if detected columns
+    # exist only on relationship-enriched schema (e.g. customer_region_name).
+    base_col_names = {str(c).strip().lower() for c, _ in (_describe_databricks_table_columns(connection, source_table_base) or [])}
+    needs_join_source = (str(region_col).strip().lower() not in base_col_names) or (
+        metric_col is not None and str(metric_col).strip().lower() not in base_col_names
+    )
+    map_query_source = source_table_query if needs_join_source else source_table_base
+    if logs is not None:
+        logs.append(
+            f"[MAP] Query source={'joined' if needs_join_source else 'base'} "
+            f"(region_in_base={'yes' if str(region_col).strip().lower() in base_col_names else 'no'})"
+        )
+
+    try:
+        map_df, map_sql_exec = _execute_databricks_user_sql(
+            connection,
+            map_sql,
+            source_table_base,
+            query_source=map_query_source,
+            where_sql=where_sql,
+            available_columns=column_names,
+            logs=logs,
+            context="India Map Chart",
+        )
+
+        if map_df.empty:
+            if logs is not None:
+                logs.append("[MAP] Map query returned no rows")
+            map_chart["title"] = "Region Performance Map (No Data)"
+            return map_chart
+
+        map_df.columns = [str(c).lower() for c in map_df.columns]
+        x_vals = map_df["x"].astype(str).tolist() if "x" in map_df else map_df.iloc[:, 0].astype(str).tolist()
+        y_vals = map_df["y"].fillna(0).astype(float).tolist() if "y" in map_df else map_df.iloc[:, 1].fillna(0).astype(float).tolist()
+
+        total = float(sum(abs(v) for v in y_vals))
+        regions_meta = []
+        for i in range(len(x_vals)):
+            val = float(y_vals[i]) if i < len(y_vals) else 0.0
+            pct = round((val / total * 100.0), 2) if total > 0 else 0.0
+            regions_meta.append({
+                "name": str(x_vals[i]),
+                "value": val,
+                "pct": pct,
+            })
+
+        # Default business-region to India-state lookup for map rendering when
+        # region values are business clusters (North 1, South 2, etc.).
+        BUSINESS_REGION_TO_STATES = {
+            # North — all northern states combined, shared by both North 1 and North 2
+            "north 1": [
+                "Jammu and Kashmir", "Ladakh", "Himachal Pradesh",
+                "Punjab", "Uttaranchal", "Uttarakhand", "Chandigarh",
+                "Haryana", "Delhi", "Uttar Pradesh", "Rajasthan",
+            ],
+            "north 2": [
+                "Jammu and Kashmir", "Ladakh", "Himachal Pradesh",
+                "Punjab", "Uttaranchal", "Uttarakhand", "Chandigarh",
+                "Haryana", "Delhi", "Uttar Pradesh", "Rajasthan",
+            ],
+            "north1": [
+                "Jammu and Kashmir", "Ladakh", "Himachal Pradesh",
+                "Punjab", "Uttaranchal", "Uttarakhand", "Chandigarh",
+                "Haryana", "Delhi", "Uttar Pradesh", "Rajasthan",
+            ],
+            "north2": [
+                "Jammu and Kashmir", "Ladakh", "Himachal Pradesh",
+                "Punjab", "Uttaranchal", "Uttarakhand", "Chandigarh",
+                "Haryana", "Delhi", "Uttar Pradesh", "Rajasthan",
+            ],
+            "north": [
+                "Jammu and Kashmir", "Ladakh", "Himachal Pradesh",
+                "Punjab", "Uttaranchal", "Uttarakhand", "Chandigarh",
+                "Haryana", "Delhi", "Uttar Pradesh", "Rajasthan",
+            ],
+            # South — all southern states combined, shared by both South 1 and South 2
+            "south 1": [
+                "Andhra Pradesh", "Telangana", "Karnataka",
+                "Tamil Nadu", "Kerala", "Puducherry", "Lakshadweep",
+            ],
+            "south 2": [
+                "Andhra Pradesh", "Telangana", "Karnataka",
+                "Tamil Nadu", "Kerala", "Puducherry", "Lakshadweep",
+            ],
+            "south1": [
+                "Andhra Pradesh", "Telangana", "Karnataka",
+                "Tamil Nadu", "Kerala", "Puducherry", "Lakshadweep",
+            ],
+            "south2": [
+                "Andhra Pradesh", "Telangana", "Karnataka",
+                "Tamil Nadu", "Kerala", "Puducherry", "Lakshadweep",
+            ],
+            "south": [
+                "Andhra Pradesh", "Telangana", "Karnataka",
+                "Tamil Nadu", "Kerala", "Puducherry", "Lakshadweep",
+            ],
+            # East
+            "east": [
+                "Bihar", "Jharkhand", "Orissa", "Odisha", "West Bengal",
+                "Assam", "Meghalaya", "Manipur", "Tripura",
+                "Nagaland", "Arunachal Pradesh", "Mizoram", "Sikkim",
+            ],
+            # West
+            "west": [
+                "Gujarat", "Maharashtra", "Goa",
+                "Dadra and Nagar Haveli", "Daman and Diu",
+                "Dadra and Nagar Haveli and Daman and Diu",
+            ],
+            # Central
+            "central": [
+                "Madhya Pradesh", "Chhattisgarh",
+            ],
+        }
+
+        map_chart["x"] = x_vals
+        map_chart["y"] = y_vals
+        map_chart["sql"] = map_sql_exec
+        map_chart["map_meta"] = {
+            "region_col": region_col,
+            "metric_col": metric_col or "COUNT(*)",
+            "metric_label": metric_label,
+            "total": total,
+            "regions": regions_meta,
+            "region_to_states": BUSINESS_REGION_TO_STATES,
+            "mapping_type": "business_region",
+        }
+
+        if logs is not None:
+            logs.append(
+                f"[MAP] Loaded map data: regions={len(x_vals)} total={total:,.0f} "
+                f"top={x_vals[0] if x_vals else 'N/A'}"
+            )
+    except Exception as e:
+        if logs is not None:
+            logs.append(f"[WARN] Map chart data fetch failed: {str(e)}")
+        map_chart["title"] = "Region Performance Map (Load Error)"
+
+    return map_chart
+
+
 
 def _select_invoice_entity_key(schema_columns):
     best_col = None
@@ -1517,7 +1840,7 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
     - Prefer business dimensions suitable for interactive filtering (region, customer, product, channel, status, etc.).
     - Use exact schema column names only.
     STEP 2: KPIS -> EXACTLY 4 KPI SQL queries (each must have label, sql, trend_sql).
-    STEP 3: CHARTS -> 6 SQL queries (including heatmap if applicable).
+    STEP 3: CHARTS -> 5 SQL queries.
 
     CRITICAL DATA GRAIN RULE:
     - {logical_table_name} is transaction-level (one row per transaction/event).
@@ -1534,10 +1857,12 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
       GROUP BY region
 
     MANDATORY CHART RULES:
-    - Chart 0 (Line/Trend): MUST be a trend over time.
-    - Chart 1 (Heatmap): If you have TWO categorical dimensions and a numeric value, create a heatmap. Otherwise, make it a bar chart.
-    - Chart 2: No fixed type; choose the best visualization based on the data and question.
-    - Charts 3-5: Choose the best visualization for the data.
+    - Chart 0: Skip; it is reserved for India map and generated by backend.
+    - Chart 1 (Line/Trend): MUST be a trend over time using a date/timestamp column.
+    - Chart 2: Choose best visualization for the data (bar, pie, scatter, or line).
+    - Charts 3-5: Choose the best visualization based on data and business value.
+    - Never force heatmap. Use heatmap only when it genuinely adds value (two categorical + one numeric).
+    - All five generated charts must be distinct in metric and dimension.
 
     TITLE REQUIREMENTS:
     - Titles must clearly mention the metric and dimension.
@@ -1548,8 +1873,8 @@ def generate_viz_config(master_schema_context, debug_logs=None, logical_table_na
     {{
         "filters": ["Region", "Status", "Category", "Customer_Name", "Product", "BillStatus"],
         "kpis": [
-            {{ "label": "Total Spend", "sql": "SELECT SUM(amount) FROM {logical_table_name}", "trend_sql": "SELECT CAST(date_col AS DATE) as x, SUM(amount) as y FROM {logical_table_name} GROUP BY 1 ORDER BY 1 LIMIT 7" }},
-            {{ "label": "Record Count", "sql": "SELECT COUNT(*) FROM {logical_table_name}", "trend_sql": "SELECT CAST(date_col AS DATE) as x, COUNT(*) as y FROM {logical_table_name} GROUP BY 1 ORDER BY 1 LIMIT 7" }}
+            {{ "label": "Total Spend", "sql": "SELECT SUM(amount) FROM {logical_table_name}", "trend_sql": "SELECT CAST(date_col AS DATE) as x, SUM(amount) as y FROM {logical_table_name} GROUP BY 1 ORDER BY 1 LIMIT 30" }},
+            {{ "label": "Record Count", "sql": "SELECT COUNT(*) FROM {logical_table_name}", "trend_sql": "SELECT CAST(date_col AS DATE) as x, COUNT(*) as y FROM {logical_table_name} GROUP BY 1 ORDER BY 1 LIMIT 30" }}
         ],
         "charts": [
             {{ "title": "Monthly Trend", "type": "line", "sql": "SELECT date_col as x, SUM(val) as y FROM {logical_table_name} GROUP BY 1 ORDER BY 1", "xlabel": "Date", "ylabel": "Amount" }},
@@ -2837,6 +3162,31 @@ def _rebucket_numeric_distribution(x_values, y_values, title="", xlabel="", ylab
         return x_values, y_values, False
 
     return labels, values, True
+
+
+def _sanitize_sparkline_values(values, target_points=None, floor=0.0):
+    out = []
+    for v in (values or []):
+        try:
+            n = float(v)
+        except Exception:
+            continue
+        if not np.isfinite(n):
+            continue
+        if n < floor:
+            n = floor
+        out.append(float(n))
+
+    if target_points is not None:
+        try:
+            tp = int(target_points)
+        except Exception:
+            tp = 0
+        if tp > 0 and len(out) > tp:
+            out = out[-tp:]
+    return out
+
+
 def _extract_kpi_sparkline_from_df(df, target_points=None):
     if df is None or df.empty or df.shape[1] < 2:
         return []
@@ -2903,13 +3253,7 @@ def _extract_kpi_sparkline_from_df(df, target_points=None):
     values = [float(v) for v in work["y"].tolist()]
     if not values:
         return []
-    if target_points is not None:
-        try:
-            tp = int(target_points)
-        except Exception:
-            tp = 0
-        if tp > 0 and len(values) > tp:
-            values = values[-tp:]
+    values = _sanitize_sparkline_values(values, target_points=target_points, floor=0.0)
 
     # If coarse bucketing collapsed to a single point, retry with day buckets.
     if len(values) < 2 and ts_work is not None and not ts_work.empty:
@@ -2921,14 +3265,7 @@ def _extract_kpi_sparkline_from_df(df, target_points=None):
         )
         alt_values = [float(v) for v in day_work["y"].tolist()]
         if len(alt_values) >= 2:
-            values = alt_values
-            if target_points is not None:
-                try:
-                    tp = int(target_points)
-                except Exception:
-                    tp = 0
-                if tp > 0 and len(values) > tp:
-                    values = values[-tp:]
+            values = _sanitize_sparkline_values(alt_values, target_points=target_points, floor=0.0)
     # Guard against edge outliers (first/last partial-period artifacts).
     if len(values) >= 4:
         core = values[1:]
@@ -2941,8 +3278,13 @@ def _extract_kpi_sparkline_from_df(df, target_points=None):
             values[0] = values[1]
         if median_core > 0 and values[-1] > 2.8 * median_core:
             values[-1] = values[-2]
+    # Final clamp: if majority is non-negative, clamp all to >= 0 to remove
+    # partial-period artifacts.
+    non_negative_count = sum(1 for v in values if v >= 0)
+    if non_negative_count >= len(values) // 2:
+        values = [max(0.0, float(v)) for v in values]
 
-    return values
+    return _sanitize_sparkline_values(values, target_points=target_points, floor=0.0)
 
 
 def _resolve_table_column_labels(columns, xlabel="", ylabel=""):
@@ -3159,6 +3501,18 @@ def _format_kpi_display_value(value):
 
     try:
         n = float(value)
+        # Crores: 1 Cr = 10,000,000
+        if abs(n) >= 10_000_000:
+            cr = n / 10_000_000
+            return f"{cr:,.2f} Cr"
+        # Lakhs: 1 L = 100,000
+        if abs(n) >= 100_000:
+            lakh = n / 100_000
+            return f"{lakh:,.2f} L"
+        # Thousands
+        if abs(n) >= 1_000:
+            return f"{n:,.0f}"
+        # Small
         if abs(n) >= 100 or float(n).is_integer():
             return f"{n:,.0f}"
         return f"{n:,.2f}"
@@ -3174,12 +3528,12 @@ def _build_custom_kpi_payload(plan, value_raw, sparkline_data):
             base = float(value_raw)
         except Exception:
             base = 0.0
-        sparkline_data = [base] * KPI_TREND_POINTS
+        sparkline_data = [max(0.0, base)] * KPI_TREND_POINTS
 
     return {
         "label": label,
         "value": _format_kpi_display_value(value_raw),
-        "sparkline": [float(v) for v in sparkline_data],
+        "sparkline": _sanitize_sparkline_values(sparkline_data, target_points=KPI_TREND_POINTS, floor=0.0),
     }
 
 
@@ -3337,7 +3691,7 @@ def generate_custom_kpi_from_prompt_databricks(user_prompt, active_filters_json=
                 base = float(value_raw)
             except Exception:
                 base = 0.0
-            sparkline_data = [base] * KPI_TREND_POINTS
+            sparkline_data = [max(0.0, base)] * KPI_TREND_POINTS
 
         kpi_payload = _build_custom_kpi_payload(ai_plan, value_raw, sparkline_data)
         kpi_payload["sql"] = executed_value_sql
@@ -3670,6 +4024,12 @@ def execute_dashboard_logic_databricks(
                         )
                         if not trend_df.empty and trend_df.shape[1] >= 2:
                             sparkline_data = _extract_kpi_sparkline_from_df(trend_df, target_points=KPI_TREND_POINTS)
+                            try:
+                                kpi_val_num = float(val)
+                                if kpi_val_num >= 0 and sparkline_data:
+                                    sparkline_data = [max(0.0, float(v)) for v in sparkline_data]
+                            except Exception:
+                                pass
                     except Exception as e:
                         log.append(f"[WARN] KPI trend query failed for {label_text}: {str(e)}")
 
@@ -3683,7 +4043,7 @@ def execute_dashboard_logic_databricks(
             return {
                 "label": label_text,
                 "value": _format_kpi_display_value(val),
-                "sparkline": [float(v) for v in sparkline_data],
+                "sparkline": _sanitize_sparkline_values(sparkline_data, target_points=KPI_TREND_POINTS, floor=0.0),
                 "sql": executed_value_sql,
                 "trend_sql": executed_trend_sql or trend_sql or "",
             }
@@ -4075,6 +4435,21 @@ def execute_dashboard_logic_databricks(
                 "values": [],
                 "measure": [],
             })
+
+        map_chart = _build_map_chart_from_databricks(
+            connection=connection,
+            source_table_base=source_table_base,
+            source_table_query=source_table_query,
+            where_sql=where_sql,
+            column_names=column_names,
+            schema_columns=schema_columns,
+            num_cols=num_cols,
+            logs=log,
+        )
+        output["charts"].insert(0, map_chart)
+        for i, c in enumerate(output["charts"]):
+            c["id"] = f"chart_{i}"
+        output["charts"] = output["charts"][:6]
         _step_done(log, "Chart Execute", chart_exec_step, detail=f"output_charts={len(output['charts'])}")
 
         output["__cache"] = {
@@ -4136,6 +4511,8 @@ def execute_dashboard_filter_refresh_databricks(
         column_names = [c for c, _ in schema_columns]
         column_type_lookup = {str(c).lower(): str(t) for c, t in schema_columns}
         date_cols = [c for c, t in schema_columns if _is_date_dtype(t)]
+        text_cols = [c for c, t in schema_columns if _is_text_dtype(t)]
+        num_cols = [c for c, t in schema_columns if _is_numeric_dtype(t)]
         base_columns = source_model.get("base_columns", [])
         base_column_names_lower = {str(c).strip().lower() for c, _ in (base_columns or [])}
         date_column = _resolve_selected_date_column(active_filters_json, date_cols)
@@ -4271,7 +4648,7 @@ def execute_dashboard_filter_refresh_databricks(
                 output["kpis"].append({
                     "label": label,
                     "value": str(spec.get("value") or "-"),
-                    "sparkline": [float(v) for v in raw_spark],
+                    "sparkline": _sanitize_sparkline_values(raw_spark, target_points=KPI_TREND_POINTS, floor=0.0),
                     "sql": "",
                     "trend_sql": trend_sql,
                 })
@@ -4433,12 +4810,12 @@ def execute_dashboard_filter_refresh_databricks(
                     base = float(value_raw)
                 except Exception:
                     base = 0.0
-                sparkline_data = [base] * KPI_TREND_POINTS
+                sparkline_data = [max(0.0, base)] * KPI_TREND_POINTS
 
             output["kpis"].append({
                 "label": label,
                 "value": _format_kpi_display_value(value_raw),
-                "sparkline": [float(v) for v in sparkline_data],
+                "sparkline": _sanitize_sparkline_values(sparkline_data, target_points=KPI_TREND_POINTS, floor=0.0),
                 "sql": value_res.get("executed_sql") or "",
                 "trend_sql": trend_sql_out,
             })
@@ -4485,6 +4862,25 @@ def execute_dashboard_filter_refresh_databricks(
             c_data["sql"] = c_data.get("sql") or chart_res.get("executed_sql") or ""
             c_data["showDataLabels"] = item["showDataLabels"]
             output["charts"].append(c_data)
+
+        map_chart_refreshed = _build_map_chart_from_databricks(
+            connection=connection,
+            source_table_base=source_table_base,
+            source_table_query=source_table_query,
+            where_sql=where_sql,
+            column_names=column_names,
+            schema_columns=schema_columns,
+            num_cols=num_cols,
+            logs=log,
+        )
+        output["charts"] = [
+            c for c in output.get("charts", [])
+            if str((c or {}).get("type", "")).lower() != "india_map"
+        ]
+        output["charts"].insert(0, map_chart_refreshed)
+        for i, c in enumerate(output["charts"]):
+            c["id"] = f"chart_{i}"
+        output["charts"] = output["charts"][:6]
 
         output["__cache"] = {
             "filters": output.get("filters", []),

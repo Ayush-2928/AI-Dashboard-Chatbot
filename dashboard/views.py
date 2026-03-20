@@ -15,6 +15,19 @@ from .utils import (
     generate_wireframe_from_prompt,
     generate_wireframe_artifact_from_prompt,
 )
+from .cockpit_utils import (
+    load_and_prepare_cockpit_excel,
+    load_and_prepare_cockpit_databricks,
+    serialize_df_for_session,
+    deserialize_df_from_session,
+    build_cockpit_payload,
+    generate_cockpit_custom_chart_from_prompt,
+)
+
+
+COCKPIT_SESSION_DF_KEY = "cockpit_excel_df_split"
+COCKPIT_SESSION_META_KEY = "cockpit_excel_meta"
+COCKPIT_SESSION_SOURCE_KEY = "cockpit_data_source"
 
 def _merge_applied_filters(filters_json, dashboard_data):
     try:
@@ -356,6 +369,183 @@ def filter_values(request):
 def wireframe(request):
     """Renders the Wireframe Maker page."""
     return render(request, 'dashboard/wireframe.html')
+
+
+def sales_cockpit(request):
+    """Renders standalone Sales Cockpit page (supports Excel or Databricks)."""
+    return render(request, 'dashboard/sales_cockpit.html')
+
+
+def _get_cockpit_df_from_session(request):
+    raw = request.session.get(COCKPIT_SESSION_DF_KEY)
+    return deserialize_df_from_session(raw)
+
+
+@csrf_exempt
+def sales_cockpit_upload(request):
+    if request.method != "POST":
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
+
+    upload = request.FILES.get("file")
+    if not upload:
+        return _safe_json_response({"error": "Excel file is required"}, status=400)
+
+    filename = str(getattr(upload, "name", "") or "").lower()
+    if not filename.endswith(".xlsx"):
+        return _safe_json_response({"error": "Only .xlsx files are supported"}, status=400)
+
+    try:
+        blob = upload.read()
+        df, meta = load_and_prepare_cockpit_excel(blob)
+        request.session[COCKPIT_SESSION_DF_KEY] = serialize_df_for_session(df)
+        request.session[COCKPIT_SESSION_META_KEY] = meta
+        request.session[COCKPIT_SESSION_SOURCE_KEY] = "excel"
+        payload = build_cockpit_payload(df, filters={})
+        payload["meta"] = meta
+        payload["uploaded"] = True
+        payload["data_source"] = "excel"
+        return _safe_json_response(payload)
+    except Exception as e:
+        return _safe_json_response({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def sales_cockpit_databricks_init(request):
+    if request.method != "POST":
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
+
+    invoice_table = str(request.POST.get("invoice_table") or "llm_test.llm.invoice_template").strip()
+    target_table = str(request.POST.get("target_table") or "llm_test.llm.target_template").strip()
+
+    try:
+        _, meta = load_and_prepare_cockpit_databricks(
+            invoice_table=invoice_table,
+            target_table=target_table,
+        )
+        request.session.pop(COCKPIT_SESSION_DF_KEY, None)
+        request.session[COCKPIT_SESSION_META_KEY] = {
+            "source_mode": "databricks",
+            "invoice_table": invoice_table,
+            "target_table": target_table,
+            "filter_options": (meta or {}).get("filter_options", {}),
+            "selected_month": (meta or {}).get("month_key", ""),
+        }
+        request.session[COCKPIT_SESSION_SOURCE_KEY] = "databricks"
+        payload = build_cockpit_payload(
+            None,
+            filters={},
+            data_source="databricks",
+            databricks_config=request.session.get(COCKPIT_SESSION_META_KEY, {}),
+            invoice_table=invoice_table,
+            target_table=target_table,
+            selected_month=(meta or {}).get("month_key", ""),
+        )
+        payload["meta"] = request.session.get(COCKPIT_SESSION_META_KEY, {})
+        payload["uploaded"] = True
+        payload["data_source"] = "databricks"
+        return _safe_json_response(payload)
+    except Exception as e:
+        return _safe_json_response({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def sales_cockpit_data(request):
+    if request.method != "POST":
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
+
+    source = str(request.session.get(COCKPIT_SESSION_SOURCE_KEY) or "excel").strip().lower()
+    meta = request.session.get(COCKPIT_SESSION_META_KEY, {})
+
+    raw_filters = request.POST.get("filters") or "{}"
+    try:
+        filters = json.loads(raw_filters) if raw_filters else {}
+    except Exception:
+        filters = {}
+    if not isinstance(filters, dict):
+        filters = {}
+
+    try:
+        if source == "databricks":
+            selected_month = str(filters.get("selected_month") or meta.get("selected_month") or "").strip()
+            if selected_month:
+                meta["selected_month"] = selected_month
+                request.session[COCKPIT_SESSION_META_KEY] = meta
+            payload = build_cockpit_payload(
+                None,
+                filters=filters,
+                data_source="databricks",
+                databricks_config=meta,
+                invoice_table=meta.get("invoice_table"),
+                target_table=meta.get("target_table"),
+                selected_month=selected_month,
+            )
+        else:
+            df = _get_cockpit_df_from_session(request)
+            if df is None or df.empty:
+                return _safe_json_response({"error": "No cockpit dataset found. Upload Excel or choose Databricks first."}, status=400)
+            payload = build_cockpit_payload(df, filters=filters, data_source="excel")
+        payload["meta"] = meta
+        payload["uploaded"] = True
+        payload["data_source"] = source or "excel"
+        return _safe_json_response(payload)
+    except Exception as e:
+        return _safe_json_response({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def sales_cockpit_custom_chart(request):
+    if request.method != "POST":
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
+
+    prompt = str(request.POST.get("prompt") or "").strip()
+    if not prompt:
+        return _safe_json_response({"error": "Prompt is required"}, status=400)
+
+    source = str(request.session.get(COCKPIT_SESSION_SOURCE_KEY) or "excel").strip().lower()
+    meta = request.session.get(COCKPIT_SESSION_META_KEY, {}) if isinstance(request.session.get(COCKPIT_SESSION_META_KEY, {}), dict) else {}
+
+    df = None
+    if source != "databricks":
+        df = _get_cockpit_df_from_session(request)
+        if df is None or df.empty:
+            return _safe_json_response({"error": "No cockpit dataset found. Upload Excel or choose Databricks first."}, status=400)
+
+    raw_filters = request.POST.get("filters") or "{}"
+    try:
+        filters = json.loads(raw_filters) if raw_filters else {}
+    except Exception:
+        filters = {}
+    if not isinstance(filters, dict):
+        filters = {}
+
+    existing_chart_raw = request.POST.get("existing_chart") or ""
+    existing_chart = None
+    if existing_chart_raw:
+        try:
+            parsed = json.loads(existing_chart_raw)
+            if isinstance(parsed, dict):
+                existing_chart = parsed
+        except Exception:
+            existing_chart = None
+
+    try:
+        selected_month = str(filters.get("selected_month") or meta.get("selected_month") or "").strip()
+        result = generate_cockpit_custom_chart_from_prompt(
+            df=df,
+            user_prompt=prompt,
+            active_filters=filters,
+            existing_chart=existing_chart,
+            invoice_table=meta.get("invoice_table") or "llm_test.llm.invoice_template",
+            target_table=meta.get("target_table") or "llm_test.llm.target_template",
+            selected_month=selected_month,
+            data_source=source,
+        )
+        raw_logs = result.get("logs", []) if isinstance(result, dict) else []
+        if isinstance(raw_logs, list):
+            result["logs"] = _extract_llm_logs(raw_logs) or [str(x) for x in raw_logs][-15:]
+        return _safe_json_response(result)
+    except Exception as e:
+        return _safe_json_response({"error": str(e)}, status=500)
 
 
 @csrf_exempt
