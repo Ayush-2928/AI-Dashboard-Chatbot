@@ -34,9 +34,417 @@
             overflow-x: hidden;
         }
 
+        .app-shell-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100vh;
+            background: linear-gradient(180deg, #0b1528 0%, #0a1322 100%);
+            border-right: 1px solid rgba(148, 163, 184, 0.25);
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1100;
+            overflow: hidden;
+        }
+
+        .app-shell-home {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.36);
+            background: rgba(30, 41, 59, 0.45);
+            color: #e2e8f0;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .app-shell-home:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: rgba(56, 189, 248, 0.56);
+        }
+
+        .app-shell-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 2px 4px 8px;
+        }
+
+        .app-shell-brand-title {
+            font-size: 34px;
+            line-height: 1;
+            font-weight: 800;
+            color: #f8fafc;
+            letter-spacing: -0.02em;
+        }
+
+        .app-shell-brand-sub {
+            font-size: 11px;
+            color: #8fa0ba;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .app-shell-actions {
+            display: grid;
+            gap: 8px;
+        }
+
+        .app-shell-btn {
+            width: 100%;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 9px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .app-shell-btn.primary {
+            color: #fff;
+            background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+            border-color: rgba(99, 102, 241, 0.58);
+        }
+
+        .app-shell-btn.secondary {
+            color: #d1d5db;
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+
+        .app-shell-btn:hover {
+            filter: brightness(1.06);
+        }
+
+        .app-shell-label {
+            margin-top: 4px;
+            padding: 0 2px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #8f99aa;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .app-shell-templates {
+            display: grid;
+            gap: 8px;
+        }
+
+        .app-shell-template {
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.26);
+            background: rgba(15, 23, 42, 0.5);
+            color: #e5e7eb;
+            padding: 8px 9px;
+            display: grid;
+            grid-template-columns: 16px minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .app-shell-template .badge {
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 9px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .app-shell-template.live .badge {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.42);
+            color: #d1fae5;
+        }
+
+        .app-shell-template.active {
+            border-color: rgba(56, 189, 248, 0.58);
+            background: rgba(30, 58, 138, 0.32);
+        }
+
+        .app-shell-template.live:hover {
+            border-color: rgba(56, 189, 248, 0.58);
+            background: rgba(30, 58, 138, 0.24);
+        }
+
+        .app-shell-template.soon {
+            opacity: 0.62;
+            pointer-events: none;
+        }
+
+        .app-shell-template.soon .badge {
+            background: rgba(71, 85, 105, 0.35);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            color: #cbd5e1;
+        }
+
+        .app-shell-saved-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 4px;
+            padding: 0 2px;
+        }
+
+        .app-shell-view-all {
+            border: none;
+            background: transparent;
+            color: #7dd3fc;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .app-shell-view-all:hover {
+            color: #e0f2fe;
+        }
+
+        .app-shell-saved-list {
+            display: grid;
+            gap: 8px;
+            overflow: auto;
+            min-height: 0;
+            padding-right: 2px;
+        }
+
+        .app-shell-saved-empty {
+            border-radius: 10px;
+            border: 1px dashed rgba(148, 163, 184, 0.26);
+            color: #8fa2be;
+            text-align: center;
+            font-size: 11px;
+            padding: 10px 8px;
+            background: rgba(15, 23, 42, 0.22);
+        }
+
+        .app-shell-saved-item {
+            position: relative;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: rgba(15, 23, 42, 0.5);
+            color: #e5e7eb;
+            padding: 8px 30px 8px 10px;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .app-shell-saved-item:hover {
+            border-color: rgba(56, 189, 248, 0.55);
+            background: rgba(30, 58, 138, 0.24);
+        }
+
+        .app-shell-saved-name {
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .app-shell-saved-meta {
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        .app-shell-saved-type {
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            padding: 1px 6px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #dbeafe;
+            background: rgba(30, 41, 59, 0.45);
+        }
+
+        .app-shell-saved-type.sales {
+            border-color: rgba(239, 68, 68, 0.35);
+            color: #fecaca;
+            background: rgba(127, 29, 29, 0.28);
+        }
+
+        .app-shell-saved-delete {
+            position: absolute;
+            right: 8px;
+            top: 7px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid rgba(248, 113, 113, 0.28);
+            background: rgba(127, 29, 29, 0.24);
+            color: #fecaca;
+            font-size: 10px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.16s ease;
+        }
+
+        .app-shell-saved-item:hover .app-shell-saved-delete {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .history-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2, 6, 23, 0.74);
+            backdrop-filter: blur(3px);
+            padding: 18px;
+        }
+
+        .history-overlay.hidden {
+            display: none;
+        }
+
+        .history-modal {
+            width: min(960px, 92vw);
+            max-height: 86vh;
+            overflow: auto;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.97);
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.52);
+            padding: 14px;
+        }
+
+        .history-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .history-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .history-sub {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .history-close {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.54);
+            color: #e2e8f0;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
+        .history-grid {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .history-card {
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: rgba(15, 23, 42, 0.56);
+            padding: 10px;
+        }
+
+        .history-card-name {
+            color: #f1f5f9;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .history-card-meta {
+            color: #94a3b8;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .history-card-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .history-btn {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.54);
+            color: #e2e8f0;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
+        .history-btn.load {
+            border-color: rgba(34, 197, 94, 0.4);
+            background: rgba(22, 163, 74, 0.24);
+            color: #dcfce7;
+        }
+
+        .history-btn.delete {
+            border-color: rgba(248, 113, 113, 0.4);
+            background: rgba(127, 29, 29, 0.3);
+            color: #fecaca;
+        }
+
+        .history-empty {
+            border-radius: 10px;
+            border: 1px dashed rgba(148, 163, 184, 0.24);
+            color: #94a3b8;
+            text-align: center;
+            padding: 16px;
+            font-size: 12px;
+        }
+
         .page {
             min-height: 100vh;
-            width: 100%;
+            width: calc(100% - 220px);
+            margin-left: 220px;
             padding: 0;
             background: var(--bg);
         }
@@ -80,21 +488,64 @@
 
         .top-actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
             justify-content: space-between;
             margin: 0;
-            padding: 6px 12px;
+            padding: 4px 10px;
             flex-wrap: wrap;
             background: #fff;
-            min-height: 52px;
+            min-height: 46px;
         }
 
         .top-actions-left {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
+        }
+
+        .top-actions-buttons {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 1px;
+        }
+
+        .top-actions-buttons > * {
+            flex-shrink: 0;
+        }
+
+        .saved-toolbar {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #d4d4d8;
+            background: #f8fafc;
+            padding: 2px 6px;
+            border-radius: 0;
+        }
+
+        .saved-toolbar .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 30px;
+            line-height: 1;
+            padding: 0 10px;
+            text-align: center;
+            white-space: nowrap;
+            gap: 6px;
+            vertical-align: middle;
+        }
+
+        .saved-toolbar-meta {
+            font-size: 11px;
+            color: #475569;
+            font-weight: 600;
+            white-space: nowrap;
+            padding-right: 2px;
+            border-left: 1px solid #d4d4d8;
+            padding-left: 8px;
         }
 
         .month-inline {
@@ -109,23 +560,23 @@
         }
 
         .month-inline select {
-            min-width: 130px;
-            height: 34px;
+            min-width: 116px;
+            height: 32px;
             border: 1px solid #d53f3f;
             border-radius: 0;
             padding: 0 8px;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         .btn {
             border: 1px solid #cfcfcf;
             background: #fff;
             color: #222;
-            padding: 0 12px;
-            height: 36px;
+            padding: 0 10px;
+            height: 32px;
             border-radius: 0;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12.5px;
             cursor: pointer;
         }
 
@@ -590,7 +1041,7 @@
         #cardDonut {
             position: absolute;
             bottom: 10px;
-            right: 0;
+            right: 0px;
             width: 340px;
             max-width: 340px;
             max-height: 220px;
@@ -610,11 +1061,11 @@
 
         #donutTitle {
             margin: 0 0 2px 0;
-            margin-left: 75px;
+            margin-left: 125px;
             color: #cc0000;
-            font-size: 11px;
-            font-weight: 700;
-            line-height: 1.2;
+            font-size: 5px;
+            font-weight: 600;
+            line-height: 1.1;
             text-align: left;
             pointer-events: none;
             display: block;
@@ -646,7 +1097,7 @@
         #plotDonut {
             width: 140px !important;
             height: 140px !important;
-            margin-right: 30px;
+            margin-right: 5px;
             flex: 0 0 auto;
         }
 
@@ -656,7 +1107,7 @@
             justify-content: center;
             gap: 4px;
             padding: 8px;
-            margin-right: 15px;
+            margin-right: 10px;
             border-radius: 6px;
             background: rgba(0,0,0,0.5);
             max-width: 130px;
@@ -901,7 +1352,10 @@
 
         .overlay {
             position: fixed;
-            inset: 0;
+            top: 0;
+            left: 220px;
+            width: calc(100vw - 220px);
+            height: 100vh;
             background: rgba(250, 250, 250, 0.96);
             display: flex;
             align-items: center;
@@ -916,6 +1370,161 @@
             background: #fff;
             padding: 18px;
             border-radius: 12px;
+        }
+
+        .mapping-overlay {
+            position: fixed;
+            top: 0;
+            left: 220px;
+            width: calc(100vw - 220px);
+            height: 100vh;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .mapping-card {
+            width: min(900px, 96vw);
+            max-height: 90vh;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #e3e3e3;
+            border-radius: 12px;
+            box-shadow: 0 14px 38px rgba(0, 0, 0, 0.25);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mapping-head h2 {
+            margin: 0;
+            color: #1f1f1f;
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .mapping-head p {
+            margin: 6px 0 0 0;
+            color: #666;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .mapping-loading {
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #666;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .mapping-spinner {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid #ececec;
+            border-top-color: #cc0000;
+            animation: mappingSpin 0.9s linear infinite;
+        }
+
+        @keyframes mappingSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .mapping-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .mapping-table th,
+        .mapping-table td {
+            border-bottom: 1px solid #ececec;
+            padding: 8px 8px;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 12px;
+        }
+
+        .mapping-table th {
+            color: #7a2525;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+            background: #fff8f8;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .mapping-row-low td:first-child {
+            border-left: 3px solid #f5a800;
+        }
+
+        .mapping-row-select {
+            width: 100%;
+            min-height: 32px;
+            border: 1px solid #d53f3f;
+            font-size: 12px;
+            padding: 4px 6px;
+            background: #fff;
+            color: #222;
+        }
+
+        .mapping-badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 2px 9px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: help;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+        }
+
+        .mapping-badge-high {
+            background: #eaf8ef;
+            color: #1c8d4a;
+        }
+
+        .mapping-badge-medium {
+            background: #fff5df;
+            color: #a76b00;
+        }
+
+        .mapping-badge-low {
+            background: #ffe8e8;
+            color: #b30000;
+        }
+
+        .mapping-foot {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .mapping-foot-note {
+            color: #6c6c6c;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .mapping-foot-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .upload-title {
@@ -1070,6 +1679,38 @@
             opacity: 1;
         }
 
+        .action-busy {
+            position: fixed;
+            top: 14px;
+            right: 16px;
+            z-index: 1400;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.92);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.36);
+            border-radius: 10px;
+            padding: 7px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 10px 24px rgba(2, 6, 23, 0.42);
+        }
+
+        .action-busy-spinner {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(148, 163, 184, 0.42);
+            border-top-color: #38bdf8;
+            animation: actionBusySpin 0.8s linear infinite;
+        }
+
+        @keyframes actionBusySpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         .drag-on .chart-card {
             cursor: move;
             outline: 1px dashed #da9e9e;
@@ -1090,6 +1731,26 @@
         }
 
         @media (max-width: 1300px) {
+            .app-shell-sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+                z-index: auto;
+            }
+
+            .page {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .overlay,
+            .mapping-overlay {
+                left: 0;
+                width: 100vw;
+            }
+
             .filters {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -1111,10 +1772,49 @@
             .custom-grid {
                 grid-template-columns: 1fr;
             }
+
+            .history-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
+    <aside class="app-shell-sidebar">
+        <a class="app-shell-home" href="/" title="Home">&#8962;</a>
+        <div class="app-shell-brand">
+            <div class="app-shell-brand-title">Yuqta</div>
+            <div class="app-shell-brand-sub">AI Dashboard Builder</div>
+        </div>
+
+        <div class="app-shell-actions">
+            <button class="app-shell-btn primary" onclick="window.location.href='/'">+ New AI Dashboard</button>
+            <button class="app-shell-btn secondary" onclick="window.location.href='/'">Generate Empty Dashboard</button>
+        </div>
+
+        <div class="app-shell-label">Templates</div>
+        <div class="app-shell-templates">
+            <a class="app-shell-template live active" href="/dashboard">
+                <span>S</span>
+                <span>Sales Cockpit</span>
+                <span class="badge">Live</span>
+            </a>
+            <div class="app-shell-template soon">
+                <span>+</span>
+                <span>Coming Soon</span>
+                <span class="badge">Soon</span>
+            </div>
+        </div>
+
+        <div class="app-shell-saved-head">
+            <div class="app-shell-label" style="margin-top:0; padding:0;">Saved</div>
+            <button id="btnViewAllSaved" class="app-shell-view-all" type="button">View All</button>
+        </div>
+        <div id="savedDashboardsList" class="app-shell-saved-list">
+            <div class="app-shell-saved-empty">No saved dashboards yet.</div>
+        </div>
+    </aside>
+
     <div class="page">
         <div class="top-strip">
             <div class="strip-item"><div class="strip-label">Date</div><div class="strip-value" id="hdrDate">-</div></div>
@@ -1134,8 +1834,14 @@
                     <select id="fMonth"></select>
                 </div>
             </div>
-            <div class="top-actions-left">
+            <div class="top-actions-left top-actions-buttons">
                 <button class="btn" id="btnOpenCharts">Open Charts</button>
+                <button class="btn" id="btnRemapColumns">Remap Columns</button>
+                <div id="savedDashboardToolbar" class="saved-toolbar">
+                    <button class="btn" id="btnSaveDashboard">&#128190; Save Layout</button>
+                    <button class="btn" id="btnRefreshSavedDashboard" style="display:none;">&#128260; Refresh Data</button>
+                    <span id="savedDashboardUpdatedAt" class="saved-toolbar-meta" style="display:none;"></span>
+                </div>
                 <button class="btn btn-primary" id="btnAiCharts">AI Chart Generation</button>
                 <button class="btn btn-amber" id="btnRearrange">Rearrange Dashboard</button>
                 <button class="btn btn-soft" id="btnNewAnalysis">New Analysis</button>
@@ -1282,7 +1988,7 @@
         </div>
     </div>
 
-    <div class="overlay" id="uploadOverlay">
+    <div class="overlay hidden" id="uploadOverlay">
         <div class="upload-card">
             <h2 class="upload-title">Choose Data Source</h2>
             <p class="upload-sub">Use Databricks templates or upload an Excel `.xlsx` file.</p>
@@ -1295,6 +2001,38 @@
                 <button class="btn btn-primary" id="btnUpload">Upload & Build</button>
             </div>
             <div class="status" id="uploadStatus"></div>
+        </div>
+    </div>
+
+    <div class="mapping-overlay hidden" id="mappingOverlay">
+        <div class="mapping-card">
+            <div class="mapping-head">
+                <h2>Column Mapping</h2>
+                <p>Review how your data connects to each chart. Change any mapping if needed.</p>
+            </div>
+            <div class="mapping-loading" id="mappingLoading">
+                <div class="mapping-spinner"></div>
+                <div id="mappingLoadingText">Fetching metadata and AI suggestions...</div>
+            </div>
+            <div id="mappingTableWrap" class="hidden">
+                <table class="mapping-table">
+                    <thead>
+                        <tr>
+                            <th style="width:34%;">Chart / KPI</th>
+                            <th style="width:23%;">Table</th>
+                            <th style="width:43%;">Column</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mappingTableBody"></tbody>
+                </table>
+                <div class="mapping-foot">
+                    <div class="mapping-foot-note" id="mappingModelInfo">Auto-mapped by AI</div>
+                    <div class="mapping-foot-actions">
+                        <button class="btn" id="btnMappingReset" type="button">Reset to AI Suggestions</button>
+                        <button class="btn btn-primary" id="btnMappingConfirm" type="button">Confirm &amp; Load Dashboard</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1316,7 +2054,7 @@
         <div class="side-body">
             <div class="field">
                 <label>Prompt</label>
-                <textarea id="aiPrompt" placeholder="Example: Value trend by region"></textarea>
+                <textarea id="aiPrompt" placeholder="Example: Value by region chart top 5 "></textarea>
             </div>
             <div style="display:flex; gap:8px; margin-top:8px;">
                 <button class="btn btn-primary" id="btnGenerateChart">Generate Chart</button>
@@ -1331,6 +2069,22 @@
     </div>
 
     <div class="toast" id="toast"></div>
+    <div id="actionBusy" class="action-busy hidden">
+        <span class="action-busy-spinner"></span>
+        <span id="actionBusyText">Working...</span>
+    </div>
+    <div id="savedHistoryOverlay" class="history-overlay hidden" onclick="closeSavedHistoryModal(event)">
+        <div class="history-modal" onclick="event.stopPropagation()">
+            <div class="history-head">
+                <div>
+                    <div class="history-title">Saved Dashboards</div>
+                    <div class="history-sub">Load, rename, or delete saved snapshots.</div>
+                </div>
+                <button class="history-close" type="button" onclick="closeSavedHistoryModal()">Close</button>
+            </div>
+            <div id="savedHistoryGrid" class="history-grid"></div>
+        </div>
+    </div>
 
     <script>
         const state = {
@@ -1341,7 +2095,32 @@
             dragId: null,
             aiBusy: false,
             dataSource: null,
+            databricksTables: {
+                invoice_table: 'llm_test.llm.invoice_template',
+                target_table: 'llm_test.llm.target_template',
+            },
+            metadata: null,
+            aiMappingSuggestions: null,
+            confirmedColumnMapping: null,
+            savedDashboards: [],
+            activeSavedDashboardId: '',
+            activeSavedSnapshotAt: '',
         };
+
+        const MAPPING_ROWS = [
+            { key: 'mtd_value_col', label: 'MTD Sales' },
+            { key: 'msp_value_col', label: 'MSP Target' },
+            { key: 'date_col', label: 'Date Filter' },
+            { key: 'region_col', label: 'Region Map' },
+            { key: 'channel_col', label: 'Business Channel' },
+            { key: 'brand_col', label: 'Brand Contribution' },
+            { key: 'category_col', label: 'Category Contribution' },
+            { key: 'outlet_col', label: 'Outlet Count' },
+            { key: 'volume_col', label: 'Volume Metric' },
+            { key: 'target_month_col', label: 'Target Month' },
+            { key: 'target_value_col', label: 'Target Value' },
+            { key: 'target_volume_col', label: 'Target Volume' },
+        ];
 
         const contribViewMode = {
             plotBusinessChannel: 'top',
@@ -1383,6 +2162,334 @@
             t.classList.add('show');
             clearTimeout(showToast._tm);
             showToast._tm = setTimeout(() => t.classList.remove('show'), 5000);
+        }
+
+        function getCsrfToken() {
+            const el = document.querySelector('[name=csrfmiddlewaretoken]');
+            return el ? String(el.value || '') : '';
+        }
+
+        function safeJsonParse(text, fallback = {}) {
+            try {
+                const parsed = JSON.parse(String(text || ''));
+                return parsed && typeof parsed === 'object' ? parsed : fallback;
+            } catch (_) {
+                return fallback;
+            }
+        }
+
+        function setActionBusy(flag, text = 'Working...') {
+            const el = document.getElementById('actionBusy');
+            const txt = document.getElementById('actionBusyText');
+            if (!el) return;
+            if (txt) txt.textContent = String(text || 'Working...');
+            el.classList.toggle('hidden', !flag);
+        }
+
+        async function withActionBusy(message, runner) {
+            setActionBusy(true, message);
+            try {
+                return await runner();
+            } finally {
+                setActionBusy(false);
+            }
+        }
+
+        function relTime(isoText) {
+            const d = new Date(String(isoText || ''));
+            if (Number.isNaN(d.getTime())) return '';
+            const diff = Math.max(0, Date.now() - d.getTime());
+            const sec = Math.floor(diff / 1000);
+            if (sec < 60) return 'just now';
+            const min = Math.floor(sec / 60);
+            if (min < 60) return `${min}m ago`;
+            const hr = Math.floor(min / 60);
+            if (hr < 24) return `${hr}h ago`;
+            const day = Math.floor(hr / 24);
+            if (day < 30) return `${day}d ago`;
+            const mon = Math.floor(day / 30);
+            if (mon < 12) return `${mon}mo ago`;
+            const yr = Math.floor(mon / 12);
+            return `${yr}y ago`;
+        }
+
+        function updateSavedDashboardToolbar() {
+            const refreshBtn = document.getElementById('btnRefreshSavedDashboard');
+            const stamp = document.getElementById('savedDashboardUpdatedAt');
+            const hasSaved = Boolean(String(state.activeSavedDashboardId || '').trim());
+
+            if (refreshBtn) {
+                refreshBtn.style.display = hasSaved ? 'inline-flex' : 'none';
+            }
+            if (stamp) {
+                if (hasSaved && state.activeSavedSnapshotAt) {
+                    stamp.style.display = 'inline';
+                    stamp.textContent = `Last updated: ${relTime(state.activeSavedSnapshotAt)}`;
+                } else {
+                    stamp.style.display = 'none';
+                    stamp.textContent = '';
+                }
+            }
+        }
+
+        function extractCockpitPayloadFromResponse(data) {
+            if (!data || typeof data !== 'object') return null;
+            const payload = data.payload;
+            if (payload && typeof payload === 'object') {
+                if (payload.payload && typeof payload.payload === 'object') return payload.payload;
+                return payload;
+            }
+            if (data.dashboard_payload && typeof data.dashboard_payload === 'object') return data.dashboard_payload;
+            if (data.dashboard && typeof data.dashboard === 'object') return data.dashboard;
+            if (data.data && typeof data.data === 'object') return data.data;
+            return null;
+        }
+
+        async function refreshSavedDashboardData() {
+            const savedId = String(state.activeSavedDashboardId || '').trim();
+            const refreshBtn = document.getElementById('btnRefreshSavedDashboard');
+            if (!savedId) return;
+            try {
+                setBusy(refreshBtn, true, 'Refreshing...');
+                await withActionBusy('Refreshing from Databricks...', async () => {
+                    const res = await fetch(`/api/dashboard/history/${encodeURIComponent(savedId)}/refresh/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCsrfToken() },
+                    });
+                    if (res.status === 404) {
+                        const fd = new FormData();
+                        fd.append('filters', JSON.stringify(getActiveFilters()));
+                        const payload = await postForm('/api/dashboard/data/', fd);
+                        renderAll(payload || {});
+                        state.activeSavedSnapshotAt = new Date().toISOString();
+                        updateSavedDashboardToolbar();
+                        return;
+                    }
+
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || data.error) throw new Error(data.error || `Refresh failed (${res.status})`);
+
+                    const freshPayload = extractCockpitPayloadFromResponse(data);
+                    if (!freshPayload || typeof freshPayload !== 'object') {
+                        throw new Error('Refresh response did not include dashboard data');
+                    }
+
+                    renderAll(freshPayload);
+                    state.activeSavedSnapshotAt = String(
+                        data.snapshot_taken_at || data.updated_at || data.saved_at || new Date().toISOString()
+                    );
+                    updateSavedDashboardToolbar();
+                });
+                showToast('Live data loaded from Databricks!');
+            } catch (e) {
+                showToast(`Refresh failed: ${e.message}`);
+            } finally {
+                setBusy(refreshBtn, false);
+            }
+        }
+
+        function typeLabel(rawType) {
+            return String(rawType || '').toLowerCase() === 'sales_cockpit' ? 'Sales Cockpit' : 'AI Dashboard';
+        }
+
+        async function fetchSavedDashboards() {
+            const res = await fetch('/api/dashboard/history/', { method: 'GET' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) throw new Error(data.error || `History request failed (${res.status})`);
+            return Array.isArray(data.dashboards) ? data.dashboards : [];
+        }
+
+        function renderSavedSidebarList() {
+            const host = document.getElementById('savedDashboardsList');
+            const viewAllBtn = document.getElementById('btnViewAllSaved');
+            if (!host) return;
+            const list = Array.isArray(state.savedDashboards) ? state.savedDashboards : [];
+            host.innerHTML = '';
+            if (viewAllBtn) viewAllBtn.style.visibility = list.length > 5 ? 'visible' : 'hidden';
+
+            if (!list.length) {
+                const empty = document.createElement('div');
+                empty.className = 'app-shell-saved-empty';
+                empty.textContent = 'No saved dashboards yet.';
+                host.appendChild(empty);
+                return;
+            }
+
+            list.slice(0, 5).forEach(item => {
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'app-shell-saved-item';
+                row.title = `${item.name || 'Untitled'} (${typeLabel(item.dashboard_type)})`;
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'app-shell-saved-name';
+                nameDiv.textContent = item.name || 'Untitled';
+
+                const meta = document.createElement('div');
+                meta.className = 'app-shell-saved-meta';
+                const t = document.createElement('span');
+                t.className = `app-shell-saved-type ${String(item.dashboard_type || '').toLowerCase() === 'sales_cockpit' ? 'sales' : 'ai'}`;
+                t.textContent = typeLabel(item.dashboard_type);
+                const ts = document.createElement('span');
+                ts.textContent = relTime(item.updated_at);
+                meta.appendChild(t);
+                meta.appendChild(ts);
+
+                const del = document.createElement('span');
+                del.className = 'app-shell-saved-delete';
+                del.title = 'Delete';
+                del.textContent = 'x';
+                del.onclick = async (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (!confirm(`Delete "${item.name || 'Untitled'}"?`)) return;
+                    try {
+                        await withActionBusy('Deleting saved dashboard...', async () => {
+                            const r = await fetch(`/api/dashboard/history/${encodeURIComponent(item.id)}/`, {
+                                method: 'DELETE',
+                                headers: { 'X-CSRFToken': getCsrfToken() },
+                            });
+                            const d = await r.json().catch(() => ({}));
+                            if (!r.ok || d.error) throw new Error(d.error || `Delete failed (${r.status})`);
+                        });
+                        await refreshSavedDashboards();
+                        showToast('Saved dashboard deleted');
+                    } catch (err) {
+                        showToast(`Delete failed: ${err.message}`);
+                    }
+                };
+
+                row.appendChild(nameDiv);
+                row.appendChild(meta);
+                row.appendChild(del);
+                row.onclick = () => {
+                    loadSavedDashboardById(item.id);
+                };
+                host.appendChild(row);
+            });
+        }
+
+        function renderSavedHistoryModal() {
+            const grid = document.getElementById('savedHistoryGrid');
+            if (!grid) return;
+            const list = Array.isArray(state.savedDashboards) ? state.savedDashboards : [];
+            grid.innerHTML = '';
+            if (!list.length) {
+                const empty = document.createElement('div');
+                empty.className = 'history-empty';
+                empty.textContent = 'No saved dashboards available.';
+                grid.appendChild(empty);
+                return;
+            }
+
+            list.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'history-card';
+
+                const name = document.createElement('div');
+                name.className = 'history-card-name';
+                name.textContent = item.name || 'Untitled';
+                const meta = document.createElement('div');
+                meta.className = 'history-card-meta';
+                const type = document.createElement('span');
+                type.className = `app-shell-saved-type ${String(item.dashboard_type || '').toLowerCase() === 'sales_cockpit' ? 'sales' : 'ai'}`;
+                type.textContent = typeLabel(item.dashboard_type);
+                const ts = document.createElement('span');
+                ts.textContent = relTime(item.updated_at);
+                meta.appendChild(type);
+                meta.appendChild(ts);
+
+                const actions = document.createElement('div');
+                actions.className = 'history-card-actions';
+
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'history-btn';
+                renameBtn.type = 'button';
+                renameBtn.textContent = 'Rename';
+                renameBtn.onclick = async () => {
+                    const next = prompt('Rename dashboard:', item.name || 'Untitled');
+                    if (next === null) return;
+                    const trimmed = String(next || '').trim();
+                    if (!trimmed) return;
+                    try {
+                        await withActionBusy('Renaming saved dashboard...', async () => {
+                            const r = await fetch(`/api/dashboard/history/${encodeURIComponent(item.id)}/`, {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCsrfToken(),
+                                },
+                                body: JSON.stringify({ name: trimmed }),
+                            });
+                            const d = await r.json().catch(() => ({}));
+                            if (!r.ok || d.error) throw new Error(d.error || `Rename failed (${r.status})`);
+                        });
+                        await refreshSavedDashboards();
+                    } catch (err) {
+                        showToast(`Rename failed: ${err.message}`);
+                    }
+                };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'history-btn delete';
+                deleteBtn.type = 'button';
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.onclick = async () => {
+                    if (!confirm(`Delete "${item.name || 'Untitled'}"?`)) return;
+                    try {
+                        await withActionBusy('Deleting saved dashboard...', async () => {
+                            const r = await fetch(`/api/dashboard/history/${encodeURIComponent(item.id)}/`, {
+                                method: 'DELETE',
+                                headers: { 'X-CSRFToken': getCsrfToken() },
+                            });
+                            const d = await r.json().catch(() => ({}));
+                            if (!r.ok || d.error) throw new Error(d.error || `Delete failed (${r.status})`);
+                        });
+                        await refreshSavedDashboards();
+                    } catch (err) {
+                        showToast(`Delete failed: ${err.message}`);
+                    }
+                };
+
+                const loadBtn = document.createElement('button');
+                loadBtn.className = 'history-btn load';
+                loadBtn.type = 'button';
+                loadBtn.textContent = 'Load';
+                loadBtn.onclick = () => loadSavedDashboardById(item.id);
+
+                actions.appendChild(renameBtn);
+                actions.appendChild(deleteBtn);
+                actions.appendChild(loadBtn);
+
+                card.appendChild(name);
+                card.appendChild(meta);
+                card.appendChild(actions);
+                grid.appendChild(card);
+            });
+        }
+
+        function openSavedHistoryModal() {
+            const overlay = document.getElementById('savedHistoryOverlay');
+            if (!overlay) return;
+            renderSavedHistoryModal();
+            overlay.classList.remove('hidden');
+        }
+
+        function closeSavedHistoryModal(event = null) {
+            const overlay = document.getElementById('savedHistoryOverlay');
+            if (!overlay) return;
+            if (event && event.target && event.target !== overlay) return;
+            overlay.classList.add('hidden');
+        }
+
+        async function refreshSavedDashboards() {
+            try {
+                state.savedDashboards = await fetchSavedDashboards();
+            } catch (_) {
+                state.savedDashboards = [];
+            }
+            renderSavedSidebarList();
+            renderSavedHistoryModal();
         }
 
         function fmt(v) {
@@ -2199,7 +3306,7 @@
                     bgcolor: '#ffffff',
                     landcolor: '#ffffff',
                     countrycolor: '#ffffff',
-                    domain: { x: [0, 0.92], y: [0, 1] },
+                    domain: { x: [0, 0.88], y: [0, 1] },
                 },
             };
 
@@ -2537,8 +3644,8 @@
             const labels = d.labels || [];
             const vals = d.values || [];
             const title = (d.mode || 'business_channel') === 'region'
-                ? 'Region wise Contribution %'
-                : 'Business Channel wise Contribution %';
+                ? 'Region Contribution %'
+                : 'Business Channel Contribution %';
             const donutTitleEl = document.getElementById('donutTitle');
             if (donutTitleEl) donutTitleEl.textContent = title;
             const donutPalette = ['#8B0000', '#cc0000', '#2e7d32', '#e57373', '#1f77b4', '#f08e2c', '#3ca73c', '#d62728'];
@@ -2930,6 +4037,14 @@
         function renderAll(payload) {
             state.payload = payload || {};
             state.dataSource = String((payload && payload.data_source) || state.dataSource || 'excel');
+            if (payload && payload.meta && typeof payload.meta === 'object') {
+                const m = payload.meta;
+                if (m.invoice_table) state.databricksTables.invoice_table = String(m.invoice_table);
+                if (m.target_table) state.databricksTables.target_table = String(m.target_table);
+                if (m.column_mapping && typeof m.column_mapping === 'object') {
+                    state.confirmedColumnMapping = m.column_mapping;
+                }
+            }
             applyGridViewportHeight();
             updateHeader(payload);
             updateFilters(payload);
@@ -2938,20 +4053,284 @@
             wireBaseCloseButtons();
             renderChartList();
             applyVisibility();
+            updateSavedDashboardToolbar();
+        }
+
+        function buildSalesSavePayload() {
+            return {
+                payload: state.payload || {},
+                custom_charts: Array.isArray(state.customCharts) ? state.customCharts : [],
+                hidden_chart_ids: Array.from(state.hiddenChartIds || []),
+            };
+        }
+
+        async function saveCockpitDashboard() {
+            if (!state.payload || typeof state.payload !== 'object') {
+                showToast('Load a dashboard first.');
+                return;
+            }
+            const name = prompt('Name this dashboard:', 'Sales Cockpit');
+            if (name === null) return;
+            const trimmed = String(name || '').trim();
+            if (!trimmed) return;
+
+            try {
+                let savedResult = null;
+                await withActionBusy('Saving dashboard...', async () => {
+                    const fd = new FormData();
+                    fd.append('name', trimmed);
+                    fd.append('dashboard_type', 'sales_cockpit');
+                    fd.append('payload', JSON.stringify(buildSalesSavePayload()));
+                    fd.append('filters_json', JSON.stringify(getActiveFilters() || {}));
+                    fd.append('meta_json', JSON.stringify({
+                        data_source: state.dataSource || '',
+                        invoice_table: state.databricksTables?.invoice_table || '',
+                        target_table: state.databricksTables?.target_table || '',
+                        column_mapping: state.confirmedColumnMapping || null,
+                    }));
+                    fd.append('thumbnail_hint', 'sales_cockpit');
+
+                    const res = await fetch('/api/dashboard/save/', {
+                        method: 'POST',
+                        body: fd,
+                        headers: { 'X-CSRFToken': getCsrfToken() },
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || data.error) throw new Error(data.error || `Save failed (${res.status})`);
+                    savedResult = data;
+                });
+                await refreshSavedDashboards();
+                if (state.activeSavedDashboardId && savedResult && typeof savedResult === 'object') {
+                    state.activeSavedDashboardId = String(savedResult.id || state.activeSavedDashboardId);
+                    state.activeSavedSnapshotAt = String(savedResult.saved_at || new Date().toISOString());
+                    updateSavedDashboardToolbar();
+                }
+                showToast('Dashboard saved!');
+            } catch (e) {
+                showToast(`Save failed: ${e.message}`);
+            }
+        }
+
+        async function loadSavedDashboardById(savedId) {
+            const id = String(savedId || '').trim();
+            if (!id) return;
+            try {
+                await withActionBusy('Loading saved dashboard...', async () => {
+                    const res = await fetch(`/api/dashboard/history/${encodeURIComponent(id)}/`, { method: 'GET' });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || data.error) throw new Error(data.error || `Load failed (${res.status})`);
+                    const type = String(data.dashboard_type || '').toLowerCase();
+                    if (type && type !== 'sales_cockpit') {
+                        window.location.href = `/?saved_id=${encodeURIComponent(id)}`;
+                        return;
+                    }
+
+                    state.activeSavedDashboardId = String(data.id || id);
+                    state.activeSavedSnapshotAt = String(data.snapshot_taken_at || data.updated_at || data.created_at || '');
+                    const saved = data.payload && typeof data.payload === 'object' ? data.payload : {};
+                    const basePayload = saved && saved.payload && typeof saved.payload === 'object' ? saved.payload : saved;
+                    renderAll(basePayload || {});
+
+                    state.customCharts = Array.isArray(saved.custom_charts) ? saved.custom_charts : [];
+                    state.hiddenChartIds = new Set(Array.isArray(saved.hidden_chart_ids) ? saved.hidden_chart_ids : []);
+                    renderCustomCharts();
+                    renderChartList();
+                    applyVisibility();
+                    document.getElementById('uploadOverlay').classList.add('hidden');
+                    updateSavedDashboardToolbar();
+                });
+                closeSavedHistoryModal();
+                showToast('Dashboard restored from history');
+            } catch (e) {
+                showToast(`Saved load failed: ${e.message}`);
+            }
+        }
+
+        async function loadSavedCockpitFromQuery() {
+            const params = new URLSearchParams(window.location.search);
+            const savedId = String(params.get('saved_id') || '').trim();
+            if (!savedId) return false;
+            await loadSavedDashboardById(savedId);
+            params.delete('saved_id');
+            const next = params.toString();
+            const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}`;
+            window.history.replaceState({}, document.title, nextUrl);
+            return true;
+        }
+
+        function setMappingLoading(flag, text) {
+            const loading = document.getElementById('mappingLoading');
+            const tableWrap = document.getElementById('mappingTableWrap');
+            const txt = document.getElementById('mappingLoadingText');
+            if (txt && text !== undefined) txt.textContent = text;
+            if (loading) loading.classList.toggle('hidden', !flag);
+            if (tableWrap) tableWrap.classList.toggle('hidden', !!flag);
+        }
+
+        function showMappingOverlay() {
+            const overlay = document.getElementById('mappingOverlay');
+            if (overlay) overlay.classList.remove('hidden');
+        }
+
+        function hideMappingOverlay() {
+            const overlay = document.getElementById('mappingOverlay');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        function getColumnsForTable(tableName) {
+            const key = String(tableName || 'invoice').toLowerCase();
+            if (key === 'target') {
+                return Array.isArray(state.metadata?.target_columns) ? state.metadata.target_columns : [];
+            }
+            return Array.isArray(state.metadata?.invoice_columns) ? state.metadata.invoice_columns : [];
+        }
+
+        function fillMappingColumnSelect(selectEl, tableName, selectedColumn) {
+            if (!selectEl) return;
+            const cols = getColumnsForTable(tableName);
+            const selected = String(selectedColumn || '').trim();
+            selectEl.innerHTML = '';
+            cols.forEach(col => {
+                const name = String(col?.name || '').trim();
+                if (!name) return;
+                const type = String(col?.type || '').trim();
+                const o = document.createElement('option');
+                o.value = name;
+                o.textContent = type ? `${name} (${type})` : name;
+                if (name === selected) o.selected = true;
+                selectEl.appendChild(o);
+            });
+            if (!selectEl.options.length) {
+                const o = document.createElement('option');
+                o.value = '';
+                o.textContent = 'No columns found';
+                selectEl.appendChild(o);
+            } else if (!selected && selectEl.options.length) {
+                selectEl.selectedIndex = 0;
+            }
+        }
+
+        function renderMappingRows(initialMapping, suggestions) {
+            const body = document.getElementById('mappingTableBody');
+            if (!body) return;
+            body.innerHTML = '';
+            const initMap = initialMapping && typeof initialMapping === 'object' ? initialMapping : {};
+            const sugMap = suggestions && typeof suggestions === 'object' ? suggestions : {};
+
+            MAPPING_ROWS.forEach(row => {
+                const sug = sugMap[row.key] || {};
+                const init = initMap[row.key] || {};
+                const tableVal = String(init.table || sug.table || (row.key.includes('target') || row.key === 'msp_value_col' ? 'target' : 'invoice')).toLowerCase();
+                const colVal = String(init.column || sug.column || '').trim();
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.label}</td>
+                    <td>
+                        <select class="mapping-row-select" id="mapTable_${row.key}">
+                            <option value="invoice">invoice_template</option>
+                            <option value="target">target_template</option>
+                        </select>
+                    </td>
+                    <td><select class="mapping-row-select" id="mapCol_${row.key}"></select></td>
+                `;
+                body.appendChild(tr);
+
+                const tableSel = document.getElementById(`mapTable_${row.key}`);
+                const colSel = document.getElementById(`mapCol_${row.key}`);
+                if (tableSel) {
+                    tableSel.value = tableVal === 'target' ? 'target' : 'invoice';
+                    tableSel.addEventListener('change', () => {
+                        fillMappingColumnSelect(colSel, tableSel.value, '');
+                    });
+                }
+                fillMappingColumnSelect(colSel, tableSel?.value || 'invoice', colVal);
+            });
+        }
+
+        function collectMappingFromWizard() {
+            const out = {};
+            MAPPING_ROWS.forEach(row => {
+                const tableSel = document.getElementById(`mapTable_${row.key}`);
+                const colSel = document.getElementById(`mapCol_${row.key}`);
+                out[row.key] = {
+                    table: tableSel ? String(tableSel.value || 'invoice') : 'invoice',
+                    column: colSel ? String(colSel.value || '').trim() : '',
+                };
+            });
+            return out;
+        }
+
+        async function fetchCockpitMetadata() {
+            const fd = new FormData();
+            fd.append('invoice_table', state.databricksTables.invoice_table);
+            fd.append('target_table', state.databricksTables.target_table);
+            return postForm('/api/dashboard/metadata/', fd);
+        }
+
+        async function fetchCockpitMappingSuggestions(metadata) {
+            const fd = new FormData();
+            fd.append('invoice_table', state.databricksTables.invoice_table);
+            fd.append('target_table', state.databricksTables.target_table);
+            fd.append('metadata', JSON.stringify(metadata || {}));
+            return postForm('/api/dashboard/column-mapping/', fd);
+        }
+
+        async function openColumnMappingWizard(useCurrent = false) {
+            showMappingOverlay();
+            setMappingLoading(true, 'Fetching metadata and AI suggestions...');
+            try {
+                const metadata = await fetchCockpitMetadata();
+                state.metadata = metadata;
+                if (metadata?.invoice_table) state.databricksTables.invoice_table = String(metadata.invoice_table);
+                if (metadata?.target_table) state.databricksTables.target_table = String(metadata.target_table);
+                setMappingLoading(true, 'AI is auto-mapping columns...');
+                const aiMap = await fetchCockpitMappingSuggestions(metadata);
+                state.aiMappingSuggestions = aiMap?.suggestions || {};
+                const modelText = `Auto-mapped by AI${aiMap?.model ? ` (${aiMap.model})` : ''}`;
+                const modelEl = document.getElementById('mappingModelInfo');
+                if (modelEl) modelEl.textContent = modelText;
+                const initialMapping = (useCurrent && state.confirmedColumnMapping)
+                    ? state.confirmedColumnMapping
+                    : (aiMap?.mapping || {});
+                renderMappingRows(initialMapping, state.aiMappingSuggestions);
+                setMappingLoading(false);
+            } catch (e) {
+                setMappingLoading(true, `Mapping failed: ${e.message}`);
+                throw e;
+            }
+        }
+
+        async function confirmMappingAndLoadDashboard() {
+            const confirmed = collectMappingFromWizard();
+            const fd = new FormData();
+            fd.append('invoice_table', state.databricksTables.invoice_table);
+            fd.append('target_table', state.databricksTables.target_table);
+            fd.append('column_mapping', JSON.stringify(confirmed));
+            const payload = await withActionBusy('Loading dashboard...', async () => postForm('/api/dashboard/databricks-init/', fd));
+            state.confirmedColumnMapping = confirmed;
+            state.activeSavedDashboardId = '';
+            state.activeSavedSnapshotAt = '';
+            renderAll(payload);
+            hideMappingOverlay();
+            document.getElementById('uploadOverlay').classList.add('hidden');
+            showToast('Databricks data loaded');
+        }
+
+        function resetMappingToAiSuggestions() {
+            const ai = state.aiMappingSuggestions || {};
+            renderMappingRows(ai, ai);
         }
 
         async function initDatabricksSource() {
             const status = document.getElementById('uploadStatus');
             const btn = document.getElementById('btnUseDatabricks');
             status.textContent = '';
-            setBusy(btn, true, 'Connecting...');
+            setBusy(btn, true, 'Preparing...');
             try {
-                const fd = new FormData();
-                const payload = await postForm('/api/dashboard/databricks-init/', fd);
-                renderAll(payload);
-                document.getElementById('uploadOverlay').classList.add('hidden');
-                showToast('Databricks data loaded');
+                await withActionBusy('Preparing Databricks metadata...', async () => openColumnMappingWizard(false));
             } catch (e) {
+                hideMappingOverlay();
                 status.textContent = e.message;
             } finally {
                 setBusy(btn, false);
@@ -2974,9 +4353,13 @@
             status.textContent = '';
             setBusy(btn, true, 'Uploading...');
             try {
-                const fd = new FormData();
-                fd.append('file', file);
-                const payload = await postForm('/api/dashboard/upload/', fd);
+                const payload = await withActionBusy('Uploading and rendering dashboard...', async () => {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    return postForm('/api/dashboard/upload/', fd);
+                });
+                state.activeSavedDashboardId = '';
+                state.activeSavedSnapshotAt = '';
                 renderAll(payload);
                 document.getElementById('uploadOverlay').classList.add('hidden');
                 showToast('Dataset uploaded');
@@ -2991,9 +4374,11 @@
             const btn = document.getElementById('btnApplyFilters');
             setBusy(btn, true, 'Applying...');
             try {
-                const fd = new FormData();
-                fd.append('filters', JSON.stringify(getActiveFilters()));
-                const payload = await postForm('/api/dashboard/data/', fd);
+                const payload = await withActionBusy('Loading charts...', async () => {
+                    const fd = new FormData();
+                    fd.append('filters', JSON.stringify(getActiveFilters()));
+                    return postForm('/api/dashboard/data/', fd);
+                });
                 renderAll(payload);
                 await refreshAllCustomCharts();
                 showToast('Filters applied');
@@ -3084,32 +4469,80 @@
             state.payload = null;
             state.customCharts = [];
             state.hiddenChartIds.clear();
+            state.metadata = null;
+            state.aiMappingSuggestions = null;
+            state.confirmedColumnMapping = null;
+            state.activeSavedDashboardId = '';
+            state.activeSavedSnapshotAt = '';
             renderCustomCharts();
             renderChartList();
+            updateSavedDashboardToolbar();
             document.getElementById('uploadOverlay').classList.remove('hidden');
+            hideMappingOverlay();
             document.getElementById('uploadStatus').textContent = '';
             document.getElementById('uploadFile').value = '';
             showToast('Start a new upload');
         }
 
-        function toggleRearrange() {
-            state.rearrangeOn = !state.rearrangeOn;
-            const btn = document.getElementById('btnRearrange');
-            btn.textContent = state.rearrangeOn ? 'Rearrange: ON' : 'Rearrange Dashboard';
-            document.body.classList.toggle('drag-on', state.rearrangeOn);
+        function rearrangeDashboardLayout() {
+            if (!state.payload || typeof state.payload !== 'object') {
+                showToast('No dashboard data available to rearrange.');
+                return;
+            }
+            state.rearrangeOn = false;
+            state.dragId = null;
+            document.body.classList.remove('drag-on');
             document.querySelectorAll('.chart-card').forEach(el => {
-                el.draggable = state.rearrangeOn;
+                el.draggable = false;
             });
+
+            const btn = document.getElementById('btnRearrange');
+            if (btn) btn.textContent = 'Rearrange Dashboard';
+
+            renderAll(state.payload || {});
+            renderCustomCharts();
+            renderChartList();
+            applyVisibility();
+            showToast('Dashboard rearranged using current charts only.');
         }
 
         document.getElementById('btnUseDatabricks').addEventListener('click', initDatabricksSource);
         document.getElementById('btnUpload').addEventListener('click', uploadExcel);
         document.getElementById('btnApplyFilters').addEventListener('click', applyFilters);
+        document.getElementById('btnSaveDashboard').addEventListener('click', saveCockpitDashboard);
+        document.getElementById('btnRefreshSavedDashboard').addEventListener('click', refreshSavedDashboardData);
+        document.getElementById('btnViewAllSaved').addEventListener('click', openSavedHistoryModal);
+        document.getElementById('btnRemapColumns').addEventListener('click', async () => {
+            if (String(state.dataSource || '').toLowerCase() !== 'databricks') {
+                showToast('Load Databricks source first.');
+                return;
+            }
+            try {
+                await openColumnMappingWizard(true);
+            } catch (e) {
+                hideMappingOverlay();
+                showToast(`Remap failed: ${e.message}`);
+            }
+        });
         document.getElementById('fMonth').addEventListener('change', () => {
             applyFilters();
         });
+        document.getElementById('btnMappingReset').addEventListener('click', () => {
+            resetMappingToAiSuggestions();
+        });
+        document.getElementById('btnMappingConfirm').addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            setBusy(btn, true, 'Loading...');
+            try {
+                await confirmMappingAndLoadDashboard();
+            } catch (err) {
+                showToast(`Load failed: ${err.message}`);
+            } finally {
+                setBusy(btn, false);
+            }
+        });
         document.getElementById('btnNewAnalysis').addEventListener('click', resetToNewAnalysis);
-        document.getElementById('btnRearrange').addEventListener('click', toggleRearrange);
+        document.getElementById('btnRearrange').addEventListener('click', rearrangeDashboardLayout);
         document.getElementById('btnOpenCharts').addEventListener('click', () => {
             document.getElementById('chartsSide').classList.toggle('open');
         });
@@ -3172,6 +4605,23 @@
             });
         });
         applyGridViewportHeight();
+        updateSavedDashboardToolbar();
+        setInterval(updateSavedDashboardToolbar, 60000);
+        (async () => {
+            const upload = document.getElementById('uploadOverlay');
+            const hasSavedId = Boolean(new URLSearchParams(window.location.search).get('saved_id'));
+            if (upload) {
+                if (hasSavedId) upload.classList.add('hidden');
+                else upload.classList.remove('hidden');
+            }
+            await refreshSavedDashboards();
+            const restored = await loadSavedCockpitFromQuery();
+            if (upload) {
+                if (restored) upload.classList.add('hidden');
+                else upload.classList.remove('hidden');
+            }
+        })();
     </script>
 </body>
 </html>
+

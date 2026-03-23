@@ -12,7 +12,7 @@
     
     <style>
         body { 
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: radial-gradient(circle at 22% 0%, rgba(20, 78, 112, 0.32), transparent 46%), linear-gradient(180deg, #061526 0%, #041022 100%);
             color: #e2e8f0; 
             font-family: 'Outfit', system-ui, -apple-system, sans-serif; 
             margin: 0; padding: 0;
@@ -1361,380 +1361,834 @@
 
         #upload-screen.launcher-screen {
             position: relative;
-            inset: auto;
             width: 100%;
             height: 100dvh;
             min-height: 100dvh;
             overflow: hidden;
-            padding: 24px 20px 14px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
             z-index: 50;
             box-sizing: border-box;
+            padding: 0;
         }
 
-        .launcher-shell {
-            width: min(1200px, 100%);
+        /* Ensure JS class toggles always win over launcher/dashboard base display rules. */
+        #upload-screen.hidden,
+        #dashboard-screen.hidden {
+            display: none !important;
+        }
+
+        .launcher-app {
+            width: 100%;
             height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0;
-            overflow: hidden;
-        }
-
-        .launcher-branding {
-            width: min(860px, 100%);
-            padding-top: 16px !important;
-            padding-bottom: 16px !important;
-            max-height: 38vh;
-            flex-shrink: 0;
-            animation: launcherFadeIn 0.3s ease forwards;
-            opacity: 0;
-            transform: translateY(8px);
-            overflow: hidden;
-            position: relative;
-            box-sizing: border-box;
-        }
-
-        .launcher-branding-inner {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            align-items: center;
-            gap: 18px;
-            width: 100%;
+            grid-template-columns: 220px minmax(0, 1fr);
+            overflow: hidden;
+            background: linear-gradient(180deg, #071a2f 0%, #041326 100%);
         }
 
-        .launcher-branding-left {
+        .launcher-sidebar {
+            background: #151515;
+            border-right: 1px solid rgba(148, 163, 184, 0.22);
+            padding: 20px 14px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            text-align: center;
-        }
-
-        .launcher-branding-right {
-            text-align: center;
-            border-left: 1px solid color-mix(in srgb, var(--app-border) 90%, transparent);
-            padding-left: 16px;
-        }
-
-        .launcher-branding-left h1,
-        .launcher-branding-left p {
-            text-align: center;
-        }
-
-        .launcher-branding-right {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .launcher-branding .text-6xl {
-            font-size: clamp(2.1rem, 4.6vw, 3.2rem);
-            line-height: 1;
-            margin-bottom: 10px !important;
-        }
-
-        .launcher-branding h1 {
-            font-size: clamp(1.75rem, 3.5vw, 2.5rem) !important;
-            margin-bottom: 8px !important;
-        }
-
-        .launcher-branding p {
-            margin-bottom: 14px !important;
-        }
-
-        .launcher-branding .primary-cta {
-            padding-top: 10px !important;
-            padding-bottom: 10px !important;
-        }
-
-        .launcher-branding .secondary-cta {
-            padding-top: 8px !important;
-            padding-bottom: 8px !important;
-        }
-
-        .launcher-label {
-            text-align: center;
-            min-height: 0;
-            padding: 10px 0 8px 0;
-            margin-top: 20px;
-            flex-shrink: 0;
-            animation: launcherFadeIn 0.3s ease forwards;
-            animation-delay: 0.12s;
-            opacity: 0;
-            transform: translateY(8px);
-        }
-
-        .launcher-label-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #e5e7eb;
-            line-height: 1.1;
-        }
-
-        .launcher-label-sub {
-            margin-top: 4px;
-            font-size: 12px;
-            color: var(--app-muted);
-            line-height: 1.1;
-        }
-
-        .launcher-row {
-            width: 100%;
-            max-width: 1200px;
-            margin-top: 12px;
-            display: flex;
-            gap: 20px;
-            flex: 1 1 0;
-            min-height: 0;
-            align-items: stretch;
-            animation: launcherFadeIn 0.3s ease forwards;
-            animation-delay: 0.2s;
-            opacity: 0;
-            transform: translateY(8px);
-        }
-
-        .launcher-card {
-            width: calc((100% - 60px) / 4);
-            height: 100%;
-            border: 1px solid var(--app-border);
-            border-radius: 18px;
-            background: var(--app-bg-soft);
-            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+            gap: 14px;
             overflow: hidden;
             position: relative;
-            display: flex;
-            flex-direction: column;
+        }
+
+        .launcher-home-link {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.42);
+            color: #e2e8f0;
             text-decoration: none;
-            color: inherit;
-            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-        }
-
-        .launcher-card.live-card:hover {
-            transform: translateY(-4px) scale(1.04);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
-            border-color: color-mix(in srgb, var(--app-accent) 46%, var(--app-border));
-        }
-
-        .launcher-card.coming-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 18px 34px rgba(0, 0, 0, 0.46);
-        }
-
-        .launcher-image {
-            position: relative;
-            flex: 1 1 0;
-            overflow: hidden;
-            border-bottom: 1px solid var(--app-border);
-        }
-
-        .launcher-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.25s ease, filter 0.25s ease;
-        }
-
-        .launcher-card.live-card:hover .launcher-image img {
-            transform: scale(1.04);
-            filter: saturate(1.06);
-        }
-
-        .launcher-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, transparent 35%, rgba(0, 0, 0, 0.18) 100%);
-            pointer-events: none;
-            transition: background 0.25s ease;
-        }
-
-        .launcher-card.live-card:hover .launcher-overlay {
-            background: linear-gradient(180deg, rgba(34, 197, 94, 0.06) 25%, rgba(0, 0, 0, 0.25) 100%);
-        }
-
-        .launcher-badge {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 10px;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
             font-weight: 700;
+            display: none;
+        }
+
+        .launcher-home-link:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: rgba(56, 189, 248, 0.58);
+        }
+
+        #upload-screen.launcher-screen.dashboard-mode .launcher-home-link {
+            display: inline-flex;
+        }
+
+        .launcher-brand-mark {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 4px 2px 8px;
+        }
+
+        .launcher-brand-title {
+            font-size: 34px;
+            line-height: 1;
+            font-weight: 800;
+            color: #f8fafc;
+            letter-spacing: -0.02em;
+        }
+
+        .launcher-brand-subtitle {
+            font-size: 11px;
+            color: #94a3b8;
             letter-spacing: 0.04em;
             text-transform: uppercase;
-            z-index: 2;
+            font-weight: 600;
         }
 
-        .launcher-badge.live {
-            background: color-mix(in srgb, var(--app-accent) 26%, rgba(15, 23, 42, 0.86));
-            border: 1px solid color-mix(in srgb, var(--app-accent) 40%, transparent);
-            color: #eafff2;
+        .launcher-actions {
+            display: grid;
+            gap: 10px;
         }
 
-        .launcher-badge.soon {
-            background: rgba(30, 41, 59, 0.78);
-            border: 1px solid rgba(148, 163, 184, 0.35);
+        .launcher-action-btn {
+            width: 100%;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 10px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.2;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .launcher-action-btn.primary {
+            color: #ffffff;
+            background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+            border-color: rgba(99, 102, 241, 0.55);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.24);
+        }
+
+        .launcher-action-btn.primary:hover {
+            filter: brightness(1.06);
+        }
+
+        .launcher-action-btn.secondary {
+            color: #d1d5db;
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+
+        .launcher-action-btn.secondary:hover {
+            border-color: rgba(148, 163, 184, 0.45);
+            color: #eef2ff;
+        }
+
+        .launcher-sidebar-section {
+            margin-top: 6px;
+            font-size: 10px;
+            color: #8f99aa;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 0 2px;
+        }
+
+        .launcher-template-list {
+            display: grid;
+            gap: 10px;
+            overflow: hidden;
+            padding-right: 2px;
+        }
+
+        .launcher-template-item {
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: rgba(15, 23, 42, 0.42);
+            padding: 10px 10px;
+            display: grid;
+            grid-template-columns: 18px minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .launcher-template-item.live {
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .launcher-template-item.live:hover {
+            border-color: rgba(56, 189, 248, 0.52);
+            background: rgba(30, 58, 138, 0.28);
+            transform: translateY(-1px);
+        }
+
+        .launcher-template-icon {
+            font-size: 13px;
+            color: #93c5fd;
+            text-align: center;
+        }
+
+        .launcher-template-name {
+            min-width: 0;
+            color: #e5e7eb;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .launcher-template-badge {
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 9px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .launcher-template-badge.live {
+            background: rgba(16, 185, 129, 0.22);
+            border: 1px solid rgba(16, 185, 129, 0.42);
+            color: #d1fae5;
+        }
+
+        .launcher-template-item.soon {
+            opacity: 0.62;
+            background: rgba(15, 23, 42, 0.24);
+        }
+
+        .launcher-template-item.soon .launcher-template-icon {
+            color: #94a3b8;
+        }
+
+        .launcher-template-badge.soon {
+            background: rgba(71, 85, 105, 0.35);
+            border: 1px solid rgba(148, 163, 184, 0.25);
             color: #cbd5e1;
         }
 
-        .launcher-placeholder {
-            width: 100%;
-            height: 100%;
+        .launcher-saved-head {
+            margin-top: 2px;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             gap: 8px;
-            color: #7b818c;
+            padding: 0 2px;
         }
 
-        .launcher-placeholder-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 14px;
-            border: 1px dashed rgba(148, 163, 184, 0.45);
+        .launcher-saved-viewall {
+            border: none;
+            background: transparent;
+            color: #7dd3fc;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .launcher-saved-viewall:hover {
+            color: #e0f2fe;
+        }
+
+        .launcher-saved-list {
+            display: grid;
+            gap: 8px;
+            overflow: auto;
+            padding-right: 2px;
+            min-height: 0;
+        }
+
+        .launcher-saved-empty {
+            border-radius: 10px;
+            border: 1px dashed rgba(148, 163, 184, 0.24);
+            color: #8fa2be;
+            font-size: 11px;
+            text-align: center;
+            padding: 10px 8px;
+            background: rgba(15, 23, 42, 0.22);
+        }
+
+        .launcher-saved-item {
+            position: relative;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: rgba(15, 23, 42, 0.5);
+            color: #e2e8f0;
+            cursor: pointer;
+            padding: 8px 30px 8px 10px;
+            text-align: left;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .launcher-saved-item:hover {
+            border-color: rgba(56, 189, 248, 0.45);
+            background: rgba(30, 58, 138, 0.26);
+        }
+
+        .launcher-saved-name {
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .launcher-saved-meta {
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        .launcher-saved-type {
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            padding: 1px 6px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #dbeafe;
+            background: rgba(30, 41, 59, 0.45);
+        }
+
+        .launcher-saved-type.sales {
+            border-color: rgba(239, 68, 68, 0.35);
+            color: #fecaca;
+            background: rgba(127, 29, 29, 0.28);
+        }
+
+        .launcher-saved-delete {
+            position: absolute;
+            right: 8px;
+            top: 7px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid rgba(248, 113, 113, 0.28);
+            background: rgba(127, 29, 29, 0.24);
+            color: #fecaca;
+            font-size: 10px;
+            line-height: 1;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            color: #94a3b8;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.16s ease;
         }
 
-        .launcher-info {
-            height: 70px;
-            flex-shrink: 0;
-            padding: 14px 14px 12px;
+        .launcher-saved-item:hover .launcher-saved-delete {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .launcher-history-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
             display: flex;
-            justify-content: space-between;
-            gap: 10px;
             align-items: center;
-            background: color-mix(in srgb, var(--app-bg-soft) 88%, black 12%);
+            justify-content: center;
+            background: rgba(2, 6, 23, 0.72);
+            backdrop-filter: blur(3px);
+            padding: 20px;
         }
 
-        .launcher-info-main {
-            min-width: 0;
+        .launcher-history-overlay.hidden {
+            display: none;
         }
 
-        .launcher-title {
-            font-size: 17px;
-            font-weight: 700;
+        .launcher-history-modal {
+            width: min(980px, 92vw);
+            max-height: 86vh;
+            overflow: auto;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            background: rgba(15, 23, 42, 0.97);
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.52);
+            padding: 14px;
+        }
+
+        .launcher-history-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .launcher-history-title {
+            font-size: 18px;
+            font-weight: 800;
             color: #f8fafc;
-            line-height: 1.12;
-            transition: color 0.25s ease;
         }
 
-        .launcher-card.live-card:hover .launcher-title {
-            color: #86efac;
-        }
-
-        .launcher-subtitle {
-            margin-top: 5px;
-            font-size: 12px;
+        .launcher-history-sub {
             color: #94a3b8;
-            line-height: 1.2;
+            font-size: 12px;
+            margin-top: 3px;
         }
 
-        .launcher-open {
-            border: 1px solid color-mix(in srgb, var(--app-accent) 45%, transparent);
-            color: #dcfce7;
-            background: color-mix(in srgb, var(--app-accent) 18%, transparent);
-            border-radius: 999px;
-            padding: 6px 11px;
+        .launcher-history-close {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.54);
+            color: #e2e8f0;
             font-size: 12px;
             font-weight: 700;
-            white-space: nowrap;
+            padding: 6px 10px;
+            cursor: pointer;
         }
 
-        .launcher-soon {
-            border: 1px solid rgba(148, 163, 184, 0.38);
-            color: #9aa1ab;
-            background: rgba(51, 65, 85, 0.35);
-            border-radius: 999px;
-            padding: 6px 11px;
+        .launcher-history-grid {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .launcher-history-card {
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: rgba(15, 23, 42, 0.56);
+            padding: 10px;
+        }
+
+        .launcher-history-card-name {
+            color: #f1f5f9;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .launcher-history-card-meta {
+            color: #94a3b8;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .launcher-history-card-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .launcher-history-btn {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.54);
+            color: #e2e8f0;
             font-size: 11px;
             font-weight: 700;
-            white-space: nowrap;
+            padding: 6px 10px;
+            cursor: pointer;
         }
 
-        .launcher-row .launcher-card:nth-child(1) { animation: launcherRise 0.3s ease forwards; animation-delay: 0.24s; opacity: 0; transform: translateY(10px); }
-        .launcher-row .launcher-card:nth-child(2) { animation: launcherRise 0.3s ease forwards; animation-delay: 0.32s; opacity: 0; transform: translateY(10px); }
-        .launcher-row .launcher-card:nth-child(3) { animation: launcherRise 0.3s ease forwards; animation-delay: 0.40s; opacity: 0; transform: translateY(10px); }
-        .launcher-row .launcher-card:nth-child(4) { animation: launcherRise 0.3s ease forwards; animation-delay: 0.48s; opacity: 0; transform: translateY(10px); }
-
-        @keyframes launcherFadeIn {
-            to { opacity: 1; transform: translateY(0); }
+        .launcher-history-btn.load {
+            border-color: rgba(34, 197, 94, 0.4);
+            background: rgba(22, 163, 74, 0.24);
+            color: #dcfce7;
         }
 
-        @keyframes launcherRise {
-            to { opacity: 1; transform: translateY(0); }
+        .launcher-history-btn.delete {
+            border-color: rgba(248, 113, 113, 0.4);
+            background: rgba(127, 29, 29, 0.3);
+            color: #fecaca;
         }
 
-        @media (max-width: 900px) {
+        .launcher-history-empty {
+            border-radius: 10px;
+            border: 1px dashed rgba(148, 163, 184, 0.24);
+            color: #94a3b8;
+            text-align: center;
+            padding: 16px;
+            font-size: 12px;
+        }
+
+        .launcher-content {
+            min-width: 0;
+            height: 100%;
+            padding: 24px 28px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 36%), linear-gradient(180deg, #071a2f 0%, #041326 100%);
+            position: relative;
+        }
+
+        .launcher-stage {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .launcher-view {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transform: translateY(10px);
+            pointer-events: none;
+            transition: opacity 0.24s ease, transform 0.24s ease;
+        }
+
+        .launcher-view.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .launcher-empty-state {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .launcher-empty-inner {
+            max-width: 580px;
+        }
+
+        .launcher-empty-brand {
+            font-size: clamp(3rem, 7vw, 5.4rem);
+            color: #f8fafc;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -0.03em;
+            margin: 0;
+        }
+
+        .launcher-empty-title {
+            margin-top: 10px;
+            font-size: clamp(1.25rem, 2.4vw, 2rem);
+            color: #e2e8f0;
+            font-weight: 700;
+        }
+
+        .launcher-empty-subtitle {
+            margin-top: 10px;
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .launcher-empty-tags {
+            margin-top: 18px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .launcher-empty-tag {
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            border: 1px solid rgba(148, 163, 184, 0.34);
+            color: #cbd5e1;
+            background: rgba(30, 41, 59, 0.35);
+        }
+
+        .launcher-sales-preview {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+        }
+
+        .launcher-sales-card {
+            width: min(1020px, 96%);
+            height: min(82vh, 640px);
+            border-radius: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(15, 23, 42, 0.82);
+            box-shadow: 0 24px 42px rgba(0, 0, 0, 0.52);
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 40% 60%;
+        }
+
+        .launcher-sales-media {
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .launcher-sales-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .launcher-sales-live {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-weight: 700;
+            background: rgba(16, 185, 129, 0.25);
+            color: #d1fae5;
+            border: 1px solid rgba(16, 185, 129, 0.42);
+        }
+
+        .launcher-sales-info {
+            padding: 26px 28px 22px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .launcher-sales-title {
+            margin: 0;
+            font-size: 30px;
+            line-height: 1.05;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .launcher-sales-desc {
+            margin-top: 8px;
+            color: #94a3b8;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .launcher-sales-group-title {
+            margin-top: 16px;
+            margin-bottom: 8px;
+            color: #f87171;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .launcher-sales-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .launcher-sales-pill {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            background: rgba(255, 255, 255, 0.05);
+            color: #e2e8f0;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 7px 8px;
+            text-align: center;
+        }
+
+        .launcher-sales-tables {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .launcher-sales-table {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(255, 255, 255, 0.06);
+            color: #e2e8f0;
+            font-size: 11px;
+            padding: 6px 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .launcher-sales-features {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 5px;
+            color: #cbd5e1;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .launcher-sales-features li {
+            position: relative;
+            padding-left: 14px;
+        }
+
+        .launcher-sales-features li::before {
+            content: "*";
+            position: absolute;
+            left: 0;
+            color: #ef4444;
+            font-size: 10px;
+        }
+
+        .launcher-sales-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-top: 14px;
+        }
+
+        .launcher-sales-btn {
+            border-radius: 8px;
+            border: 1px solid transparent;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 9px 18px;
+            cursor: pointer;
+        }
+
+        .launcher-sales-btn-close {
+            background: rgba(148, 163, 184, 0.14);
+            border-color: rgba(148, 163, 184, 0.35);
+            color: #cbd5e1;
+        }
+
+        .launcher-sales-btn-open {
+            background: #cc0000;
+            border-color: #cc0000;
+            color: #ffffff;
+        }
+
+        #upload-screen.launcher-screen.dashboard-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100dvh;
+            min-height: 100dvh;
+            z-index: 80;
+            border-right: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        #upload-screen.launcher-screen.dashboard-mode .launcher-app {
+            display: block;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #upload-screen.launcher-screen.dashboard-mode .launcher-sidebar {
+            height: 100%;
+            border-right: none;
+        }
+
+        #upload-screen.launcher-screen.dashboard-mode .launcher-content {
+            display: none;
+        }
+
+        #dashboard-screen {
+            position: relative;
+            margin-left: 220px;
+            width: calc(100% - 220px);
+            min-height: 100vh;
+            height: auto;
+            overflow: visible;
+            background: var(--app-bg-gradient);
+        }
+
+        @media (max-width: 980px) {
             #upload-screen.launcher-screen {
                 height: auto;
                 min-height: 100vh;
+                overflow-y: auto;
+            }
+
+            .launcher-app {
+                min-height: 100vh;
+                grid-template-columns: 1fr;
+            }
+
+            .launcher-sidebar {
+                border-right: none;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.2);
                 overflow: visible;
-                padding-bottom: 24px;
             }
 
-            .launcher-shell {
-                height: auto;
-                display: block;
-            }
-
-            .launcher-row {
-                height: auto;
-                min-height: 0;
-                display: grid;
+            .launcher-template-list {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 16px;
             }
 
-            .launcher-card {
+            .launcher-saved-list {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .launcher-history-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .launcher-content {
+                min-height: calc(100vh - 280px);
+            }
+
+            .launcher-sales-card {
+                width: min(920px, 100%);
+                height: auto;
+                min-height: 580px;
+                grid-template-columns: 1fr;
+            }
+
+            .launcher-sales-media {
+                min-height: 220px;
+                border-right: none;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            }
+
+            #upload-screen.launcher-screen.dashboard-mode {
                 width: 100%;
-                min-height: 280px;
+                position: relative;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            #dashboard-screen {
+                margin-left: 0;
+                width: 100%;
             }
         }
 
-        @media (max-width: 600px) {
-            .launcher-row {
+        @media (max-width: 640px) {
+            .launcher-template-list {
                 grid-template-columns: 1fr;
             }
 
-            .launcher-branding {
-                width: min(520px, 96vw);
+            .launcher-content {
+                padding: 18px 14px 22px;
             }
 
-            .launcher-branding-inner {
-                grid-template-columns: 1fr;
-                gap: 12px;
+            .launcher-sales-info {
+                padding: 18px;
             }
 
-            .launcher-branding-left {
-                align-items: center;
-                text-align: center;
-                order: 1;
+            .launcher-sales-metrics {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
-            .launcher-branding-left h1,
-            .launcher-branding-left p {
-                text-align: center;
+            .launcher-sales-footer {
+                justify-content: stretch;
             }
 
-            .launcher-branding-right {
-                align-items: center;
-                text-align: center;
-                border-left: none;
-                border-top: 1px solid color-mix(in srgb, var(--app-border) 90%, transparent);
-                padding-left: 0;
-                padding-top: 10px;
-                order: 2;
+            .launcher-sales-btn {
+                flex: 1 1 0;
             }
         }
 
@@ -1751,9 +2205,9 @@
             background: color-mix(in srgb, var(--app-bg-soft) 88%, transparent) !important;
             border: 1px solid color-mix(in srgb, var(--app-accent) 35%, transparent) !important;
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 8px;
         }
 
         #filter-left-block {
@@ -1765,26 +2219,26 @@
         }
 
         #dynamic-filter-host {
-            flex: 1 1 520px;
-            min-width: 320px;
+            flex: 1 1 420px;
+            min-width: 260px;
         }
 
         #dynamic-filter-controls {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 6px;
             width: 100%;
         }
 
         .filter-chip {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             background: color-mix(in srgb, var(--app-bg-soft) 84%, transparent);
             border: 1px solid color-mix(in srgb, var(--app-accent) 45%, transparent);
             border-radius: 12px;
-            padding: 4px 8px;
+            padding: 3px 7px;
         }
 
         .filter-chip-label {
@@ -1801,8 +2255,8 @@
             border: 1px solid color-mix(in srgb, var(--app-accent) 45%, transparent);
             color: var(--app-text);
             border-radius: 8px;
-            font-size: 12px;
-            padding: 5px 8px;
+            font-size: 11px;
+            padding: 4px 7px;
             outline: none;
             cursor: pointer;
         }
@@ -1815,7 +2269,7 @@
 
         .filter-dropdown {
             position: relative;
-            min-width: 180px;
+            min-width: 158px;
         }
 
         .filter-dropdown-toggle {
@@ -1824,8 +2278,8 @@
             border: 1px solid color-mix(in srgb, var(--app-accent) 45%, transparent);
             color: var(--app-text);
             border-radius: 8px;
-            font-size: 12px;
-            padding: 5px 10px;
+            font-size: 11px;
+            padding: 4px 8px;
             outline: none;
             cursor: pointer;
             text-align: left;
@@ -1916,8 +2370,8 @@
             background: rgba(255, 255, 255, 0.03);
             color: var(--app-text);
             border-radius: 8px;
-            font-size: 13px;
-            padding: 5px 8px;
+            font-size: 11px;
+            padding: 4px 7px;
             cursor: pointer;
         }
 
@@ -1927,8 +2381,8 @@
         }
 
         .filter-clear-btn {
-            padding: 6px 10px;
-            font-size: 12px;
+            padding: 5px 8px;
+            font-size: 11px;
             border-radius: 8px;
             border: 1px solid color-mix(in srgb, var(--app-accent) 40%, transparent);
             color: var(--app-text);
@@ -1942,8 +2396,8 @@
         }
 
         .filter-apply-btn {
-            padding: 6px 10px;
-            font-size: 12px;
+            padding: 5px 8px;
+            font-size: 11px;
             border-radius: 8px;
             border: 1px solid color-mix(in srgb, var(--app-accent) 55%, transparent);
             color: var(--app-text);
@@ -1973,6 +2427,8 @@
         #date-filter-container {
             background: color-mix(in srgb, var(--app-bg-soft) 88%, transparent) !important;
             border: 1px solid color-mix(in srgb, var(--app-accent) 45%, transparent) !important;
+            gap: 6px;
+            padding: 5px 8px;
         }
 
         #date-separator {
@@ -2020,16 +2476,60 @@
         #theme-toggle-btn,
         #open-glossary-btn,
         #reset-dashboard-btn,
+        #save-dashboard-btn,
+        #refresh-saved-dashboard-btn,
         #dashboard-screen button[onclick="location.reload()"] {
             background: rgba(255, 255, 255, 0.03) !important;
             border-color: var(--app-border) !important;
             color: var(--app-muted) !important;
         }
 
+        #dashboard-top-actions {
+            display: grid !important;
+            align-items: center;
+            gap: 8px;
+            grid-template-columns: repeat(4, minmax(0, max-content));
+            justify-content: end;
+            padding-bottom: 2px;
+        }
+
+        #dashboard-top-actions > * {
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        #saved-dashboard-toolbar {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+
+        #saved-dashboard-updated-at {
+            border-left: 1px solid var(--app-border);
+            padding-left: 8px;
+            margin-left: 2px;
+        }
+
+        @media (max-width: 1480px) {
+            #dashboard-top-actions {
+                grid-template-columns: repeat(3, minmax(0, max-content));
+            }
+        }
+
+        @media (max-width: 1180px) {
+            #dashboard-top-actions {
+                grid-template-columns: repeat(2, minmax(0, max-content));
+            }
+        }
+
         #open-charts-btn:hover,
         #theme-toggle-btn:hover,
         #open-glossary-btn:hover,
         #reset-dashboard-btn:hover,
+        #save-dashboard-btn:hover,
+        #refresh-saved-dashboard-btn:hover,
         #dashboard-screen button[onclick="location.reload()"]:hover {
             background: color-mix(in srgb, var(--app-accent) 20%, transparent) !important;
             border-color: color-mix(in srgb, var(--app-accent) 40%, transparent) !important;
@@ -2392,103 +2892,115 @@
     {% csrf_token %}
 
         <div id="upload-screen" class="launcher-screen">
-            <div class="launcher-shell">
-                <div class="upload-zone startup-card border-2 border-dashed rounded-3xl backdrop-blur-sm launcher-branding">
-                    <div class="launcher-branding-inner">
-                        <div class="launcher-branding-left">
-                            <div class="text-6xl mb-4">Yuqta</div>
-                            <h1 class="text-4xl font-bold mb-4 startup-title">
-                                AI Dashboard
-                            </h1>
-                            <p class="mb-6 text-sm startup-subtitle">Databricks-powered command center.</p>
-                        </div>
-                        <div class="launcher-branding-right">
-                            <button onclick="initDatabricksMode()" class="font-bold py-3 px-8 rounded-full transition-all shadow-lg hover:shadow-xl text-sm primary-cta">
-                                Create AI Dashboard
-                            </button>
-                            <button onclick="initEmptyDashboard()" class="font-semibold py-2 px-6 rounded-full transition-all text-xs secondary-cta">
-                                Generate Empty Dashboard
-                            </button>
-                        </div>
+            <div class="launcher-app">
+                <aside class="launcher-sidebar">
+                    <a class="launcher-home-link" href="#" onclick="return returnToLauncherHome(event)" title="Home">&#8962;</a>
+                    <div class="launcher-brand-mark">
+                        <div class="launcher-brand-title">Yuqta</div>
+                        <div class="launcher-brand-subtitle">AI Dashboard Builder</div>
                     </div>
-                </div>
 
-                <div class="launcher-label">
-                    <div class="launcher-label-title">Your Dashboards</div>
-                    <div class="launcher-label-sub">Click a dashboard to open it</div>
-                </div>
+                    <div class="launcher-actions">
+                        <button onclick="initDatabricksMode()" class="launcher-action-btn primary">+ New AI Dashboard</button>
+                        <button onclick="initEmptyDashboard()" class="launcher-action-btn secondary">Generate Empty Dashboard</button>
+                    </div>
 
-                <div class="launcher-row">
-                    <a href="/dashboard" class="launcher-card live-card" aria-label="Open Sales Cockpit">
-                        <div class="launcher-image">
-                            <img src="{% static 'Sales.png' %}" alt="Sales Cockpit">
-                            <div class="launcher-overlay"></div>
-                            <span class="launcher-badge live">Live</span>
-                        </div>
-                        <div class="launcher-info">
-                            <div class="launcher-info-main">
-                                <div class="launcher-title">Sales Cockpit</div>
-                                <div class="launcher-subtitle">MTD - Region - AI Charts</div>
-                            </div>
-                            <span class="launcher-open">Open -></span>
-                        </div>
-                    </a>
+                    <div class="launcher-sidebar-section">Templates</div>
 
-                    <div class="launcher-card coming-card" aria-label="New dashboard coming soon">
-                        <div class="launcher-image">
-                            <div class="launcher-placeholder">
-                                <div class="launcher-placeholder-icon">*</div>
-                                <div>Coming Soon</div>
-                            </div>
-                            <span class="launcher-badge soon">Coming Soon</span>
+                    <div class="launcher-template-list">
+                        <button class="launcher-template-item live" aria-label="Sales Cockpit" onclick="return setLauncherRightView('sales', event)">
+                            <span class="launcher-template-icon">S</span>
+                            <span class="launcher-template-name">Sales Cockpit</span>
+                            <span class="launcher-template-badge live">Live</span>
+                        </button>
+
+                        <div class="launcher-template-item soon" aria-disabled="true">
+                            <span class="launcher-template-icon">+</span>
+                            <span class="launcher-template-name">Coming Soon</span>
+                            <span class="launcher-template-badge soon">Soon</span>
                         </div>
-                        <div class="launcher-info">
-                            <div class="launcher-info-main">
-                                <div class="launcher-title">New Dashboard</div>
-                                <div class="launcher-subtitle">Available soon</div>
-                            </div>
-                            <span class="launcher-soon">Soon</span>
+
+                        <div class="launcher-template-item soon" aria-disabled="true">
+                            <span class="launcher-template-icon">+</span>
+                            <span class="launcher-template-name">Coming Soon</span>
+                            <span class="launcher-template-badge soon">Soon</span>
+                        </div>
+
+                        <div class="launcher-template-item soon" aria-disabled="true">
+                            <span class="launcher-template-icon">+</span>
+                            <span class="launcher-template-name">Coming Soon</span>
+                            <span class="launcher-template-badge soon">Soon</span>
                         </div>
                     </div>
 
-                    <div class="launcher-card coming-card" aria-label="New dashboard coming soon">
-                        <div class="launcher-image">
-                            <div class="launcher-placeholder">
-                                <div class="launcher-placeholder-icon">*</div>
-                                <div>Coming Soon</div>
+                    <div class="launcher-sidebar-section" style="margin-top:0;">Saved</div>
+                    <div id="launcher-saved-list" class="launcher-saved-list">
+                        <div class="launcher-saved-empty">No saved dashboards yet.</div>
+                    </div>
+                    <button id="launcher-view-all-saved" class="launcher-saved-viewall" type="button" onclick="openLauncherHistoryModal(event)" style="align-self:flex-end; margin-top:2px;">View All</button>
+                </aside>
+
+                <main class="launcher-content">
+                    <div class="launcher-stage">
+                        <section id="launcher-view-home" class="launcher-view launcher-empty-state active">
+                            <div class="launcher-empty-inner">
+                                <h1 class="launcher-empty-brand">Yuqta</h1>
+                                <div class="launcher-empty-title">AI-Powered Dashboard Builder</div>
+                                <div class="launcher-empty-subtitle">Drag, resize, and arrange freely</div>
+                                <div class="launcher-empty-tags">
+                                    <span class="launcher-empty-tag">Sales</span>
+                                    <span class="launcher-empty-tag">Products</span>
+                                </div>
                             </div>
-                            <span class="launcher-badge soon">Coming Soon</span>
-                        </div>
-                        <div class="launcher-info">
-                            <div class="launcher-info-main">
-                                <div class="launcher-title">New Dashboard</div>
-                                <div class="launcher-subtitle">Available soon</div>
+                        </section>
+
+                        <section id="launcher-view-sales" class="launcher-view launcher-sales-preview">
+                            <div class="launcher-sales-card">
+                                <div class="launcher-sales-media">
+                                    <img src="{% static 'Sales.png' %}" alt="Sales Cockpit">
+                                    <span class="launcher-sales-live">Live</span>
+                                </div>
+                                <div class="launcher-sales-info">
+                                    <h2 class="launcher-sales-title">Sales Cockpit</h2>
+                                    <p class="launcher-sales-desc">Real-time sales KPI dashboard powered by Databricks</p>
+
+                                    <div class="launcher-sales-group-title">Key Metrics</div>
+                                    <div class="launcher-sales-metrics">
+                                        <div class="launcher-sales-pill">MTD</div>
+                                        <div class="launcher-sales-pill">LYMTD</div>
+                                        <div class="launcher-sales-pill">ECO</div>
+                                        <div class="launcher-sales-pill">RRR</div>
+                                        <div class="launcher-sales-pill">DRR</div>
+                                        <div class="launcher-sales-pill">MSP</div>
+                                    </div>
+
+                                    <div class="launcher-sales-group-title">Connected Tables</div>
+                                    <div class="launcher-sales-tables">
+                                        <span class="launcher-sales-table">llm_test.llm.invoice_template</span>
+                                        <span class="launcher-sales-table">llm_test.llm.target_template</span>
+                                    </div>
+
+                                    <div class="launcher-sales-group-title">Features</div>
+                                    <ul class="launcher-sales-features">
+                                        <li>Region map</li>
+                                        <li>Contribution charts</li>
+                                        <li>AI chart generation</li>
+                                        <li>Daily bars</li>
+                                    </ul>
+
+                                    <div class="launcher-sales-footer">
+                                        <button class="launcher-sales-btn launcher-sales-btn-close" onclick="setLauncherRightView('home')">Close</button>
+                                        <button class="launcher-sales-btn launcher-sales-btn-open" onclick="window.location.href='/dashboard'">Open Dashboard -></button>
+                                    </div>
+                                </div>
                             </div>
-                            <span class="launcher-soon">Soon</span>
-                        </div>
+                        </section>
                     </div>
 
-                    <div class="launcher-card coming-card" aria-label="New dashboard coming soon">
-                        <div class="launcher-image">
-                            <div class="launcher-placeholder">
-                                <div class="launcher-placeholder-icon">*</div>
-                                <div>Coming Soon</div>
-                            </div>
-                            <span class="launcher-badge soon">Coming Soon</span>
-                        </div>
-                        <div class="launcher-info">
-                            <div class="launcher-info-main">
-                                <div class="launcher-title">New Dashboard</div>
-                                <div class="launcher-subtitle">Available soon</div>
-                            </div>
-                            <span class="launcher-soon">Soon</span>
-                        </div>
+                    <div id="loader" class="hidden mt-2 flex items-center gap-3 loader-caption text-sm">
+                        <div class="loader"></div> Creating Dashboard
                     </div>
-                </div>
-
-                <div id="loader" class="hidden mt-2 flex items-center gap-3 loader-caption text-sm">
-                    <div class="loader"></div> Creating Dashboard
-                </div>
+                </main>
             </div>
         </div>
 
@@ -2513,12 +3025,12 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-3 flex-wrap justify-end">
-                <button id="open-charts-btn" onclick="toggleChartSidebar()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
+            <div id="dashboard-top-actions" class="flex items-center gap-2 flex-nowrap justify-end">
+                <button id="open-charts-btn" onclick="toggleChartSidebar()" class="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
                     Chart Generation
                 </button>
                 <div class="theme-menu-wrap">
-                    <button id="theme-toggle-btn" onclick="toggleThemeMenu(event)" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
+                    <button id="theme-toggle-btn" onclick="toggleThemeMenu(event)" class="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
                         Themes
                     </button>
                     <div id="theme-dropdown" class="theme-dropdown" style="display: none;">
@@ -2530,13 +3042,22 @@
                         <button class="theme-option" data-theme-id="everest" onclick="selectTheme('everest')">Everest Spice</button>
                     </div>
                 </div>
-                <button id="open-glossary-btn" onclick="toggleGlossarySidebar()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
+                <button id="open-glossary-btn" onclick="toggleGlossarySidebar()" class="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
                     Open Glossary
                 </button>
-                <button id="reset-dashboard-btn" onclick="rearrangeDashboardLayout()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-amber-500 flex items-center gap-2">
+                <button id="reset-dashboard-btn" onclick="rearrangeDashboardLayout()" class="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-amber-500 flex items-center gap-2">
                     Rearrange Dashboard
                 </button>
-                <button onclick="location.reload()" class="px-6 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
+                <div id="saved-dashboard-toolbar" class="flex items-center gap-2 px-2 py-1 rounded-xl border border-slate-700/80 bg-slate-900/35">
+                    <button id="save-dashboard-btn" onclick="saveCurrentDashboard()" class="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-cyan-400 flex items-center gap-2">
+                        💾 Save Layout
+                    </button>
+                    <button id="refresh-saved-dashboard-btn" onclick="refreshActiveSavedDashboardData()" class="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 items-center gap-2" style="display:none;">
+                        🔄 Refresh Data
+                    </button>
+                    <span id="saved-dashboard-updated-at" class="text-[11px] text-slate-400 whitespace-nowrap hidden"></span>
+                </div>
+                <button onclick="location.reload()" class="px-4 py-2 bg-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all hover:border-emerald-500 flex items-center gap-2">
                     New Analysis
                 </button>
             </div>
@@ -2697,6 +3218,19 @@
         </div>
     </div>
 
+    <div id="launcher-history-overlay" class="launcher-history-overlay hidden" onclick="closeLauncherHistoryModal(event)">
+        <div class="launcher-history-modal" onclick="event.stopPropagation()">
+            <div class="launcher-history-head">
+                <div>
+                    <div class="launcher-history-title">Saved Dashboards</div>
+                    <div class="launcher-history-sub">Load, rename, or delete saved snapshots.</div>
+                </div>
+                <button class="launcher-history-close" type="button" onclick="closeLauncherHistoryModal()">Close</button>
+            </div>
+            <div id="launcher-history-grid" class="launcher-history-grid"></div>
+        </div>
+    </div>
+
     <script>
         let activeFilters = {};
         let currentData = null;
@@ -2744,6 +3278,10 @@
         let processRequestToken = 0;
         let isFilterLoading = false;
         let userStoppedFilterLoad = false;
+        let savedDashboardsCache = [];
+        let activeSavedDashboardId = '';
+        let activeSavedSnapshotTakenAt = '';
+        let savedDashboardToolbarTicker = null;
         let lastAppliedFilterState = {
             activeFilters: {},
             selectedFilterColumns: []
@@ -3481,9 +4019,584 @@
             });
         }
 
+        function setLauncherRightView(view = 'home', event = null) {
+            if (event && typeof event.preventDefault === 'function') {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            const target = String(view || 'home').toLowerCase();
+            const upload = document.getElementById('upload-screen');
+            if (upload && upload.classList.contains('dashboard-mode') && target === 'sales') {
+                window.location.href = '/dashboard';
+                return false;
+            }
+            const homeView = document.getElementById('launcher-view-home');
+            const salesView = document.getElementById('launcher-view-sales');
+            if (!homeView || !salesView) return false;
+
+            const showSales = target === 'sales';
+            homeView.classList.toggle('active', !showSales);
+            salesView.classList.toggle('active', showSales);
+            return false;
+        }
+
+        function returnToLauncherHome(event = null) {
+            if (event && typeof event.preventDefault === 'function') {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const upload = document.getElementById('upload-screen');
+            const dashboard = document.getElementById('dashboard-screen');
+            if (typeof closeChartSidebar === 'function') closeChartSidebar();
+            if (typeof closeGlossarySidebar === 'function') closeGlossarySidebar();
+            if (dashboard) dashboard.classList.add('hidden');
+            if (upload) {
+                upload.classList.remove('hidden');
+                upload.classList.remove('dashboard-mode');
+            }
+            setLauncherRightView('home');
+            return false;
+        }
+
+        function openLauncherPreviewModal(kind = 'sales', event = null, cardName = 'New Dashboard') {
+            if (event && typeof event.preventDefault === 'function') {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const overlay = document.getElementById('launcher-preview-overlay');
+            const content = document.getElementById('launcher-preview-content');
+            if (!overlay || !content) return false;
+
+            const mode = String(kind || 'sales').toLowerCase();
+            if (mode === 'sales') {
+                content.innerHTML = `
+                    <div class="launcher-preview-sales">
+                        <div class="launcher-preview-sales-media">
+                            <img src="{% static 'Sales.png' %}" alt="Sales Cockpit Preview">
+                            <span class="launcher-preview-live-badge">Live</span>
+                        </div>
+                        <div class="launcher-preview-sales-info">
+                            <h2 class="launcher-preview-title">Sales Cockpit</h2>
+                            <div class="launcher-preview-accent"></div>
+                            <p class="launcher-preview-tagline">Real-time sales performance monitoring powered by Databricks</p>
+
+                            <div class="launcher-preview-section-label">What this dashboard shows</div>
+                            <p class="launcher-preview-description">
+                                The Sales Cockpit gives your sales team a live view of monthly performance.
+                                Track MTD sales against your MSP target, monitor how today's pace compares to last year and last month,
+                                and see which regions, brands, and channels are driving or dragging performance.
+                            </p>
+
+                            <div class="launcher-preview-section-label">Key Metrics</div>
+                            <div class="launcher-preview-metric-grid">
+                                <div class="launcher-preview-metric-pill">MTD vs MSP</div>
+                                <div class="launcher-preview-metric-pill">SLY% and SEQ%</div>
+                                <div class="launcher-preview-metric-pill">LE and ECO</div>
+                                <div class="launcher-preview-metric-pill">RRR and DRR</div>
+                                <div class="launcher-preview-metric-pill">Region Performance Map</div>
+                                <div class="launcher-preview-metric-pill">Brand and Category Breakdown</div>
+                            </div>
+
+                            <div class="launcher-preview-section-label">Connected Tables</div>
+                            <div class="launcher-preview-table-tags">
+                                <span class="launcher-preview-table-tag">🗄 invoice_template</span>
+                                <span class="launcher-preview-table-tag">🗄 target_template</span>
+                            </div>
+
+                            <div class="launcher-preview-section-label">Features</div>
+                            <ul class="launcher-preview-feature-list">
+                                <li>AI-powered custom chart generation</li>
+                                <li>Month selector for historical comparison</li>
+                                <li>Filter by Channel, Brand, Category</li>
+                                <li>India region performance map</li>
+                                <li>Live Databricks connection</li>
+                            </ul>
+
+                            <div class="launcher-preview-footer">
+                                <button class="launcher-preview-btn launcher-preview-btn-close" onclick="closeLauncherPreviewModal()">Close</button>
+                                <button class="launcher-preview-btn launcher-preview-btn-open" onclick="window.location.href='/dashboard'">Open Dashboard →</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div class="launcher-preview-coming">
+                        <h3>${String(cardName || 'New Dashboard')}</h3>
+                        <p>This dashboard is currently under development.</p>
+                        <button class="launcher-preview-btn launcher-preview-btn-close" onclick="closeLauncherPreviewModal()">Close</button>
+                    </div>
+                `;
+            }
+
+            overlay.classList.remove('hidden');
+            requestAnimationFrame(() => overlay.classList.add('open'));
+            return false;
+        }
+
+        function closeLauncherPreviewModal(event = null) {
+            const overlay = document.getElementById('launcher-preview-overlay');
+            const content = document.getElementById('launcher-preview-content');
+            if (!overlay) return;
+            if (event && event.target && event.target !== overlay) return;
+            overlay.classList.remove('open');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                if (content) content.innerHTML = '';
+            }, 220);
+        }
+
+        function _csrfToken() {
+            const el = document.querySelector('[name=csrfmiddlewaretoken]');
+            return el ? String(el.value || '') : '';
+        }
+
+        function _safeJsonParse(text, fallback = {}) {
+            try {
+                const parsed = JSON.parse(String(text || ''));
+                return parsed && typeof parsed === 'object' ? parsed : fallback;
+            } catch (_) {
+                return fallback;
+            }
+        }
+
+        function _savedTypeLabel(t) {
+            return String(t || '').toLowerCase() === 'sales_cockpit' ? 'Sales Cockpit' : 'AI Dashboard';
+        }
+
+        function _relativeTime(isoText) {
+            const d = new Date(String(isoText || ''));
+            if (Number.isNaN(d.getTime())) return '';
+            const diff = Math.max(0, Date.now() - d.getTime());
+            const sec = Math.floor(diff / 1000);
+            if (sec < 60) return 'just now';
+            const min = Math.floor(sec / 60);
+            if (min < 60) return `${min}m ago`;
+            const hr = Math.floor(min / 60);
+            if (hr < 24) return `${hr}h ago`;
+            const day = Math.floor(hr / 24);
+            if (day < 30) return `${day}d ago`;
+            const mon = Math.floor(day / 30);
+            if (mon < 12) return `${mon}mo ago`;
+            const yr = Math.floor(mon / 12);
+            return `${yr}y ago`;
+        }
+
+        async function _fetchSavedDashboards() {
+            const res = await fetch('/api/dashboard/history/', { method: 'GET' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) throw new Error(data.error || `History request failed (${res.status})`);
+            return Array.isArray(data.dashboards) ? data.dashboards : [];
+        }
+
+        async function _fetchSavedDashboardDetail(savedId) {
+            const res = await fetch(`/api/dashboard/history/${encodeURIComponent(savedId)}/`, { method: 'GET' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) throw new Error(data.error || `Load failed (${res.status})`);
+            return data;
+        }
+
+        async function _deleteSavedDashboard(savedId) {
+            const res = await fetch(`/api/dashboard/history/${encodeURIComponent(savedId)}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': _csrfToken() }
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) throw new Error(data.error || `Delete failed (${res.status})`);
+            return data;
+        }
+
+        async function _renameSavedDashboard(savedId, name) {
+            const res = await fetch(`/api/dashboard/history/${encodeURIComponent(savedId)}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': _csrfToken()
+                },
+                body: JSON.stringify({ name: String(name || '').trim() })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) throw new Error(data.error || `Rename failed (${res.status})`);
+            return data;
+        }
+
+        function _setStatusMessage(msg) {
+            const status = document.getElementById('chart-request-status');
+            if (status) status.textContent = String(msg || '');
+        }
+
+        function updateSavedDashboardToolbar() {
+            const refreshBtn = document.getElementById('refresh-saved-dashboard-btn');
+            const updatedAt = document.getElementById('saved-dashboard-updated-at');
+            const hasSavedDashboard = Boolean(String(activeSavedDashboardId || '').trim());
+
+            if (refreshBtn) {
+                refreshBtn.style.display = hasSavedDashboard ? 'inline-flex' : 'none';
+            }
+            if (updatedAt) {
+                if (hasSavedDashboard && activeSavedSnapshotTakenAt) {
+                    updatedAt.classList.remove('hidden');
+                    updatedAt.textContent = `Last updated: ${_relativeTime(activeSavedSnapshotTakenAt)}`;
+                } else {
+                    updatedAt.classList.add('hidden');
+                    updatedAt.textContent = '';
+                }
+            }
+        }
+
+        function _extractDashboardPayloadFromRefreshResponse(data) {
+            if (!data || typeof data !== 'object') return null;
+            const payload = data.payload;
+            if (payload && typeof payload === 'object') {
+                if (payload.dashboard_payload && typeof payload.dashboard_payload === 'object') {
+                    return payload.dashboard_payload;
+                }
+                return payload;
+            }
+            if (data.dashboard_payload && typeof data.dashboard_payload === 'object') return data.dashboard_payload;
+            if (data.dashboard && typeof data.dashboard === 'object') return data.dashboard;
+            if (data.data && typeof data.data === 'object') return data.data;
+            return null;
+        }
+
+        async function _refreshCurrentWidgetsOnly() {
+            const formData = new FormData();
+            formData.append('filters', JSON.stringify(activeFilters || {}));
+            formData.append('widgets', JSON.stringify(buildFilterRefreshWidgetsPayload()));
+            const res = await fetch('/api/reapply-filters/', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': _csrfToken() }
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) throw new Error(data.error || `Refresh failed (${res.status})`);
+            currentData = mergeFilteredResponseIntoCurrentData(currentData || {}, data);
+            renderDashboard(currentData);
+        }
+
+        async function refreshActiveSavedDashboardData() {
+            const refreshBtn = document.getElementById('refresh-saved-dashboard-btn');
+            const savedId = String(activeSavedDashboardId || '').trim();
+            if (!savedId) return;
+            try {
+                if (refreshBtn) {
+                    refreshBtn.disabled = true;
+                    refreshBtn.dataset.prevText = refreshBtn.textContent;
+                    refreshBtn.textContent = 'Refreshing...';
+                }
+                _setStatusMessage('Refreshing from Databricks...');
+                const res = await fetch(`/api/dashboard/history/${encodeURIComponent(savedId)}/refresh/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': _csrfToken() }
+                });
+                if (res.status === 404) {
+                    await _refreshCurrentWidgetsOnly();
+                    activeSavedSnapshotTakenAt = new Date().toISOString();
+                    updateSavedDashboardToolbar();
+                    _setStatusMessage('Live data loaded from Databricks!');
+                    return;
+                }
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.error) throw new Error(data.error || `Refresh failed (${res.status})`);
+
+                const freshPayload = _extractDashboardPayloadFromRefreshResponse(data);
+                if (!freshPayload || typeof freshPayload !== 'object') {
+                    throw new Error('Refresh response did not include dashboard data');
+                }
+
+                currentData = mergeFilteredResponseIntoCurrentData(currentData || {}, freshPayload);
+                renderDashboard(currentData);
+                activeSavedSnapshotTakenAt = String(
+                    data.snapshot_taken_at || data.updated_at || data.saved_at || new Date().toISOString()
+                );
+                updateSavedDashboardToolbar();
+                _setStatusMessage('Live data loaded from Databricks!');
+            } catch (err) {
+                _setStatusMessage('');
+                alert(`Refresh failed: ${err.message}`);
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = refreshBtn.dataset.prevText || '🔄 Refresh Data';
+                }
+            }
+        }
+
+        function _renderSavedListSidebar() {
+            const listEl = document.getElementById('launcher-saved-list');
+            const viewAllBtn = document.getElementById('launcher-view-all-saved');
+            if (!listEl) return;
+            const list = Array.isArray(savedDashboardsCache) ? savedDashboardsCache : [];
+            listEl.innerHTML = '';
+            if (viewAllBtn) viewAllBtn.style.visibility = list.length > 5 ? 'visible' : 'hidden';
+
+            if (!list.length) {
+                const empty = document.createElement('div');
+                empty.className = 'launcher-saved-empty';
+                empty.textContent = 'No saved dashboards yet.';
+                listEl.appendChild(empty);
+                return;
+            }
+
+            list.slice(0, 5).forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'launcher-saved-item';
+                btn.title = `${item.name || 'Untitled'} (${_savedTypeLabel(item.dashboard_type)})`;
+                btn.innerHTML = `
+                    <div class="launcher-saved-name">${escapeHtml(item.name || 'Untitled')}</div>
+                    <div class="launcher-saved-meta">
+                        <span class="launcher-saved-type ${String(item.dashboard_type || '').toLowerCase() === 'sales_cockpit' ? 'sales' : 'ai'}">${escapeHtml(_savedTypeLabel(item.dashboard_type))}</span>
+                        <span>${escapeHtml(_relativeTime(item.updated_at))}</span>
+                    </div>
+                    <span class="launcher-saved-delete" title="Delete">x</span>
+                `;
+                btn.onclick = () => loadSavedDashboard(item.id);
+                const delBtn = btn.querySelector('.launcher-saved-delete');
+                if (delBtn) {
+                    delBtn.onclick = async (ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        if (!confirm(`Delete "${item.name || 'Untitled'}"?`)) return;
+                        try {
+                            await _deleteSavedDashboard(item.id);
+                            await refreshSavedDashboards();
+                            _setStatusMessage('Saved dashboard deleted.');
+                        } catch (err) {
+                            alert(`Delete failed: ${err.message}`);
+                        }
+                    };
+                }
+                listEl.appendChild(btn);
+            });
+        }
+
+        function renderHistoryModal() {
+            const grid = document.getElementById('launcher-history-grid');
+            if (!grid) return;
+            const list = Array.isArray(savedDashboardsCache) ? savedDashboardsCache : [];
+            grid.innerHTML = '';
+            if (!list.length) {
+                const empty = document.createElement('div');
+                empty.className = 'launcher-history-empty';
+                empty.textContent = 'No saved dashboards available.';
+                grid.appendChild(empty);
+                return;
+            }
+
+            list.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'launcher-history-card';
+                card.innerHTML = `
+                    <div class="launcher-history-card-name">${escapeHtml(item.name || 'Untitled')}</div>
+                    <div class="launcher-history-card-meta">
+                        <span class="launcher-saved-type ${String(item.dashboard_type || '').toLowerCase() === 'sales_cockpit' ? 'sales' : 'ai'}">${escapeHtml(_savedTypeLabel(item.dashboard_type))}</span>
+                        <span>${escapeHtml(_relativeTime(item.updated_at))}</span>
+                    </div>
+                    <div class="launcher-history-card-actions">
+                        <button class="launcher-history-btn" type="button">Rename</button>
+                        <button class="launcher-history-btn delete" type="button">Delete</button>
+                        <button class="launcher-history-btn load" type="button">Load</button>
+                    </div>
+                `;
+                const [renameBtn, deleteBtn, loadBtn] = card.querySelectorAll('.launcher-history-btn');
+                if (renameBtn) {
+                    renameBtn.onclick = async () => {
+                        const nextName = prompt('Rename dashboard:', item.name || 'Untitled');
+                        if (nextName === null) return;
+                        const trimmed = String(nextName || '').trim();
+                        if (!trimmed) return;
+                        try {
+                            await _renameSavedDashboard(item.id, trimmed);
+                            await refreshSavedDashboards();
+                        } catch (err) {
+                            alert(`Rename failed: ${err.message}`);
+                        }
+                    };
+                }
+                if (deleteBtn) {
+                    deleteBtn.onclick = async () => {
+                        if (!confirm(`Delete "${item.name || 'Untitled'}"?`)) return;
+                        try {
+                            await _deleteSavedDashboard(item.id);
+                            await refreshSavedDashboards();
+                        } catch (err) {
+                            alert(`Delete failed: ${err.message}`);
+                        }
+                    };
+                }
+                if (loadBtn) {
+                    loadBtn.onclick = () => loadSavedDashboard(item.id);
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        async function refreshSavedDashboards() {
+            try {
+                savedDashboardsCache = await _fetchSavedDashboards();
+            } catch (_) {
+                savedDashboardsCache = [];
+            }
+            _renderSavedListSidebar();
+            renderHistoryModal();
+        }
+
+        function openLauncherHistoryModal(event = null) {
+            if (event && typeof event.preventDefault === 'function') {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const overlay = document.getElementById('launcher-history-overlay');
+            if (!overlay) return false;
+            overlay.classList.remove('hidden');
+            renderHistoryModal();
+            return false;
+        }
+
+        function closeLauncherHistoryModal(event = null) {
+            const overlay = document.getElementById('launcher-history-overlay');
+            if (!overlay) return;
+            if (event && event.target && event.target !== overlay) return;
+            overlay.classList.add('hidden');
+        }
+
+        function _restoreAiDashboardFromSave(detail) {
+            const payloadRaw = detail && detail.payload;
+            const payload = payloadRaw && typeof payloadRaw === 'object' && payloadRaw.dashboard_payload
+                ? payloadRaw.dashboard_payload
+                : payloadRaw;
+            if (!payload || typeof payload !== 'object') {
+                throw new Error('Saved payload is empty');
+            }
+
+            activeFilters = _safeJsonParse(detail.filters_json, {});
+            if (!activeFilters || typeof activeFilters !== 'object') activeFilters = {};
+            availableFilterDefs = [];
+            filterValueLoadPromises = {};
+            selectedFilterColumns = [];
+            chartLibrary = [];
+            chartLibrarySeq = 0;
+            activeLibraryId = null;
+            customPopupSourceLibraryId = null;
+            customPopupKpiSourceLibraryId = null;
+            pendingKpiReplaceLibraryId = null;
+            renderChartLibrary();
+            closeCustomChartPopup();
+            closeCustomKpiPopup();
+            closeEditMenus();
+            currentData = cloneDashboardPayload(payload);
+            dataSourceMode = String(currentData.data_mode || 'databricks');
+            renderDashboard(currentData);
+            updateSavedDashboardToolbar();
+            originalDashboardState = {
+                data: cloneDashboardPayload(currentData),
+                activeFilters: { ...activeFilters },
+                selectedFilterColumns: [...selectedFilterColumns],
+            };
+            lastAppliedFilterState = {
+                activeFilters: { ...activeFilters },
+                selectedFilterColumns: [...selectedFilterColumns],
+            };
+            lastAppliedFilterSignature = getFilterSignature();
+            hasPendingFilterChanges = false;
+            refreshApplyFiltersButton();
+        }
+
+        async function loadSavedDashboard(savedId) {
+            if (!savedId) return;
+            try {
+                _setStatusMessage('Loading saved dashboard...');
+                const detail = await _fetchSavedDashboardDetail(savedId);
+                if (String(detail.dashboard_type || '').toLowerCase() === 'sales_cockpit') {
+                    window.location.href = `/dashboard?saved_id=${encodeURIComponent(savedId)}`;
+                    return;
+                }
+                activeSavedDashboardId = String(detail.id || savedId || '').trim();
+                activeSavedSnapshotTakenAt = String(detail.snapshot_taken_at || detail.updated_at || detail.created_at || '');
+                _restoreAiDashboardFromSave(detail);
+                updateSavedDashboardToolbar();
+                closeLauncherHistoryModal();
+                _setStatusMessage('Dashboard restored from history.');
+            } catch (err) {
+                _setStatusMessage('');
+                alert(`Load failed: ${err.message}`);
+            }
+        }
+
+        async function saveCurrentDashboard() {
+            if (!currentData || typeof currentData !== 'object') {
+                alert('No dashboard loaded to save.');
+                return;
+            }
+            const saveBtn = document.getElementById('save-dashboard-btn');
+            const name = prompt('Name this dashboard:', 'My Dashboard');
+            if (name === null) return;
+            const trimmed = String(name || '').trim();
+            if (!trimmed) return;
+
+            try {
+                _setStatusMessage('Saving dashboard...');
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.dataset.prevText = saveBtn.textContent;
+                    saveBtn.textContent = 'Saving...';
+                }
+                const formData = new FormData();
+                formData.append('name', trimmed);
+                formData.append('dashboard_type', 'ai_dashboard');
+                formData.append('payload', JSON.stringify(cloneDashboardPayload(currentData)));
+                formData.append('filters_json', JSON.stringify(activeFilters || {}));
+                formData.append('meta_json', JSON.stringify({
+                    data_mode: dataSourceMode || 'databricks',
+                    session_id: currentData.session_id || '',
+                    source_table: currentData.source_table || '',
+                }));
+                formData.append('thumbnail_hint', 'ai');
+
+                const res = await fetch('/api/dashboard/save/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-CSRFToken': _csrfToken() }
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.error) throw new Error(data.error || `Save failed (${res.status})`);
+                await refreshSavedDashboards();
+                if (activeSavedDashboardId) {
+                    activeSavedDashboardId = String(data.id || activeSavedDashboardId);
+                    activeSavedSnapshotTakenAt = String(data.saved_at || new Date().toISOString());
+                    updateSavedDashboardToolbar();
+                }
+                _setStatusMessage('Dashboard saved!');
+            } catch (err) {
+                _setStatusMessage('');
+                alert(`Save failed: ${err.message}`);
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = saveBtn.dataset.prevText || '💾 Save Layout';
+                }
+            }
+        }
+
+        async function loadSavedDashboardFromQuery() {
+            const qs = new URLSearchParams(window.location.search);
+            const id = String(qs.get('saved_id') || '').trim();
+            if (!id) return;
+            await loadSavedDashboard(id);
+            qs.delete('saved_id');
+            const next = qs.toString();
+            const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}`;
+            window.history.replaceState({}, document.title, nextUrl);
+        }
+
 
         async function initDatabricksMode() {
             dataSourceMode = 'databricks';
+            activeSavedDashboardId = '';
+            activeSavedSnapshotTakenAt = '';
             activeFilters = {};
             availableFilterDefs = [];
             filterValueLoadPromises = {};
@@ -3498,12 +4611,15 @@
             closeCustomChartPopup();
             closeCustomKpiPopup();
             resetFilterUIForNewSession();
+            updateSavedDashboardToolbar();
 
             processFile('initial');
         }
 
         function initEmptyDashboard() {
             dataSourceMode = 'databricks';
+            activeSavedDashboardId = '';
+            activeSavedSnapshotTakenAt = '';
             activeFilters = {};
             availableFilterDefs = [];
             filterValueLoadPromises = {};
@@ -3526,6 +4642,7 @@
             closeCustomKpiPopup();
             closeEditMenus();
             resetFilterUIForNewSession();
+            updateSavedDashboardToolbar();
 
             const emptyData = {
                 domain: 'General',
@@ -8301,10 +9418,18 @@
 
         function renderDashboard(data) {
             document.querySelectorAll('.glass-panel').forEach(el => el.style.opacity = '1');
-            document.getElementById('upload-screen').classList.add('hidden');
+            const uploadScreen = document.getElementById('upload-screen');
+            if (uploadScreen) {
+                uploadScreen.classList.remove('hidden');
+                uploadScreen.classList.add('dashboard-mode');
+            }
             document.getElementById('dashboard-screen').classList.remove('hidden');
             document.getElementById('dashboard-screen').classList.remove('with-chatbot-dock');
             updateChatbotDockVisibility();
+            updateSavedDashboardToolbar();
+            if (!savedDashboardToolbarTicker) {
+                savedDashboardToolbarTicker = setInterval(updateSavedDashboardToolbar, 60000);
+            }
             _ensureGlossaryStamps(data);
 
             const color = getThemeColor();
@@ -8501,12 +9626,16 @@
         // Close modal on Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
+                closeLauncherPreviewModal();
+                closeLauncherHistoryModal();
                 closeModal();
                 closeLogs();
                 closeThemeMenu();
             }
         });
         applyTheme(activeThemeId, { rerender: false });
+        refreshSavedDashboards();
+        loadSavedDashboardFromQuery();
         window.addEventListener('resize', () => {
             updateDashboardSidebarLayout();
             updateChatbotDockVisibility();

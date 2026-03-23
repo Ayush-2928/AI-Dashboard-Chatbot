@@ -18,16 +18,36 @@ from .utils import (
 from .cockpit_utils import (
     load_and_prepare_cockpit_excel,
     load_and_prepare_cockpit_databricks,
+    fetch_cockpit_table_metadata,
+    generate_cockpit_column_mapping_suggestions,
+    normalize_cockpit_column_mapping,
     serialize_df_for_session,
     deserialize_df_from_session,
     build_cockpit_payload,
     generate_cockpit_custom_chart_from_prompt,
 )
+from .models import SavedDashboard
 
 
 COCKPIT_SESSION_DF_KEY = "cockpit_excel_df_split"
 COCKPIT_SESSION_META_KEY = "cockpit_excel_meta"
 COCKPIT_SESSION_SOURCE_KEY = "cockpit_data_source"
+
+
+def _parse_cockpit_column_mapping(raw_value):
+    if not raw_value:
+        return {}
+    parsed = {}
+    if isinstance(raw_value, dict):
+        parsed = raw_value
+    else:
+        try:
+            parsed = json.loads(str(raw_value))
+        except Exception:
+            parsed = {}
+    if not isinstance(parsed, dict):
+        return {}
+    return normalize_cockpit_column_mapping(parsed)
 
 def _merge_applied_filters(filters_json, dashboard_data):
     try:
@@ -133,9 +153,181 @@ def _safe_json_response(payload, status=200):
     cleaned = _sanitize_json_payload(payload)
     return JsonResponse(cleaned, status=status, json_dumps_params={"allow_nan": False})
 
+
+def _parse_request_payload(request):
+    content_type = str(request.META.get("CONTENT_TYPE") or "").lower()
+    if "application/json" in content_type:
+        try:
+            parsed = json.loads((request.body or b"{}").decode("utf-8"))
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return request.POST
+
+
+def _json_text(value, default="{}"):
+    if isinstance(value, (dict, list)):
+        try:
+            return json.dumps(value)
+        except Exception:
+            return default
+    text = str(value or "").strip()
+    if not text:
+        return default
+    try:
+        parsed = json.loads(text)
+        return json.dumps(parsed)
+    except Exception:
+        return default
+
+
+def _json_value(value, default=None):
+    if isinstance(value, (dict, list)):
+        return value
+    text = str(value or "").strip()
+    if not text:
+        return {} if default is None else default
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, (dict, list)) else ({} if default is None else default)
+    except Exception:
+        return {} if default is None else default
+
 def index(request):
     """Renders the frontend HTML."""
     return render(request, 'dashboard/index.html')
+
+
+@csrf_exempt
+def dashboard_save(request):
+    if request.method != "POST":
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
+
+    payload = _parse_request_payload(request)
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        return _safe_json_response({"error": "name is required"}, status=400)
+
+    dashboard_type = str(payload.get("dashboard_type") or "").strip().lower()
+    if dashboard_type not in {"ai_dashboard", "sales_cockpit"}:
+        return _safe_json_response({"error": "dashboard_type must be 'ai_dashboard' or 'sales_cockpit'"}, status=400)
+
+    raw_dashboard_payload = payload.get("payload")
+    if isinstance(raw_dashboard_payload, (dict, list)):
+        dashboard_payload = raw_dashboard_payload
+    else:
+        raw_payload_text = str(raw_dashboard_payload or "").strip()
+        if not raw_payload_text:
+            dashboard_payload = {}
+        else:
+            try:
+                dashboard_payload = json.loads(raw_payload_text)
+            except Exception:
+                return _safe_json_response({"error": "payload must be valid JSON"}, status=400)
+            if not isinstance(dashboard_payload, (dict, list)):
+                return _safe_json_response({"error": "payload must be a JSON object or array"}, status=400)
+
+    filters_json = _json_text(payload.get("filters_json"), default="{}")
+    meta_json = _json_text(payload.get("meta_json"), default="{}")
+    thumbnail_hint = str(payload.get("thumbnail_hint") or "").strip()
+    if not thumbnail_hint:
+        thumbnail_hint = "sales_cockpit" if dashboard_type == "sales_cockpit" else "ai"
+
+    saved_id = str(payload.get("id") or "").strip()
+    try:
+        if saved_id:
+            obj = SavedDashboard.objects.filter(id=saved_id).first()
+            if obj is None:
+                return _safe_json_response({"error": "Saved dashboard not found"}, status=404)
+            obj.name = name
+            obj.dashboard_type = dashboard_type
+            obj.payload = dashboard_payload
+            obj.filters_json = filters_json
+            obj.meta_json = meta_json
+            obj.thumbnail_hint = thumbnail_hint
+            obj.save(update_fields=["name", "dashboard_type", "payload", "filters_json", "meta_json", "thumbnail_hint", "updated_at"])
+        else:
+            obj = SavedDashboard.objects.create(
+                name=name,
+                dashboard_type=dashboard_type,
+                payload=dashboard_payload,
+                filters_json=filters_json,
+                meta_json=meta_json,
+                thumbnail_hint=thumbnail_hint,
+            )
+    except Exception as e:
+        return _safe_json_response({"error": str(e)}, status=500)
+
+    return _safe_json_response(
+        {
+            "id": str(obj.id),
+            "name": obj.name,
+            "saved_at": obj.updated_at.isoformat(),
+        }
+    )
+
+
+def dashboard_history(request):
+    if request.method != "GET":
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
+
+    dashboards = SavedDashboard.objects.all()[:50]
+    items = []
+    for d in dashboards:
+        items.append(
+            {
+                "id": str(d.id),
+                "name": d.name,
+                "dashboard_type": d.dashboard_type,
+                "created_at": d.created_at.isoformat(),
+                "updated_at": d.updated_at.isoformat(),
+                "thumbnail_hint": d.thumbnail_hint or "",
+            }
+        )
+    return _safe_json_response({"dashboards": items})
+
+
+@csrf_exempt
+def dashboard_history_detail(request, dashboard_id):
+    obj = SavedDashboard.objects.filter(id=dashboard_id).first()
+    if obj is None:
+        return _safe_json_response({"error": "Saved dashboard not found"}, status=404)
+
+    if request.method == "GET":
+        return _safe_json_response(
+            {
+                "id": str(obj.id),
+                "name": obj.name,
+                "dashboard_type": obj.dashboard_type,
+                "payload": obj.payload,
+                "filters_json": obj.filters_json or "{}",
+                "meta_json": obj.meta_json or "{}",
+                "created_at": obj.created_at.isoformat(),
+                "updated_at": obj.updated_at.isoformat(),
+                "thumbnail_hint": obj.thumbnail_hint or "",
+            }
+        )
+
+    if request.method == "DELETE":
+        obj.delete()
+        return _safe_json_response({"deleted": True})
+
+    if request.method == "PATCH":
+        payload = _parse_request_payload(request)
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            return _safe_json_response({"error": "name is required"}, status=400)
+        obj.name = name
+        obj.save(update_fields=["name", "updated_at"])
+        return _safe_json_response(
+            {
+                "id": str(obj.id),
+                "name": obj.name,
+                "updated_at": obj.updated_at.isoformat(),
+            }
+        )
+
+    return _safe_json_response({"error": "Method not allowed"}, status=405)
 
 
 @csrf_exempt
@@ -376,6 +568,75 @@ def sales_cockpit(request):
     return render(request, 'dashboard/sales_cockpit.html')
 
 
+@csrf_exempt
+def sales_cockpit_metadata(request):
+    if request.method != "POST":
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
+
+    invoice_table = str(request.POST.get("invoice_table") or "llm_test.llm.invoice_template").strip()
+    target_table = str(request.POST.get("target_table") or "llm_test.llm.target_template").strip()
+    try:
+        metadata = fetch_cockpit_table_metadata(
+            invoice_table=invoice_table,
+            target_table=target_table,
+        )
+        return _safe_json_response(metadata)
+    except Exception as e:
+        return _safe_json_response({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def sales_cockpit_column_mapping(request):
+    if request.method != "POST":
+        return _safe_json_response({"error": "Method not allowed"}, status=405)
+
+    invoice_table = str(request.POST.get("invoice_table") or "llm_test.llm.invoice_template").strip()
+    target_table = str(request.POST.get("target_table") or "llm_test.llm.target_template").strip()
+
+    metadata_raw = request.POST.get("metadata") or ""
+    metadata = {}
+    if metadata_raw:
+        try:
+            metadata = json.loads(metadata_raw)
+        except Exception:
+            metadata = {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    invoice_columns = metadata.get("invoice_columns") if isinstance(metadata, dict) else None
+    target_columns = metadata.get("target_columns") if isinstance(metadata, dict) else None
+    if not isinstance(invoice_columns, list) or not isinstance(target_columns, list):
+        try:
+            metadata = fetch_cockpit_table_metadata(
+                invoice_table=invoice_table,
+                target_table=target_table,
+            )
+            invoice_columns = metadata.get("invoice_columns") or []
+            target_columns = metadata.get("target_columns") or []
+        except Exception as e:
+            return _safe_json_response({"error": str(e)}, status=500)
+
+    try:
+        mapping_result = generate_cockpit_column_mapping_suggestions(
+            invoice_columns=invoice_columns or [],
+            target_columns=target_columns or [],
+            invoice_table=invoice_table,
+            target_table=target_table,
+        )
+        return _safe_json_response(
+            {
+                "invoice_table": invoice_table,
+                "target_table": target_table,
+                "mapping": mapping_result.get("mapping", {}),
+                "suggestions": mapping_result.get("suggestions", {}),
+                "model": mapping_result.get("model", "gpt-4o"),
+                "logs": _extract_llm_logs(mapping_result.get("logs", [])),
+            }
+        )
+    except Exception as e:
+        return _safe_json_response({"error": str(e)}, status=500)
+
+
 def _get_cockpit_df_from_session(request):
     raw = request.session.get(COCKPIT_SESSION_DF_KEY)
     return deserialize_df_from_session(raw)
@@ -416,11 +677,13 @@ def sales_cockpit_databricks_init(request):
 
     invoice_table = str(request.POST.get("invoice_table") or "llm_test.llm.invoice_template").strip()
     target_table = str(request.POST.get("target_table") or "llm_test.llm.target_template").strip()
+    column_mapping = _parse_cockpit_column_mapping(request.POST.get("column_mapping"))
 
     try:
         _, meta = load_and_prepare_cockpit_databricks(
             invoice_table=invoice_table,
             target_table=target_table,
+            column_mapping=column_mapping,
         )
         request.session.pop(COCKPIT_SESSION_DF_KEY, None)
         request.session[COCKPIT_SESSION_META_KEY] = {
@@ -429,6 +692,7 @@ def sales_cockpit_databricks_init(request):
             "target_table": target_table,
             "filter_options": (meta or {}).get("filter_options", {}),
             "selected_month": (meta or {}).get("month_key", ""),
+            "column_mapping": (meta or {}).get("column_mapping") or column_mapping,
         }
         request.session[COCKPIT_SESSION_SOURCE_KEY] = "databricks"
         payload = build_cockpit_payload(
@@ -439,6 +703,7 @@ def sales_cockpit_databricks_init(request):
             invoice_table=invoice_table,
             target_table=target_table,
             selected_month=(meta or {}).get("month_key", ""),
+            column_mapping=(meta or {}).get("column_mapping") or column_mapping,
         )
         payload["meta"] = request.session.get(COCKPIT_SESSION_META_KEY, {})
         payload["uploaded"] = True
@@ -478,6 +743,7 @@ def sales_cockpit_data(request):
                 invoice_table=meta.get("invoice_table"),
                 target_table=meta.get("target_table"),
                 selected_month=selected_month,
+                column_mapping=meta.get("column_mapping"),
             )
         else:
             df = _get_cockpit_df_from_session(request)
@@ -539,6 +805,7 @@ def sales_cockpit_custom_chart(request):
             target_table=meta.get("target_table") or "llm_test.llm.target_template",
             selected_month=selected_month,
             data_source=source,
+            column_mapping=meta.get("column_mapping"),
         )
         raw_logs = result.get("logs", []) if isinstance(result, dict) else []
         if isinstance(raw_logs, list):

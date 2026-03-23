@@ -168,8 +168,6 @@ def clean_col_name(col):
     return re.sub(r'[^a-zA-Z0-9]', '_', str(col)).lower().strip('_')
 
 def _log_llm_request(debug_logs, context, model_name, json_mode, messages, max_chars=50000):
-    if debug_logs is None:
-        return
     try:
         parts = []
         for msg in (messages or []):
@@ -185,17 +183,21 @@ def _log_llm_request(debug_logs, context, model_name, json_mode, messages, max_c
         if payload_chars > max_chars:
             preview += f"\n... [TRUNCATED {payload_chars - max_chars} chars]"
 
-        debug_logs.append(
+        line = (
             f"[LLM REQUEST] {context} | model={model_name} | json_mode={json_mode} | "
             f"messages={len(messages or [])} | chars={payload_chars}\n{preview}"
         )
+        if debug_logs is not None:
+            debug_logs.append(line)
+        print(line, flush=True)
     except Exception as e:
-        debug_logs.append(f"[LLM REQUEST] {context} | logging failed: {str(e)}")
+        err = f"[LLM REQUEST] {context} | logging failed: {str(e)}"
+        if debug_logs is not None:
+            debug_logs.append(err)
+        print(err, flush=True)
 
 
 def _log_llm_response(debug_logs, context, tokens_used, content, max_chars=50000):
-    if debug_logs is None:
-        return
     try:
         text = content if content is not None else ""
         if isinstance(text, (dict, list)):
@@ -207,11 +209,15 @@ def _log_llm_response(debug_logs, context, tokens_used, content, max_chars=50000
         if payload_chars > max_chars:
             preview += f"\n... [TRUNCATED {payload_chars - max_chars} chars]"
 
-        debug_logs.append(
-            f"[LLM RESPONSE] {context} | tokens={tokens_used} | chars={payload_chars}\n{preview}"
-        )
+        line = f"[LLM RESPONSE] {context} | tokens={tokens_used} | chars={payload_chars}\n{preview}"
+        if debug_logs is not None:
+            debug_logs.append(line)
+        print(line, flush=True)
     except Exception as e:
-        debug_logs.append(f"[LLM RESPONSE] {context} | logging failed: {str(e)}")
+        err = f"[LLM RESPONSE] {context} | logging failed: {str(e)}"
+        if debug_logs is not None:
+            debug_logs.append(err)
+        print(err, flush=True)
 
 
 def _step_start(logs, step_name, detail=""):
@@ -240,8 +246,10 @@ def _step_fail(logs, step_name, start_ts, error):
 def call_ai_with_retry(messages, json_mode=False, retries=3, debug_logs=None, context="LLM"):
     model_name = "gpt-4o"
     if not client:
+        msg = f"[LLM REQUEST] {context} skipped: OPENAI_API_KEY not configured"
         if debug_logs is not None:
-            debug_logs.append(f"[LLM REQUEST] {context} skipped: OPENAI_API_KEY not configured")
+            debug_logs.append(msg)
+        print(msg, flush=True)
         return None, 0
 
     _log_llm_request(debug_logs, context, model_name, json_mode, messages)
@@ -257,8 +265,10 @@ def call_ai_with_retry(messages, json_mode=False, retries=3, debug_logs=None, co
             _log_llm_response(debug_logs, context, tokens_used, content)
             return content, tokens_used
         except Exception as e:
+            err = f"[LLM ERROR] {context} attempt {attempt + 1}/{retries}: {str(e)}"
             if debug_logs is not None:
-                debug_logs.append(f"[LLM ERROR] {context} attempt {attempt + 1}/{retries}: {str(e)}")
+                debug_logs.append(err)
+            print(err, flush=True)
             time.sleep(1)
 
     return None, 0

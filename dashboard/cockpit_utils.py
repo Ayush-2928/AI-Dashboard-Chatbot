@@ -2,6 +2,7 @@ import io
 import math
 import re
 import os
+from concurrent.futures import ThreadPoolExecutor
 from calendar import monthrange
 from datetime import datetime
 import json
@@ -24,6 +25,85 @@ except Exception:
 MAX_UPLOAD_ROWS = 250000
 DEFAULT_COCKPIT_INVOICE_TABLE = "llm_test.llm.invoice_template"
 DEFAULT_COCKPIT_TARGET_TABLE = "llm_test.llm.target_template"
+DEFAULT_COCKPIT_COLUMN_MAPPING = {
+    "date_col": {"table": "invoice", "column": "Date"},
+    "mtd_value_col": {"table": "invoice", "column": "Value"},
+    "volume_col": {"table": "invoice", "column": "Volume"},
+    "region_col": {"table": "invoice", "column": "Region"},
+    "channel_col": {"table": "invoice", "column": "Channel"},
+    "brand_col": {"table": "invoice", "column": "Brand"},
+    "category_col": {"table": "invoice", "column": "Category"},
+    "outlet_col": {"table": "invoice", "column": "Retailer"},
+    "target_month_col": {"table": "target", "column": "Monthly"},
+    "target_value_col": {"table": "target", "column": "Values_Target"},
+    "target_volume_col": {"table": "target", "column": "Vol_Target"},
+    # Backward-compatible alias key used by earlier payloads/prompts.
+    "msp_value_col": {"table": "target", "column": "Values_Target"},
+}
+
+COCKPIT_MAPPING_REQUIREMENTS = [
+    {"key": "mtd_value_col", "label": "MTD Sales", "table": "invoice"},
+    {"key": "msp_value_col", "label": "MSP Target", "table": "target"},
+    {"key": "date_col", "label": "Date Filter", "table": "invoice"},
+    {"key": "region_col", "label": "Region Map", "table": "invoice"},
+    {"key": "channel_col", "label": "Business Channel", "table": "invoice"},
+    {"key": "brand_col", "label": "Brand Contribution", "table": "invoice"},
+    {"key": "category_col", "label": "Category Contribution", "table": "invoice"},
+    {"key": "outlet_col", "label": "Outlet Count", "table": "invoice"},
+    {"key": "volume_col", "label": "Volume Metric", "table": "invoice"},
+    {"key": "target_month_col", "label": "Target Month", "table": "target"},
+    {"key": "target_value_col", "label": "Target Value", "table": "target"},
+    {"key": "target_volume_col", "label": "Target Volume", "table": "target"},
+]
+
+
+def _normalize_mapping_table_name(value, default_table="invoice"):
+    raw = str(value or "").strip().lower()
+    if raw in {"invoice", "invoice_template", "invoice table"}:
+        return "invoice"
+    if raw in {"target", "target_template", "target table"}:
+        return "target"
+    return str(default_table or "invoice").strip().lower()
+
+
+def normalize_cockpit_column_mapping(column_mapping):
+    merged = {}
+    incoming = column_mapping if isinstance(column_mapping, dict) else {}
+    for key, default_entry in DEFAULT_COCKPIT_COLUMN_MAPPING.items():
+        base_table = _normalize_mapping_table_name(default_entry.get("table"), "invoice")
+        base_col = str(default_entry.get("column") or "").strip()
+        candidate = incoming.get(key)
+        mapped_table = base_table
+        mapped_col = base_col
+        if isinstance(candidate, dict):
+            mapped_table = _normalize_mapping_table_name(candidate.get("table"), base_table)
+            cand_col = str(candidate.get("column") or "").strip()
+            if cand_col:
+                mapped_col = cand_col
+        elif isinstance(candidate, str):
+            cand_col = str(candidate).strip()
+            if cand_col:
+                mapped_col = cand_col
+        merged[key] = {"table": mapped_table, "column": mapped_col}
+
+    # Keep target value aliases in sync.
+    tv = merged.get("target_value_col", {}).get("column")
+    if tv:
+        merged["msp_value_col"] = {"table": "target", "column": tv}
+    msp = merged.get("msp_value_col", {}).get("column")
+    if msp:
+        merged["target_value_col"] = {"table": "target", "column": msp}
+    return merged
+
+
+def _mapped_col_name(column_mapping, key, fallback):
+    mapping = normalize_cockpit_column_mapping(column_mapping)
+    entry = mapping.get(str(key))
+    if isinstance(entry, dict):
+        col = str(entry.get("column") or "").strip()
+        if col:
+            return col
+    return str(fallback)
 
 
 def _sql_ident(name):
@@ -128,6 +208,191 @@ def _quote_db_table_fqn(table_name):
     if not parts:
         raise ValueError(f"Invalid table name: {table_name}")
     return ".".join(_quote_db_ident(p) for p in parts)
+
+
+def _describe_cockpit_table(connection, table_name):
+    table_fqn = _quote_db_table_fqn(table_name)
+    sql_text = f"DESCRIBE TABLE {table_fqn}"
+    print(f"[COCKPIT METADATA SQL] {sql_text}", flush=True)
+    df = fetch_dataframe(connection, sql_text, readonly=False)
+    print(f"[COCKPIT RESULT] rows={0 if df is None else len(df)}", flush=True)
+
+    cols = []
+    if df is None or df.empty:
+        return cols
+    name_col = df.columns[0]
+    type_col = df.columns[1] if len(df.columns) > 1 else None
+    for _, row in df.iterrows():
+        name = str(row.get(name_col) if hasattr(row, "get") else row.iloc[0]).strip()
+        if not name or name.startswith("#"):
+            continue
+        dtype = ""
+        if type_col is not None:
+            dtype = str(row.get(type_col) if hasattr(row, "get") else row.iloc[1]).strip()
+        cols.append({"name": name, "type": dtype or "string"})
+    return cols
+
+
+def fetch_cockpit_table_metadata(
+    invoice_table=DEFAULT_COCKPIT_INVOICE_TABLE,
+    target_table=DEFAULT_COCKPIT_TARGET_TABLE,
+):
+    invoice_table = str(invoice_table or DEFAULT_COCKPIT_INVOICE_TABLE).strip()
+    target_table = str(target_table or DEFAULT_COCKPIT_TARGET_TABLE).strip()
+    try:
+        connection = get_databricks_connection()
+    except DatabricksConfigError as e:
+        raise ValueError(str(e)) from e
+
+    try:
+        invoice_columns = _describe_cockpit_table(connection, invoice_table)
+        target_columns = _describe_cockpit_table(connection, target_table)
+        return {
+            "invoice_table": invoice_table,
+            "target_table": target_table,
+            "invoice_columns": invoice_columns,
+            "target_columns": target_columns,
+        }
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            pass
+
+
+def _best_col_by_alias(columns, aliases):
+    if not isinstance(columns, list) or not columns:
+        return ""
+    name_map = {_norm((c or {}).get("name")): str((c or {}).get("name") or "") for c in columns}
+    for alias in aliases:
+        a = _norm(alias)
+        if a in name_map and name_map[a]:
+            return name_map[a]
+    for c in columns:
+        name = str((c or {}).get("name") or "")
+        n = _norm(name)
+        for alias in aliases:
+            a = _norm(alias)
+            if a and a in n:
+                return name
+    return ""
+
+
+def generate_cockpit_column_mapping_suggestions(
+    invoice_columns,
+    target_columns,
+    invoice_table=DEFAULT_COCKPIT_INVOICE_TABLE,
+    target_table=DEFAULT_COCKPIT_TARGET_TABLE,
+):
+    inv_cols = invoice_columns if isinstance(invoice_columns, list) else []
+    tgt_cols = target_columns if isinstance(target_columns, list) else []
+    logs = []
+
+    inv_meta_text = ", ".join([f"{c.get('name')} ({c.get('type')})" for c in inv_cols]) or "None"
+    tgt_meta_text = ", ".join([f"{c.get('name')} ({c.get('type')})" for c in tgt_cols]) or "None"
+
+    requirements_text = "\n".join(
+        [f"- {item['key']}: {item['label']} (prefer table={item['table']})" for item in COCKPIT_MAPPING_REQUIREMENTS]
+    )
+    prompt_text = f"""
+You are mapping Databricks columns to a sales cockpit configuration.
+
+Invoice table: {invoice_table}
+Invoice columns: {inv_meta_text}
+
+Target table: {target_table}
+Target columns: {tgt_meta_text}
+
+Mapping requirements:
+{requirements_text}
+
+Return ONLY JSON object keyed by mapping key:
+{{
+  "date_col": {{"table":"invoice","column":"Date","confidence":"high","reason":"date column"}},
+  ...
+}}
+
+Rules:
+- table must be invoice or target.
+- column must exist in the chosen table metadata.
+- confidence must be high, medium, or low.
+- reason must be brief.
+- Fill all required keys.
+""".strip()
+
+    llm_plan = None
+    llm_raw, _ = call_ai_with_retry(
+        messages=[{"role": "user", "content": prompt_text}],
+        json_mode=True,
+        retries=2,
+        debug_logs=logs,
+        context="Generate Cockpit Column Mapping",
+    )
+    llm_plan = _parse_json_like(llm_raw)
+
+    alias_fallback = {
+        "date_col": ["Date", "BillDate", "invoice_date", "transaction_date"],
+        "mtd_value_col": ["Value", "NetAmount", "Gross_Value", "Amount", "Sales"],
+        "volume_col": ["Volume", "InvoiceQuantity", "Qty", "Quantity"],
+        "region_col": ["Region", "region_name", "Zone", "State"],
+        "channel_col": ["Channel", "Account_Group", "Account Group"],
+        "brand_col": ["Brand", "product_brand"],
+        "category_col": ["Category", "product_category_name"],
+        "outlet_col": ["Retailer", "Outlet", "Customer", "Distributor"],
+        "target_month_col": ["Monthly", "Month", "YearMonth"],
+        "target_value_col": ["Values_Target", "Value_Target", "Target_Value", "MSP_Value_Cr"],
+        "target_volume_col": ["Vol_Target", "Volume_Target", "Target_Volume"],
+    }
+
+    suggestions = {}
+    for req in COCKPIT_MAPPING_REQUIREMENTS:
+        key = req["key"]
+        default_entry = DEFAULT_COCKPIT_COLUMN_MAPPING.get(key, {})
+        default_table = _normalize_mapping_table_name(default_entry.get("table"), req.get("table", "invoice"))
+        default_col = str(default_entry.get("column") or "").strip()
+        raw = llm_plan.get(key) if isinstance(llm_plan, dict) else None
+
+        table_choice = default_table
+        col_choice = ""
+        conf = "low"
+        reason = "No AI suggestion available; used fallback."
+        if isinstance(raw, dict):
+            table_choice = _normalize_mapping_table_name(raw.get("table"), default_table)
+            col_choice = str(raw.get("column") or "").strip()
+            conf_raw = str(raw.get("confidence") or "").strip().lower()
+            conf = conf_raw if conf_raw in {"high", "medium", "low"} else "medium"
+            reason = str(raw.get("reason") or "").strip() or "AI suggestion."
+
+        source_cols = inv_cols if table_choice == "invoice" else tgt_cols
+        source_names = {str((c or {}).get("name") or "").strip() for c in source_cols}
+        if not col_choice or col_choice not in source_names:
+            fallback_col = _best_col_by_alias(source_cols, alias_fallback.get(key, []))
+            if fallback_col:
+                col_choice = fallback_col
+                if conf == "low":
+                    conf = "medium"
+                reason = "Heuristic fallback using column aliases."
+            elif default_col and default_col in source_names:
+                col_choice = default_col
+                reason = "Default mapping used."
+            elif source_cols:
+                col_choice = str(source_cols[0].get("name") or "")
+                reason = "Fallback to first available column."
+
+        suggestions[key] = {
+            "table": table_choice,
+            "column": col_choice,
+            "confidence": conf,
+            "reason": reason,
+        }
+
+    normalized_map = normalize_cockpit_column_mapping(suggestions)
+    return {
+        "suggestions": suggestions,
+        "mapping": normalized_map,
+        "model": "gpt-4o",
+        "logs": logs,
+    }
 
 
 def _prepare_cockpit_frame(df):
@@ -340,9 +605,15 @@ def load_and_prepare_cockpit_excel(file_blob):
 def load_and_prepare_cockpit_databricks(
     invoice_table=DEFAULT_COCKPIT_INVOICE_TABLE,
     target_table=DEFAULT_COCKPIT_TARGET_TABLE,
+    column_mapping=None,
 ):
     invoice_fqn = _quote_db_table_fqn(invoice_table)
     target_fqn = _quote_db_table_fqn(target_table)
+    mapping = normalize_cockpit_column_mapping(column_mapping)
+    date_col = _mapped_col_name(mapping, "date_col", "Date")
+    channel_col = _mapped_col_name(mapping, "channel_col", "Channel")
+    brand_col = _mapped_col_name(mapping, "brand_col", "Brand")
+    category_col = _mapped_col_name(mapping, "category_col", "Category")
 
     try:
         connection = get_databricks_connection()
@@ -350,101 +621,104 @@ def load_and_prepare_cockpit_databricks(
         raise ValueError(str(e)) from e
 
     try:
-        max_sql = f"SELECT MAX(CAST({_quote_db_ident('Date')} AS DATE)) AS max_date FROM {invoice_fqn}"
-        print(f"[COCKPIT SQL] {max_sql}", flush=True)
-        max_df = fetch_dataframe(connection, max_sql, readonly=True)
-        print(f"[COCKPIT RESULT] rows={0 if max_df is None else len(max_df)}", flush=True)
-    except Exception as e:
-        raise ValueError(f"Unable to read Databricks cockpit tables: {str(e)}") from e
+        try:
+            max_sql = f"SELECT MAX(CAST({_quote_db_ident(date_col)} AS DATE)) AS max_date FROM {invoice_fqn}"
+            print(f"[COCKPIT SQL] {max_sql}", flush=True)
+            max_df = fetch_dataframe(connection, max_sql, readonly=True)
+            print(f"[COCKPIT RESULT] rows={0 if max_df is None else len(max_df)}", flush=True)
+        except Exception as e:
+            raise ValueError(f"Unable to read Databricks cockpit tables: {str(e)}") from e
+
+        if max_df is None or max_df.empty:
+            raise ValueError("No data returned from Databricks cockpit tables.")
+
+        max_raw = max_df.iloc[0, 0] if not max_df.empty else None
+        max_ts = pd.to_datetime(max_raw, errors="coerce")
+        if pd.isna(max_ts):
+            raise ValueError("Could not resolve max Date from invoice table.")
+
+        max_ts = pd.Timestamp(max_ts).normalize()
+        curr_start = max_ts.replace(day=1)
+        working_days_val = int(monthrange(max_ts.year, max_ts.month)[1])
+        days_lapsed_val = int(max_ts.day)
+        days_left_val = max(0, working_days_val - days_lapsed_val)
+
+        filter_options = {
+            "account_group": [],
+            "brand": [],
+            "category": [],
+            "months": [],
+        }
+        try:
+            sql_channel = (
+                f"SELECT DISTINCT TRIM(CAST({_quote_db_ident(channel_col)} AS STRING)) AS v "
+                f"FROM {invoice_fqn} WHERE {_quote_db_ident(channel_col)} IS NOT NULL "
+                f"AND TRIM(CAST({_quote_db_ident(channel_col)} AS STRING)) <> '' ORDER BY 1"
+            )
+            print(f"[COCKPIT SQL] {sql_channel}", flush=True)
+            ch_df = fetch_dataframe(connection, sql_channel, readonly=True)
+            print(f"[COCKPIT RESULT] rows={0 if ch_df is None else len(ch_df)}", flush=True)
+
+            sql_brand = (
+                f"SELECT DISTINCT TRIM(CAST({_quote_db_ident(brand_col)} AS STRING)) AS v "
+                f"FROM {invoice_fqn} WHERE {_quote_db_ident(brand_col)} IS NOT NULL "
+                f"AND TRIM(CAST({_quote_db_ident(brand_col)} AS STRING)) <> '' ORDER BY 1"
+            )
+            print(f"[COCKPIT SQL] {sql_brand}", flush=True)
+            br_df = fetch_dataframe(connection, sql_brand, readonly=True)
+            print(f"[COCKPIT RESULT] rows={0 if br_df is None else len(br_df)}", flush=True)
+
+            sql_category = (
+                f"SELECT DISTINCT TRIM(CAST({_quote_db_ident(category_col)} AS STRING)) AS v "
+                f"FROM {invoice_fqn} WHERE {_quote_db_ident(category_col)} IS NOT NULL "
+                f"AND TRIM(CAST({_quote_db_ident(category_col)} AS STRING)) <> '' ORDER BY 1"
+            )
+            print(f"[COCKPIT SQL] {sql_category}", flush=True)
+            cat_df = fetch_dataframe(connection, sql_category, readonly=True)
+            print(f"[COCKPIT RESULT] rows={0 if cat_df is None else len(cat_df)}", flush=True)
+
+            sql_month = (
+                f"SELECT DISTINCT SUBSTR(CAST(date_format(CAST({_quote_db_ident(date_col)} AS DATE), 'yyyy-MM') AS STRING), 1, 7) AS month_key "
+                f"FROM {invoice_fqn} WHERE {_quote_db_ident(date_col)} IS NOT NULL ORDER BY 1 DESC"
+            )
+            print(f"[COCKPIT SQL] {sql_month}", flush=True)
+            mo_df = fetch_dataframe(connection, sql_month, readonly=True)
+            print(f"[COCKPIT RESULT] rows={0 if mo_df is None else len(mo_df)}", flush=True)
+
+            if ch_df is not None and not ch_df.empty:
+                filter_options["account_group"] = [str(v).strip() for v in ch_df.iloc[:, 0].tolist() if str(v).strip()]
+            if br_df is not None and not br_df.empty:
+                filter_options["brand"] = [str(v).strip() for v in br_df.iloc[:, 0].tolist() if str(v).strip()]
+            if cat_df is not None and not cat_df.empty:
+                filter_options["category"] = [str(v).strip() for v in cat_df.iloc[:, 0].tolist() if str(v).strip()]
+            if mo_df is not None and not mo_df.empty:
+                filter_options["months"] = [str(v).strip() for v in mo_df.iloc[:, 0].tolist() if str(v).strip()]
+        except Exception:
+            # Do not fail init if distinct option query fails; dashboard can still load.
+            pass
+
+        meta = {
+            "source_mode": "databricks",
+            "invoice_table": str(invoice_table),
+            "target_table": str(target_table),
+            "invoice_table_fqn": invoice_fqn,
+            "target_table_fqn": target_fqn,
+            "max_date": str(max_ts.date()),
+            "curr_month_start": str(curr_start.date()),
+            "month_key": str(max_ts.strftime("%Y-%m")),
+            "working_days": int(working_days_val),
+            "days_lapsed": int(days_lapsed_val),
+            "days_left": int(days_left_val),
+            "filter_options": filter_options,
+            "column_mapping": mapping,
+        }
+        return pd.DataFrame(), meta
     finally:
         try:
             connection.close()
         except Exception:
             pass
-
-    if max_df is None or max_df.empty:
-        raise ValueError("No data returned from Databricks cockpit tables.")
-
-    max_raw = max_df.iloc[0, 0] if not max_df.empty else None
-    max_ts = pd.to_datetime(max_raw, errors="coerce")
-    if pd.isna(max_ts):
-        raise ValueError("Could not resolve max Date from invoice table.")
-
-    max_ts = pd.Timestamp(max_ts).normalize()
-    curr_start = max_ts.replace(day=1)
-    working_days_val = int(monthrange(max_ts.year, max_ts.month)[1])
-    days_lapsed_val = int(max_ts.day)
-    days_left_val = max(0, working_days_val - days_lapsed_val)
-
-    filter_options = {
-        "account_group": [],
-        "brand": [],
-        "category": [],
-        "months": [],
-    }
-    try:
-        sql_channel = (
-            f"SELECT DISTINCT TRIM(CAST({_quote_db_ident('Channel')} AS STRING)) AS v "
-            f"FROM {invoice_fqn} WHERE {_quote_db_ident('Channel')} IS NOT NULL "
-            f"AND TRIM(CAST({_quote_db_ident('Channel')} AS STRING)) <> '' ORDER BY 1"
-        )
-        print(f"[COCKPIT SQL] {sql_channel}", flush=True)
-        ch_df = fetch_dataframe(connection, sql_channel, readonly=True)
-        print(f"[COCKPIT RESULT] rows={0 if ch_df is None else len(ch_df)}", flush=True)
-
-        sql_brand = (
-            f"SELECT DISTINCT TRIM(CAST({_quote_db_ident('Brand')} AS STRING)) AS v "
-            f"FROM {invoice_fqn} WHERE {_quote_db_ident('Brand')} IS NOT NULL "
-            f"AND TRIM(CAST({_quote_db_ident('Brand')} AS STRING)) <> '' ORDER BY 1"
-        )
-        print(f"[COCKPIT SQL] {sql_brand}", flush=True)
-        br_df = fetch_dataframe(connection, sql_brand, readonly=True)
-        print(f"[COCKPIT RESULT] rows={0 if br_df is None else len(br_df)}", flush=True)
-
-        sql_category = (
-            f"SELECT DISTINCT TRIM(CAST({_quote_db_ident('Category')} AS STRING)) AS v "
-            f"FROM {invoice_fqn} WHERE {_quote_db_ident('Category')} IS NOT NULL "
-            f"AND TRIM(CAST({_quote_db_ident('Category')} AS STRING)) <> '' ORDER BY 1"
-        )
-        print(f"[COCKPIT SQL] {sql_category}", flush=True)
-        cat_df = fetch_dataframe(connection, sql_category, readonly=True)
-        print(f"[COCKPIT RESULT] rows={0 if cat_df is None else len(cat_df)}", flush=True)
-
-        sql_month = (
-            f"SELECT DISTINCT SUBSTR(CAST(date_format(CAST({_quote_db_ident('Date')} AS DATE), 'yyyy-MM') AS STRING), 1, 7) AS month_key "
-            f"FROM {invoice_fqn} WHERE {_quote_db_ident('Date')} IS NOT NULL ORDER BY 1 DESC"
-        )
-        print(f"[COCKPIT SQL] {sql_month}", flush=True)
-        mo_df = fetch_dataframe(connection, sql_month, readonly=True)
-        print(f"[COCKPIT RESULT] rows={0 if mo_df is None else len(mo_df)}", flush=True)
-
-        if ch_df is not None and not ch_df.empty:
-            filter_options["account_group"] = [str(v).strip() for v in ch_df.iloc[:, 0].tolist() if str(v).strip()]
-        if br_df is not None and not br_df.empty:
-            filter_options["brand"] = [str(v).strip() for v in br_df.iloc[:, 0].tolist() if str(v).strip()]
-        if cat_df is not None and not cat_df.empty:
-            filter_options["category"] = [str(v).strip() for v in cat_df.iloc[:, 0].tolist() if str(v).strip()]
-        if mo_df is not None and not mo_df.empty:
-            filter_options["months"] = [str(v).strip() for v in mo_df.iloc[:, 0].tolist() if str(v).strip()]
-    except Exception:
-        # Do not fail init if distinct option query fails; dashboard can still load.
-        pass
-
-    meta = {
-        "source_mode": "databricks",
-        "invoice_table": str(invoice_table),
-        "target_table": str(target_table),
-        "invoice_table_fqn": invoice_fqn,
-        "target_table_fqn": target_fqn,
-        "max_date": str(max_ts.date()),
-        "curr_month_start": str(curr_start.date()),
-        "month_key": str(max_ts.strftime("%Y-%m")),
-        "working_days": int(working_days_val),
-        "days_lapsed": int(days_lapsed_val),
-        "days_left": int(days_left_val),
-        "filter_options": filter_options,
-    }
-    return pd.DataFrame(), meta
+    
 
 
 def _sql_str_lit(value):
@@ -471,19 +745,49 @@ def _db_scalar(connection, sql_text, default=0.0):
     return val
 
 
-def _db_metric_total(connection, table_fqn, metric_col, date_start, date_end, extra_conditions):
-    date_expr = f"CAST({_quote_db_ident('Date')} AS DATE)"
+def _db_metric_total_sql(table_fqn, metric_col, date_start, date_end, extra_conditions, date_col="Date"):
+    date_expr = f"CAST({_quote_db_ident(date_col)} AS DATE)"
     metric_expr = f"COALESCE(CAST({_quote_db_ident(metric_col)} AS DOUBLE), 0.0)"
     conditions = [
         f"{date_expr} >= DATE {_sql_str_lit(str(pd.Timestamp(date_start).date()))}",
         f"{date_expr} <= DATE {_sql_str_lit(str(pd.Timestamp(date_end).date()))}",
     ] + list(extra_conditions or [])
-    sql_text = (
+    return (
         f"SELECT SUM({metric_expr}) AS total "
         f"FROM {table_fqn} "
         f"WHERE {' AND '.join(conditions)}"
     )
+
+
+def _db_metric_total(connection, table_fqn, metric_col, date_start, date_end, extra_conditions, date_col="Date"):
+    sql_text = _db_metric_total_sql(table_fqn, metric_col, date_start, date_end, extra_conditions, date_col=date_col)
     return float(_safe_float(_db_scalar(connection, sql_text, default=0.0)))
+
+
+def _run_db_query_isolated(sql_text):
+    conn = None
+    try:
+        conn = get_databricks_connection()
+        return _run_db_query(conn, sql_text)
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _db_scalar_isolated(sql_text, default=0.0):
+    conn = None
+    try:
+        conn = get_databricks_connection()
+        return _db_scalar(conn, sql_text, default=default)
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 def _db_distinct_strings(connection, table_fqn, col_name):
@@ -505,13 +809,19 @@ def _db_distinct_strings(connection, table_fqn, col_name):
     return out
 
 
-def _build_cockpit_filter_conditions(filters, table_kind="invoice"):
+def _build_cockpit_filter_conditions(filters, table_kind="invoice", column_mapping=None):
     f = filters if isinstance(filters, dict) else {}
     conditions = []
+    mapping = normalize_cockpit_column_mapping(column_mapping)
 
-    channel_col = "Channel"
-    brand_col = "Brand"
-    category_col = "Category"
+    if str(table_kind).strip().lower() == "target":
+        channel_col = _mapped_col_name(mapping, "channel_col", "Channel")
+        brand_col = _mapped_col_name(mapping, "brand_col", "Brand")
+        category_col = _mapped_col_name(mapping, "category_col", "Category")
+    else:
+        channel_col = _mapped_col_name(mapping, "channel_col", "Channel")
+        brand_col = _mapped_col_name(mapping, "brand_col", "Brand")
+        category_col = _mapped_col_name(mapping, "category_col", "Category")
 
     account_group = str(f.get("account_group") or "All").strip()
     if table_kind == "invoice" and account_group and account_group.lower() != "all":
@@ -549,6 +859,7 @@ def _build_cockpit_payload_databricks(
     selected_month="",
     filters=None,
     filter_options_cache=None,
+    column_mapping=None,
 ):
     invoice_table = str(invoice_table or DEFAULT_COCKPIT_INVOICE_TABLE).strip()
     target_table = str(target_table or DEFAULT_COCKPIT_TARGET_TABLE).strip()
@@ -563,8 +874,16 @@ def _build_cockpit_payload_databricks(
     if donut_mode not in {"business_channel", "region"}:
         donut_mode = "business_channel"
 
-    metric_col = "Volume" if value_mode == "volume" else "Value"
-    target_metric_col = "Vol_Target" if value_mode == "volume" else "Values_Target"
+    mapping = normalize_cockpit_column_mapping(column_mapping)
+    date_col = _mapped_col_name(mapping, "date_col", "Date")
+    metric_col = _mapped_col_name(mapping, "volume_col", "Volume") if value_mode == "volume" else _mapped_col_name(mapping, "mtd_value_col", "Value")
+    target_month_col = _mapped_col_name(mapping, "target_month_col", "Monthly")
+    target_metric_col = _mapped_col_name(mapping, "target_volume_col", "Vol_Target") if value_mode == "volume" else _mapped_col_name(mapping, "target_value_col", "Values_Target")
+    region_col = _mapped_col_name(mapping, "region_col", "Region")
+    channel_col = _mapped_col_name(mapping, "channel_col", "Channel")
+    brand_col = _mapped_col_name(mapping, "brand_col", "Brand")
+    category_col = _mapped_col_name(mapping, "category_col", "Category")
+    outlet_col = _mapped_col_name(mapping, "outlet_col", "Retailer")
     is_value_mode = (value_mode == "value")
     currency_scale = (1.0 / 10_000_000.0) if is_value_mode else 1.0
 
@@ -579,7 +898,7 @@ def _build_cockpit_payload_databricks(
     try:
         max_date_raw = _db_scalar(
             connection,
-            f"SELECT MAX(CAST({_quote_db_ident('Date')} AS DATE)) AS max_date FROM {invoice_fqn}",
+            f"SELECT MAX(CAST({_quote_db_ident(date_col)} AS DATE)) AS max_date FROM {invoice_fqn}",
             default=None,
         )
         max_date_ts = pd.to_datetime(max_date_raw, errors="coerce")
@@ -618,25 +937,81 @@ def _build_cockpit_payload_databricks(
         prev_end_aligned = min(prev_end, prev_start + pd.Timedelta(days=max(0, days_lapsed - 1)))
         month_key = curr_start.strftime("%Y-%m")
 
-        invoice_filters = _build_cockpit_filter_conditions(filters, table_kind="invoice")
-        target_filters = _build_cockpit_filter_conditions(filters, table_kind="target")
+        invoice_filters = _build_cockpit_filter_conditions(filters, table_kind="invoice", column_mapping=mapping)
+        target_filters = _build_cockpit_filter_conditions(filters, table_kind="target", column_mapping=mapping)
+        use_parallel_queries = str(os.getenv("COCKPIT_PARALLEL_QUERIES", "1")).strip().lower() in {"1", "true", "yes", "on"}
+        try:
+            parallel_workers = int(str(os.getenv("COCKPIT_PARALLEL_WORKERS", "6")).strip() or "6")
+        except Exception:
+            parallel_workers = 6
+        parallel_workers = max(2, min(8, parallel_workers))
 
-        mtd_raw = _db_metric_total(connection, invoice_fqn, metric_col, curr_start, curr_end, invoice_filters)
-        lymtd_raw = _db_metric_total(connection, invoice_fqn, metric_col, ly_start, ly_end, invoice_filters)
-        prev_mtd_raw = _db_metric_total(connection, invoice_fqn, metric_col, prev_start, prev_end_aligned, invoice_filters)
-        mtd = float(mtd_raw) * currency_scale
-        lymtd = float(lymtd_raw) * currency_scale
-        prev_mtd = float(prev_mtd_raw) * currency_scale
+        mtd_sql = _db_metric_total_sql(
+            invoice_fqn,
+            metric_col,
+            curr_start,
+            curr_end,
+            invoice_filters,
+            date_col=date_col,
+        )
+        lymtd_sql = _db_metric_total_sql(
+            invoice_fqn,
+            metric_col,
+            ly_start,
+            ly_end,
+            invoice_filters,
+            date_col=date_col,
+        )
+        prev_mtd_sql = _db_metric_total_sql(
+            invoice_fqn,
+            metric_col,
+            prev_start,
+            prev_end_aligned,
+            invoice_filters,
+            date_col=date_col,
+        )
 
         msp_conditions = [
-            f"TRIM(CAST({_quote_db_ident('Monthly')} AS STRING)) = {_sql_str_lit(month_key)}"
+            f"TRIM(CAST({_quote_db_ident(target_month_col)} AS STRING)) = {_sql_str_lit(month_key)}"
         ] + target_filters
         msp_sql = (
             f"SELECT SUM(COALESCE(CAST({_quote_db_ident(target_metric_col)} AS DOUBLE), 0.0)) AS total "
             f"FROM {target_fqn} "
             f"WHERE {' AND '.join(msp_conditions)}"
         )
-        msp_raw = float(_safe_float(_db_scalar(connection, msp_sql, default=0.0)))
+
+        daily_conditions = [
+            f"CAST({_quote_db_ident(date_col)} AS DATE) >= DATE {_sql_str_lit(str(curr_start.date()))}",
+            f"CAST({_quote_db_ident(date_col)} AS DATE) <= DATE {_sql_str_lit(str(curr_end.date()))}",
+        ] + invoice_filters
+        daily_sql = (
+            f"SELECT CAST({_quote_db_ident(date_col)} AS DATE) AS d, "
+            f"SUM(COALESCE(CAST({_quote_db_ident(metric_col)} AS DOUBLE), 0.0)) AS v "
+            f"FROM {invoice_fqn} WHERE {' AND '.join(daily_conditions)} "
+            f"GROUP BY 1 ORDER BY 1 DESC LIMIT 3"
+        )
+        if use_parallel_queries:
+            with ThreadPoolExecutor(max_workers=parallel_workers) as pool:
+                mtd_future = pool.submit(_db_scalar_isolated, mtd_sql, 0.0)
+                lymtd_future = pool.submit(_db_scalar_isolated, lymtd_sql, 0.0)
+                prev_future = pool.submit(_db_scalar_isolated, prev_mtd_sql, 0.0)
+                msp_future = pool.submit(_db_scalar_isolated, msp_sql, 0.0)
+                daily_future = pool.submit(_run_db_query_isolated, daily_sql)
+                mtd_raw = float(_safe_float(mtd_future.result()))
+                lymtd_raw = float(_safe_float(lymtd_future.result()))
+                prev_mtd_raw = float(_safe_float(prev_future.result()))
+                msp_raw = float(_safe_float(msp_future.result()))
+                daily_df = daily_future.result()
+        else:
+            mtd_raw = _db_metric_total(connection, invoice_fqn, metric_col, curr_start, curr_end, invoice_filters, date_col=date_col)
+            lymtd_raw = _db_metric_total(connection, invoice_fqn, metric_col, ly_start, ly_end, invoice_filters, date_col=date_col)
+            prev_mtd_raw = _db_metric_total(connection, invoice_fqn, metric_col, prev_start, prev_end_aligned, invoice_filters, date_col=date_col)
+            msp_raw = float(_safe_float(_db_scalar(connection, msp_sql, default=0.0)))
+            daily_df = _run_db_query(connection, daily_sql)
+
+        mtd = float(mtd_raw) * currency_scale
+        lymtd = float(lymtd_raw) * currency_scale
+        prev_mtd = float(prev_mtd_raw) * currency_scale
         msp = msp_raw * currency_scale
 
         print(f"[COCKPIT VALUE] MTD raw={mtd_raw}, scaled={mtd}, mode={value_mode}", flush=True)
@@ -652,18 +1027,6 @@ def _build_cockpit_payload_databricks(
         eco_seq_base = (prev_mtd / max(1, days_lapsed)) * working_days
         rrr = max(0.0, (msp - mtd) / max(1, days_left))
         drr = mtd / max(1, days_lapsed)
-
-        daily_conditions = [
-            f"CAST({_quote_db_ident('Date')} AS DATE) >= DATE {_sql_str_lit(str(curr_start.date()))}",
-            f"CAST({_quote_db_ident('Date')} AS DATE) <= DATE {_sql_str_lit(str(curr_end.date()))}",
-        ] + invoice_filters
-        daily_sql = (
-            f"SELECT CAST({_quote_db_ident('Date')} AS DATE) AS d, "
-            f"SUM(COALESCE(CAST({_quote_db_ident(metric_col)} AS DOUBLE), 0.0)) AS v "
-            f"FROM {invoice_fqn} WHERE {' AND '.join(daily_conditions)} "
-            f"GROUP BY 1 ORDER BY 1 DESC LIMIT 3"
-        )
-        daily_df = _run_db_query(connection, daily_sql)
         day_map = {}
         if daily_df is not None and not daily_df.empty:
             for _, row in daily_df.iterrows():
@@ -691,15 +1054,15 @@ def _build_cockpit_payload_databricks(
         eco_sly = _pct_delta(eco, eco_sly_base)
         eco_seq = _pct_delta(eco, eco_seq_base)
 
-        def _contrib_for_dim(dim_col):
+        def _contrib_for_dim(dim_col, query_runner):
             dim_ident = _quote_db_ident(dim_col)
             mtd_where = [
-                f"CAST({_quote_db_ident('Date')} AS DATE) >= DATE {_sql_str_lit(str(curr_start.date()))}",
-                f"CAST({_quote_db_ident('Date')} AS DATE) <= DATE {_sql_str_lit(str(curr_end.date()))}",
+                f"CAST({_quote_db_ident(date_col)} AS DATE) >= DATE {_sql_str_lit(str(curr_start.date()))}",
+                f"CAST({_quote_db_ident(date_col)} AS DATE) <= DATE {_sql_str_lit(str(curr_end.date()))}",
             ] + invoice_filters
             ly_where = [
-                f"CAST({_quote_db_ident('Date')} AS DATE) >= DATE {_sql_str_lit(str(pd.Timestamp(ly_start).date()))}",
-                f"CAST({_quote_db_ident('Date')} AS DATE) <= DATE {_sql_str_lit(str(pd.Timestamp(ly_end).date()))}",
+                f"CAST({_quote_db_ident(date_col)} AS DATE) >= DATE {_sql_str_lit(str(pd.Timestamp(ly_start).date()))}",
+                f"CAST({_quote_db_ident(date_col)} AS DATE) <= DATE {_sql_str_lit(str(pd.Timestamp(ly_end).date()))}",
             ] + invoice_filters
             mtd_sql = (
                 f"SELECT CAST({dim_ident} AS STRING) AS k, "
@@ -713,8 +1076,8 @@ def _build_cockpit_payload_databricks(
                 f"FROM {invoice_fqn} WHERE {' AND '.join(ly_where)} "
                 f"GROUP BY 1"
             )
-            mdf = _run_db_query(connection, mtd_sql)
-            ldf = _run_db_query(connection, ly_sql)
+            mdf = query_runner(mtd_sql)
+            ldf = query_runner(ly_sql)
             cm = {}
             lm = {}
             contrib_sample_raw = None
@@ -744,16 +1107,26 @@ def _build_cockpit_payload_databricks(
                 "lymtd": [float(r["lymtd"]) for r in rows],
             }
 
-        business_contrib = _contrib_for_dim("Channel")
-        account_contrib = _contrib_for_dim("Brand")
-        category_contrib = _contrib_for_dim("Category")
+        if use_parallel_queries:
+            with ThreadPoolExecutor(max_workers=min(4, parallel_workers)) as pool:
+                business_future = pool.submit(_contrib_for_dim, channel_col, _run_db_query_isolated)
+                account_future = pool.submit(_contrib_for_dim, brand_col, _run_db_query_isolated)
+                category_future = pool.submit(_contrib_for_dim, category_col, _run_db_query_isolated)
+                business_contrib = business_future.result()
+                account_contrib = account_future.result()
+                category_contrib = category_future.result()
+        else:
+            _seq_runner = lambda sql_text: _run_db_query(connection, sql_text)
+            business_contrib = _contrib_for_dim(channel_col, _seq_runner)
+            account_contrib = _contrib_for_dim(brand_col, _seq_runner)
+            category_contrib = _contrib_for_dim(category_col, _seq_runner)
 
         map_where = [
-            f"CAST({_quote_db_ident('Date')} AS DATE) >= DATE {_sql_str_lit(str(curr_start.date()))}",
-            f"CAST({_quote_db_ident('Date')} AS DATE) <= DATE {_sql_str_lit(str(curr_end.date()))}",
+            f"CAST({_quote_db_ident(date_col)} AS DATE) >= DATE {_sql_str_lit(str(curr_start.date()))}",
+            f"CAST({_quote_db_ident(date_col)} AS DATE) <= DATE {_sql_str_lit(str(curr_end.date()))}",
         ] + invoice_filters
         map_sql = (
-            f"SELECT CAST({_quote_db_ident('Region')} AS STRING) AS region, "
+            f"SELECT CAST({_quote_db_ident(region_col)} AS STRING) AS region, "
             f"SUM(COALESCE(CAST({_quote_db_ident(metric_col)} AS DOUBLE), 0.0)) AS val "
             f"FROM {invoice_fqn} WHERE {' AND '.join(map_where)} "
             f"GROUP BY 1 ORDER BY 2 DESC"
@@ -792,7 +1165,7 @@ def _build_cockpit_payload_databricks(
                 }
             )
 
-        donut_dim_col = "Channel" if donut_mode == "business_channel" else "Region"
+        donut_dim_col = channel_col if donut_mode == "business_channel" else region_col
         donut_dim_ident = _quote_db_ident(donut_dim_col)
         donut_sql = (
             f"SELECT CAST({donut_dim_ident} AS STRING) AS k, "
@@ -824,9 +1197,9 @@ def _build_cockpit_payload_databricks(
             "mode": donut_mode,
         }
 
-        retailer_expr = f"TRIM(CAST({_quote_db_ident('Retailer')} AS STRING))"
+        retailer_expr = f"TRIM(CAST({_quote_db_ident(outlet_col)} AS STRING))"
         valid_retailer_conditions = [
-            f"{_quote_db_ident('Retailer')} IS NOT NULL",
+            f"{_quote_db_ident(outlet_col)} IS NOT NULL",
             f"{retailer_expr} NOT IN ('', 'None', 'none', 'NULL', 'null')",
         ]
         outlet_where = map_where + valid_retailer_conditions
@@ -861,15 +1234,15 @@ def _build_cockpit_payload_databricks(
         category_options = list(cached.get("category") or [])
         month_options = list(cached.get("months") or [])
         if not account_options:
-            account_options = _db_distinct_strings(connection, invoice_fqn, "Channel")
+            account_options = _db_distinct_strings(connection, invoice_fqn, channel_col)
         if not brand_options:
-            brand_options = _db_distinct_strings(connection, invoice_fqn, "Brand")
+            brand_options = _db_distinct_strings(connection, invoice_fqn, brand_col)
         if not category_options:
-            category_options = _db_distinct_strings(connection, invoice_fqn, "Category")
+            category_options = _db_distinct_strings(connection, invoice_fqn, category_col)
         if not month_options:
             month_sql = (
-                f"SELECT DISTINCT SUBSTR(CAST(date_format(CAST({_quote_db_ident('Date')} AS DATE), 'yyyy-MM') AS STRING), 1, 7) AS month_key "
-                f"FROM {invoice_fqn} WHERE {_quote_db_ident('Date')} IS NOT NULL ORDER BY 1 DESC"
+                f"SELECT DISTINCT SUBSTR(CAST(date_format(CAST({_quote_db_ident(date_col)} AS DATE), 'yyyy-MM') AS STRING), 1, 7) AS month_key "
+                f"FROM {invoice_fqn} WHERE {_quote_db_ident(date_col)} IS NOT NULL ORDER BY 1 DESC"
             )
             month_df = _run_db_query(connection, month_sql)
             if month_df is not None and not month_df.empty:
@@ -1143,6 +1516,7 @@ def build_cockpit_payload(
     invoice_table=None,
     target_table=None,
     selected_month=None,
+    column_mapping=None,
 ):
     source = str(data_source or "excel").strip().lower()
     if source == "databricks":
@@ -1150,6 +1524,7 @@ def build_cockpit_payload(
         inv = str(invoice_table or cfg.get("invoice_table") or DEFAULT_COCKPIT_INVOICE_TABLE).strip()
         tgt = str(target_table or cfg.get("target_table") or DEFAULT_COCKPIT_TARGET_TABLE).strip()
         sel_month = str(selected_month or (filters or {}).get("selected_month") or "").strip()
+        resolved_mapping = column_mapping if isinstance(column_mapping, dict) else cfg.get("column_mapping")
         return _build_cockpit_payload_databricks(
             connection=connection,
             invoice_table=inv,
@@ -1157,6 +1532,7 @@ def build_cockpit_payload(
             selected_month=sel_month,
             filters=filters,
             filter_options_cache=cfg.get("filter_options"),
+            column_mapping=resolved_mapping,
         )
 
     if df is None or df.empty:
@@ -2106,6 +2482,7 @@ def _generate_cockpit_custom_chart_databricks(
     invoice_table=DEFAULT_COCKPIT_INVOICE_TABLE,
     target_table=DEFAULT_COCKPIT_TARGET_TABLE,
     selected_month="",
+    column_mapping=None,
 ):
     prompt = str(user_prompt or "").strip()
     if not prompt:
@@ -2116,6 +2493,18 @@ def _generate_cockpit_custom_chart_databricks(
     invoice_fqn = _quote_db_table_fqn(invoice_table)
     target_fqn = _quote_db_table_fqn(target_table)
     filters = active_filters if isinstance(active_filters, dict) else {}
+    mapping = normalize_cockpit_column_mapping(column_mapping)
+    date_col = _mapped_col_name(mapping, "date_col", "Date")
+    channel_col = _mapped_col_name(mapping, "channel_col", "Channel")
+    brand_col = _mapped_col_name(mapping, "brand_col", "Brand")
+    outlet_col = _mapped_col_name(mapping, "outlet_col", "Retailer")
+    region_col = _mapped_col_name(mapping, "region_col", "Region")
+    category_col = _mapped_col_name(mapping, "category_col", "Category")
+    value_col = _mapped_col_name(mapping, "mtd_value_col", "Value")
+    volume_col = _mapped_col_name(mapping, "volume_col", "Volume")
+    target_month_col = _mapped_col_name(mapping, "target_month_col", "Monthly")
+    target_value_col = _mapped_col_name(mapping, "target_value_col", "Values_Target")
+    target_volume_col = _mapped_col_name(mapping, "target_volume_col", "Vol_Target")
     logs = []
 
     own_connection = False
@@ -2124,7 +2513,7 @@ def _generate_cockpit_custom_chart_databricks(
         own_connection = True
 
     try:
-        filter_conditions = _build_cockpit_filter_conditions(filters, table_kind="invoice")
+        filter_conditions = _build_cockpit_filter_conditions(filters, table_kind="invoice", column_mapping=mapping)
         full_where = " AND ".join(list(filter_conditions or [])) if filter_conditions else "1=1"
 
         use_existing_spec_only = str(prompt).strip().lower() in {"__refresh__", "__use_existing_spec__", "__reuse_spec__"}
@@ -2143,16 +2532,16 @@ def _generate_cockpit_custom_chart_databricks(
             }
         else:
             metadata_cols = [
-                ("Date", "date"),
-                ("Channel", "string"),
-                ("Brand", "string"),
-                ("Retailer", "string"),
-                ("Region", "string"),
+                (date_col, "date"),
+                (channel_col, "string"),
+                (brand_col, "string"),
+                (outlet_col, "string"),
+                (region_col, "string"),
                 ("State", "string"),
                 ("Distributor", "string"),
-                ("Category", "string"),
-                ("Value", "double"),
-                ("Volume", "double"),
+                (category_col, "string"),
+                (value_col, "double"),
+                (volume_col, "double"),
             ]
             metadata_text = ", ".join([f"{c} ({t})" for c, t in metadata_cols])
             edit_note = ""
@@ -2168,15 +2557,15 @@ You are a BI SQL chart planner for Databricks.
 Primary table: {invoice_table}
 Primary columns (metadata only): {metadata_text}
 Secondary table: {target_table}
-Secondary columns (metadata only): Monthly (yyyy-MM), Region, Channel, Brand, Category, State, Values_Target, Vol_Target
+Secondary columns (metadata only): {target_month_col} (yyyy-MM), {region_col}, {channel_col}, {brand_col}, {category_col}, State, {target_value_col}, {target_volume_col}
 
 Join logic (use ONLY when needed):
 - Join invoice -> target on:
-  date_format(CAST(invoice.Date AS DATE), 'yyyy-MM') = SUBSTR(CAST(target.Monthly AS STRING), 1, 7)
-  AND invoice.Region = target.Region
-  AND invoice.Channel = target.Channel
-  AND invoice.Brand = target.Brand
-  AND invoice.Category = target.Category
+  date_format(CAST(invoice.{date_col} AS DATE), 'yyyy-MM') = SUBSTR(CAST(target.{target_month_col} AS STRING), 1, 7)
+  AND invoice.{region_col} = target.{region_col}
+  AND invoice.{channel_col} = target.{channel_col}
+  AND invoice.{brand_col} = target.{brand_col}
+  AND invoice.{category_col} = target.{category_col}
 - State MUST NOT be part of join keys.
 - If prompt mentions target/MSP/achievement/vs target/gap to target/plan, use LEFT JOIN to target.
 - Otherwise query invoice table only.
@@ -2228,8 +2617,8 @@ User request: {prompt}
                 "y_col": "y",
                 "z_col": "",
                 "sql": (
-                    f"SELECT CAST({_quote_db_ident('Date')} AS DATE) AS x, "
-                    f"SUM(COALESCE(CAST({_quote_db_ident('Value')} AS DOUBLE), 0.0)) AS y "
+                    f"SELECT CAST({_quote_db_ident(date_col)} AS DATE) AS x, "
+                    f"SUM(COALESCE(CAST({_quote_db_ident(value_col)} AS DOUBLE), 0.0)) AS y "
                     f"FROM {invoice_fqn} WHERE {full_where} "
                     f"GROUP BY 1 ORDER BY 1"
                 ),
@@ -2275,6 +2664,7 @@ def generate_cockpit_custom_chart_from_prompt(
     target_table=DEFAULT_COCKPIT_TARGET_TABLE,
     selected_month="",
     data_source="excel",
+    column_mapping=None,
 ):
     if str(data_source or "").strip().lower() == "databricks":
         return _generate_cockpit_custom_chart_databricks(
@@ -2285,6 +2675,7 @@ def generate_cockpit_custom_chart_from_prompt(
             invoice_table=invoice_table,
             target_table=target_table,
             selected_month=selected_month,
+            column_mapping=column_mapping,
         )
 
     if df is None or df.empty:

@@ -10,10 +10,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env (local/dev convenience).
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=False)
 
 
 # Quick-start development settings - unsuitable for production
@@ -73,13 +78,30 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+#
+# PostgreSQL can be enabled by setting DB_NAME/DB_USER/DB_PASSWORD/DB_HOST
+# environment variables. Falls back to sqlite for local quick start.
+if os.getenv("DB_NAME") and os.getenv("DB_USER") and os.getenv("DB_PASSWORD") and os.getenv("DB_HOST"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME"),
+            "USER": os.getenv("DB_USER"),
+            "PASSWORD": os.getenv("DB_PASSWORD"),
+            "HOST": os.getenv("DB_HOST"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "OPTIONS": {
+                "sslmode": os.getenv("DB_SSLMODE", "require"),
+            },
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
