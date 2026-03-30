@@ -1,0 +1,2805 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marketing Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #fff;
+      --line: #d7deea;
+      --navy: #1a2744;
+      --green: #2d6a4f;
+      --red: #cc2929;
+      --blue: #2563eb;
+      --muted: #64748b
+    }
+
+    .hidden {
+      display: none !important
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      font-family: "Segoe UI", Arial, sans-serif
+    }
+
+    .shell {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 220px;
+      height: 100vh;
+      background: linear-gradient(180deg, #0b1528, #0a1322);
+      border-right: 1px solid rgba(148, 163, 184, .25);
+      padding: 14px 12px;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000
+    }
+
+    .home {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, .36);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: #e2e8f0;
+      background: rgba(30, 41, 59, .45)
+    }
+
+    .brand {
+      padding: 2px 4px 8px
+    }
+
+    .brand .t {
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1
+    }
+
+    .brand .s {
+      margin-top: 7px;
+      font-size: 11px;
+      color: #8fa0ba;
+      letter-spacing: .04em;
+      text-transform: uppercase
+    }
+
+    .btn {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      padding: 10px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: left;
+      cursor: pointer;
+      transition: all .2s ease
+    }
+
+    .btn.p {
+      color: #fff;
+      background: linear-gradient(135deg, #4f46e5, #2563eb);
+      border-color: rgba(99, 102, 241, .58);
+      box-shadow: 0 8px 20px rgba(37, 99, 235, .24)
+    }
+
+    .btn.s {
+      color: #d1d5db;
+      background: rgba(255, 255, 255, .03);
+      border-color: rgba(148, 163, 184, .28)
+    }
+
+    .lbl {
+      font-size: 10px;
+      font-weight: 700;
+      color: #8f99aa;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: 0 2px
+    }
+
+    .tpl {
+      display: grid;
+      gap: 6px
+    }
+
+    .tpl-item {
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, .24);
+      background: rgba(15, 23, 42, .42);
+      color: #e5e7eb;
+      padding: 10px 10px;
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      transition: border-color .2s ease, background .2s ease, transform .2s ease
+    }
+
+    .tpl-item:hover {
+      border-color: rgba(56, 189, 248, .52);
+      background: rgba(30, 58, 138, .28);
+      transform: translateY(-1px)
+    }
+
+    .tpl-item.tpl-item-toggle {
+      width: 100%;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit
+    }
+
+    .tpl-item.active {
+      border-color: rgba(56, 189, 248, .58);
+      background: rgba(30, 58, 138, .32)
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase
+    }
+
+    .badge.live {
+      background: rgba(16, 185, 129, .22);
+      border: 1px solid rgba(16, 185, 129, .42);
+      color: #d1fae5
+    }
+
+    .view-pages {
+      display: grid;
+      gap: 2px;
+      margin-top: -2px;
+      padding: 0 0 0 24px;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transform: translateY(-4px);
+      transition: max-height .24s ease, opacity .2s ease, transform .2s ease
+    }
+
+    .view-pages.open {
+      max-height: 180px;
+      opacity: 1;
+      transform: translateY(0)
+    }
+
+    .view-page-btn {
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #94a3b8;
+      padding: 4px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      white-space: normal;
+      line-height: 1.2;
+      min-width: 0;
+      text-decoration: none
+    }
+
+    .view-page-btn::before {
+      content: '\25B8';
+      font-size: 10px;
+      color: inherit;
+      margin-top: 1px;
+      flex: 0 0 auto
+    }
+
+    .view-page-btn.on {
+      background: rgba(37, 99, 235, .16);
+      color: #7dd3fc
+    }
+
+    .desc-wrap {
+      position: relative;
+      display: inline-flex
+    }
+
+    .desc-btn {
+      font-size: 10.5px;
+      padding: 5px 8px
+    }
+
+    .desc-panel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      width: min(520px, 86vw);
+      max-height: min(72vh, 620px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 12px 13px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.55;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, .16);
+      display: none;
+      z-index: 20;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere
+    }
+
+    .desc-panel.open {
+      display: block
+    }
+
+    .desc-panel h4 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: #0f172a;
+      font-weight: 800;
+      white-space: normal;
+      overflow-wrap: anywhere
+    }
+
+    .desc-panel p {
+      margin: 0 0 8px;
+      color: #475569;
+      overflow-wrap: anywhere
+    }
+
+    .desc-panel .desc-sec {
+      margin-top: 8px;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #1d4ed8;
+      white-space: normal;
+      overflow-wrap: anywhere
+    }
+
+    .desc-panel ul {
+      margin: 4px 0 0 16px;
+      padding: 0
+    }
+
+    .desc-panel li {
+      margin: 2px 0;
+      overflow-wrap: anywhere
+    }
+
+    .saved-head {
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 2px
+    }
+
+    .view-all {
+      border: none;
+      background: transparent;
+      color: #7dd3fc;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 0
+    }
+
+    .view-all:hover {
+      color: #e0f2fe
+    }
+
+    .saved {
+      display: grid;
+      gap: 8px;
+      overflow: auto;
+      min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+    }
+
+    .saved::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .saved::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .saved::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 999px;
+    }
+
+    .saved::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.55);
+    }
+
+    .saved-empty {
+      border: none;
+      border-radius: 0;
+      color: #8fa2be;
+      text-align: left;
+      padding: 4px 6px;
+      font-size: 11px;
+      background: transparent
+    }
+
+    .sidebar-loadbar {
+      height: 4px;
+      width: 100%;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(15, 23, 42, .45);
+      border: 1px solid rgba(148, 163, 184, .18);
+      margin-top: 4px
+    }
+
+    .sidebar-loadbar::before {
+      content: '';
+      display: block;
+      width: 38%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(16, 185, 129, .08), rgba(16, 185, 129, .95), rgba(16, 185, 129, .08));
+      animation: sidebarLoadSweep .95s ease-in-out infinite
+    }
+
+    @keyframes sidebarLoadSweep {
+      0% {
+        transform: translateX(-120%)
+      }
+
+      100% {
+        transform: translateX(320%)
+      }
+    }
+
+    .saved-item {
+      position: relative;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      padding: 4px 6px;
+      cursor: pointer;
+      text-align: left
+    }
+
+    .saved-item .n {
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .saved-item .del {
+      position: absolute;
+      right: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: #ef4444;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .saved-item:hover .del {
+      display: inline-flex;
+    }
+
+    .saved-item .del:hover {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    .saved-item .m {
+      display: none
+    }
+
+    .saved-item:hover {
+      background: rgba(37, 99, 235, .14);
+      color: #c7d2fe
+    }
+
+    .saved-item.active {
+      background: rgba(37, 99, 235, .2);
+      color: #e0f2fe
+    }
+
+    .saved-group {
+      display: grid;
+      gap: 2px
+    }
+
+    .saved-subpages {
+      display: grid;
+      gap: 2px;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transform: translateY(-4px);
+      padding-left: 20px;
+      transition: max-height .24s ease, opacity .2s ease, transform .2s ease
+    }
+
+    .saved-subpages.open {
+      max-height: 180px;
+      opacity: 1;
+      transform: translateY(0)
+    }
+
+    .saved-subpage {
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #94a3b8;
+      padding: 4px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .saved-subpage::before {
+      content: '\25B8';
+      font-size: 10px;
+      color: inherit;
+      margin-top: 1px;
+      flex: 0 0 auto
+    }
+
+    .saved-subpage:hover {
+      background: rgba(37, 99, 235, .16);
+      color: #c7d2fe
+    }
+
+    .saved-subpage.active {
+      background: rgba(37, 99, 235, .2);
+      color: #7dd3fc
+    }
+
+    .saved-history-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 6, 23, .72);
+      backdrop-filter: blur(3px);
+      padding: 20px
+    }
+
+    .saved-history-overlay.hidden {
+      display: none
+    }
+
+    .saved-history-modal {
+      width: min(980px, 92vw);
+      max-height: 86vh;
+      overflow: auto;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, .28);
+      background: rgba(15, 23, 42, .97);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, .52);
+      padding: 14px
+    }
+
+    .saved-history-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px
+    }
+
+    .saved-history-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #f8fafc
+    }
+
+    .saved-history-sub {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: 3px
+    }
+
+    .saved-history-close {
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, .35);
+      background: rgba(30, 41, 59, .54);
+      color: #e2e8f0;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+      cursor: pointer
+    }
+
+    .saved-history-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .saved-history-card {
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, .24);
+      background: rgba(15, 23, 42, .56);
+      padding: 10px
+    }
+
+    .saved-history-card-name {
+      color: #f1f5f9;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px
+    }
+
+    .saved-history-card-meta {
+      color: #94a3b8;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .saved-history-card-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end
+    }
+
+    .saved-history-btn {
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, .35);
+      background: rgba(30, 41, 59, .55);
+      color: #e2e8f0;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 10px;
+      cursor: pointer
+    }
+
+    .saved-history-btn.load {
+      background: linear-gradient(135deg, #4f46e5, #2563eb);
+      border-color: rgba(99, 102, 241, .56);
+      color: #fff
+    }
+
+    .saved-history-btn.delete {
+      border-color: rgba(239, 68, 68, .45);
+      color: #fecaca;
+      background: rgba(127, 29, 29, .35)
+    }
+
+    .saved-history-empty {
+      border-radius: 10px;
+      border: 1px dashed rgba(148, 163, 184, .35);
+      color: #94a3b8;
+      font-size: 12px;
+      padding: 14px;
+      text-align: center;
+      background: rgba(15, 23, 42, .35)
+    }
+
+    .template-preview-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, .85);
+      z-index: 1400;
+      align-items: center;
+      justify-content: center;
+      padding: 20px
+    }
+
+    .template-preview-modal {
+      width: min(1320px, 97vw);
+      max-height: 95vh;
+      overflow: auto;
+      background: #0f172a;
+      border: 1px solid rgba(148, 163, 184, .28);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 26px 70px rgba(2, 6, 23, .65);
+      color: #e2e8f0
+    }
+
+    .template-preview-media {
+      width: 100%;
+      height: min(72vh, 780px);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, .25);
+      background: #111827;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .template-preview-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: transparent
+    }
+
+    .template-preview-description {
+      width: 100%;
+      height: min(72vh, 780px);
+      border-radius: 12px;
+      overflow: auto;
+      border: 1px solid rgba(148, 163, 184, .25);
+      background: rgba(2, 6, 23, .45);
+      padding: 16px;
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.65
+    }
+
+    .template-preview-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, .34);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      background: rgba(15, 23, 42, .7);
+      color: #cbd5e1;
+      width: auto
+    }
+
+    .template-preview-btn-open {
+      background: #dc2626;
+      color: #fff;
+      border-color: #dc2626
+    }
+
+    .template-preview-btn-close {
+      background: rgba(15, 23, 42, .7);
+      color: #cbd5e1
+    }
+
+    .main {
+      margin-left: 220px;
+      width: calc(100% - 220px);
+      padding: 12px;
+      min-height: 100vh
+    }
+
+    .head {
+      background: var(--navy);
+      color: #fff;
+      border-radius: 12px;
+      border: 1px solid #22355f;
+      padding: 12px
+    }
+
+    .title {
+      font-size: 26px;
+      font-weight: 800
+    }
+
+    .sub {
+      font-size: 13px;
+      color: #c8d4ef;
+      margin-top: 3px
+    }
+
+    .filters {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: 5px;
+      align-items: end
+    }
+
+    .f label {
+      display: block;
+      font-size: 9.5px;
+      color: #d4e0fb;
+      margin-bottom: 1px;
+      font-weight: 700;
+      line-height: 1.1
+    }
+
+    .f select {
+      width: 100%;
+      min-height: 26px;
+      border: 1px solid #325084;
+      border-radius: 7px;
+      background: #f8fbff;
+      color: #1f2937;
+      font-size: 11px;
+      padding: 3px 6px
+    }
+
+    .act {
+      display: flex;
+      gap: 5px;
+      justify-content: flex-end;
+      align-items: center;
+      white-space: nowrap;
+      flex-wrap: nowrap
+    }
+
+    .ubtn {
+      border: 1px solid #9aa8c1;
+      background: #fff;
+      color: #1f1f1f;
+      font-size: 11.5px;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 5px 9px;
+      cursor: pointer
+    }
+
+    .ubtn.p {
+      background: var(--green);
+      color: #fff;
+      border-color: #2d6a4f
+    }
+
+    .saved-meta {
+      font-size: 11px;
+      color: #d1d5db
+    }
+
+    .tog {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .tog-left,
+    .tog-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .tog-right {
+      width: 100%;
+      justify-content: flex-start;
+      row-gap: 8px
+    }
+
+    .tog-right .desc-wrap {
+      margin-left: auto
+    }
+
+    .tog button {
+      border: 1px solid #3e5a88;
+      background: #102643;
+      color: #cddbf8;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer
+    }
+
+    .tog button.on {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff
+    }
+
+    .ubtn.on {
+      background: #1e293b;
+      color: #fff;
+      border-color: #1e293b
+    }
+
+    .top-row {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: .62fr 1.58fr;
+      gap: 10px;
+      align-items: start
+    }
+
+    .kpis {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px
+    }
+
+    .top-row .kpis {
+      margin-top: 0
+    }
+
+    .k {
+      background: #eef5ff;
+      border: 1px solid #d6e2f5;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 178px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .k .l {
+      font-size: 11px;
+      color: #3b4d6b;
+      text-transform: uppercase;
+      font-weight: 700
+    }
+
+    .k .v {
+      margin-top: 4px;
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1;
+      color: #30485f
+    }
+
+    .k .s {
+      margin-top: 4px;
+      color: #4f6784;
+      font-size: 11px;
+      font-weight: 700
+    }
+
+    .k .sp {
+      height: 44px;
+      width: 100%;
+      margin-top: 8px
+    }
+
+    .k .m {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 8px
+    }
+
+    .k .mb {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 0
+    }
+
+    .k .mb .t {
+      font-size: 11px;
+      color: #4b5563
+    }
+
+    .k .mb .n {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.05
+    }
+
+    .sp-ctl {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center
+    }
+
+    .sp-group {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px
+    }
+
+    .sp-group.type {
+      background: rgba(37, 99, 235, .14);
+      border: 1px solid rgba(37, 99, 235, .32)
+    }
+
+    .sp-group.metric {
+      background: rgba(45, 106, 79, .14);
+      border: 1px solid rgba(45, 106, 79, .32)
+    }
+
+    .sp-group .ubtn {
+      border-radius: 999px;
+      padding: 6px 10px
+    }
+
+    .sp-group.type .ubtn.on {
+      background: #1d4ed8;
+      color: #fff;
+      border-color: #1d4ed8
+    }
+
+    .sp-group.metric .ubtn.on {
+      background: #2d6a4f;
+      color: #fff;
+      border-color: #2d6a4f
+    }
+
+    .sp-sep {
+      width: 1px;
+      height: 24px;
+      background: rgba(100, 116, 139, .45)
+    }
+
+    .cards {
+      margin-top: 10px;
+      display: grid;
+      gap: 10px
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .ct {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1f2937;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center
+    }
+
+    .chart-note {
+      margin: -2px 0 8px;
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.3
+    }
+
+    .top-row .card {
+      min-height: 290px
+    }
+
+    .plot {
+      width: 100%;
+      min-height: 300px;
+      min-width: 0;
+    }
+
+    .row3 {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 10px
+    }
+
+    .small {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px
+    }
+
+    .small .plot {
+      min-height: 250px
+    }
+
+    .ins {
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(0, 0, 0, .08)
+    }
+
+    .ins.g {
+      background: #d7f4df;
+      color: #0f5132
+    }
+
+    .ins.r {
+      background: #f9d8d8;
+      color: #842029
+    }
+
+    .ins h4 {
+      margin: 0 0 8px 0;
+      font-size: 14px
+    }
+
+    .ins ol {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      line-height: 1.42
+    }
+
+    .map {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 10px;
+      min-height: 420px
+    }
+
+    .mctrl {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 6px
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: #334155;
+      background: #eef2f8;
+      border: 1px solid #cfd8e6;
+      border-radius: 999px;
+      padding: 4px 10px
+    }
+
+    .tbl {
+      border: 1px solid #d8dee7;
+      border-radius: 10px;
+      overflow: auto;
+      max-height: 385px
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #eaf0fb;
+      color: #1e293b;
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #cdd8eb
+    }
+
+    tbody td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #eff3fa;
+      white-space: nowrap
+    }
+
+    .upload {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, .8);
+      z-index: 1200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px
+    }
+
+    .upload.h {
+      display: none
+    }
+
+    .uc {
+      width: min(620px, 96vw);
+      background: #fff;
+      border: 1px solid #d7deea;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, .5)
+    }
+
+    .uc .t {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--navy)
+    }
+
+    .uc .s {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #4b5563
+    }
+
+    .ua {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .us {
+      margin-top: 8px;
+      color: #b91c1c;
+      font-size: 13px;
+      min-height: 18px
+    }
+
+    .busy {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 1500;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      background: rgba(15, 23, 42, .94);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, .35);
+      border-radius: 12px;
+      padding: 8px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 12px 28px rgba(2, 6, 23, .45);
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity .18s ease, transform .18s ease
+    }
+
+    .busy.sh {
+      display: inline-flex;
+      opacity: 1;
+      transform: translateY(0)
+    }
+
+    .busy-spin {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      border: 2px solid rgba(148, 163, 184, .5);
+      border-top-color: #22c55e;
+      animation: busySpin .75s linear infinite
+    }
+
+    @keyframes busySpin {
+      from {
+        transform: rotate(0deg)
+      }
+
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 1350;
+      background: rgba(15, 23, 42, .96);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, .35);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity .18s, transform .18s
+    }
+
+    .toast.sh {
+      opacity: 1;
+      transform: translateY(0)
+    }
+
+    @media (max-width:1400px) {
+      .filters {
+        grid-template-columns: repeat(5, minmax(0, 1fr))
+      }
+
+      .act {
+        grid-column: 1/-1;
+        justify-content: flex-start
+      }
+
+      .row3 {
+        grid-template-columns: 1fr
+      }
+
+      .small {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+      }
+
+      .map {
+        grid-template-columns: 1fr
+      }
+    }
+
+    @media (max-width:1180px) {
+      .top-row {
+        grid-template-columns: 1fr
+      }
+    }
+
+    @media (max-width:1024px) {
+      .shell {
+        position: static;
+        width: 100%;
+        height: auto
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%
+      }
+
+      .kpis {
+        grid-template-columns: 1fr
+      }
+
+      .small {
+        grid-template-columns: 1fr
+      }
+    }
+  </style>
+</head>
+
+<body>
+  {% csrf_token %}
+  <aside class="shell">
+    <a class="home" href="/" title="Home">&#8962;</a>
+    <div class="brand">
+      <div class="t">Yuqta</div>
+      <div class="s">AI Dashboard Builder</div>
+    </div>
+    <button class="btn p" onclick="window.location.href='/?open=ai'">AI Generated Dashboard</button>
+    <button class="btn s" onclick="window.location.href='/'">Make Your Own Dashboard</button>
+    <div class="lbl">Templates</div>
+    <div class="tpl">
+      <a class="tpl-item" href="/dashboard"><span>1</span><span>Sales
+          Template</span><span class="badge live">Live</span></a>
+      <button id="btnTemplateSales2" type="button" class="tpl-item tpl-item-toggle"><span>2</span><span>Sales Template
+          2</span><span class="badge live">Live</span></button>
+      <div id="tplSales2Pages" class="view-pages open">
+        <button id="btnPagePrimaryOverview" type="button" class="view-page-btn on">Primary Sales<br>Overview</button>
+        <button id="btnPageSecondaryOverview" type="button" class="view-page-btn">Secondary Sales<br>Overview</button>
+        <button id="btnPageBrand" type="button" class="view-page-btn">Trend Analysis</button>
+      </div>
+      <button id="btnTemplateSales3" type="button" class="tpl-item tpl-item-toggle"><span>3</span><span>Sales Template
+          3</span><span class="badge live">Live</span></button>
+      <div id="tplSales3Pages" class="view-pages">
+        <a class="view-page-btn" href="/dashboard3?page=primary">Primary Sales</a>
+        <a class="view-page-btn" href="/dashboard3?page=growth">Growth Analysis</a>
+        <a class="view-page-btn" href="/dashboard3?page=achievement">Achievement Analysis</a>
+        <a class="view-page-btn" href="/dashboard3?page=dst">DST Score Card</a>
+      </div>
+    </div>
+    <div class="saved-head">
+      <div class="lbl" style="margin-top:0; padding:0;">Saved</div>
+      <button id="btnViewAllSaved" class="view-all" type="button">View All</button>
+    </div>
+    <div id="saved-loading-bar" class="sidebar-loadbar hidden" aria-hidden="true"></div>
+    <div id="savedList" class="saved">
+      <div class="saved-empty">No saved dashboards yet.</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="head">
+      <div class="title">Sales Dashboard | PRIMARY SALES OVERVIEW</div>
+      <div class="sub">National Brand Performance Dashboard</div>
+      <div class="filters">
+        <div class="f"><label>From Month</label><select id="fMonthFrom"></select></div>
+        <div class="f"><label>To Month</label><select id="fMonthTo"></select></div>
+        <div class="f"><label>Category</label><select id="fCategory"></select></div>
+        <div class="f"><label>Brand</label><select id="fBrand"></select></div>
+        <div class="f"><label>Sub Brand</label><select id="fSubBrand"></select></div>
+        <div class="f"><label>Channel</label><select id="fChannel"></select></div>
+        <div class="f"><label>Branch</label><select id="fBranch"></select></div>
+        <div class="f"><label>Period</label><select id="fPeriod"></select></div>
+      </div>
+      <div id="salesTypeToggleRow" class="tog">
+        <div class="tog-right">
+          <button id="btnApply" class="ubtn p">Apply Filters</button>
+          <button id="btnReload" class="ubtn">Reload</button>
+          <button id="btnSaveDashboard" class="ubtn">&#128190; Save Layout</button>
+          <button id="btnRefreshSavedDashboard" class="ubtn hidden">&#128260; Refresh Data</button>
+          <span id="savedDashboardUpdatedAt" class="saved-meta hidden"></span>
+          <div id="descWrap" class="desc-wrap">
+            <button id="btnShowDescription" class="ubtn desc-btn" type="button">Show Description</button>
+            <div id="dashboardDescPanel" class="desc-panel"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="topRowSection" class="top-row">
+      <div class="kpis">
+        <div class="k">
+          <div class="l">Primary</div>
+          <div id="kPrimaryValue" class="v">-</div>
+          <div id="kPrimaryLy" class="s">LY: -</div>
+          <div id="kPrimarySpark" class="sp"></div>
+          <div class="m">
+            <div class="mb">
+              <div class="t">Achievement</div>
+              <div id="kPrimaryAch" class="n">-</div>
+            </div>
+            <div class="mb">
+              <div class="t">Growth</div>
+              <div id="kPrimaryGrowth" class="n">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="k">
+          <div class="l">Secondary</div>
+          <div id="kSecondaryValue" class="v">-</div>
+          <div id="kSecondaryLy" class="s">LY: -</div>
+          <div id="kSecondarySpark" class="sp"></div>
+          <div class="m">
+            <div class="mb">
+              <div class="t">Achievement</div>
+              <div id="kSecondaryAch" class="n">-</div>
+            </div>
+            <div class="mb">
+              <div class="t">Growth</div>
+              <div id="kSecondaryGrowth" class="n">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">
+          <span id="ctTrendTitle">Sales Performance</span>
+          <span class="sp-ctl">
+            <span class="sp-group metric">
+              <button id="spMetricActual" class="ubtn on">Sales</button>
+              <button id="spMetricAchievement" class="ubtn">Achievement</button>
+              <button id="spMetricGrowth" class="ubtn">Growth</button>
+            </span>
+          </span>
+        </div>
+        <div id="plotTrend" class="plot"></div>
+      </div>
+    </div>
+
+    <div id="overviewSection" class="cards">
+      <div class="row3">
+        <div class="card">
+          <div id="ctInsightsTitle" class="ct">Primary Insights</div>
+          <div id="insGrowth" class="ins g"></div>
+          <div id="insDecline" class="ins r"></div>
+        </div>
+        <div class="card">
+          <div id="ctChannelTitle" class="ct">Primary Channel -> Branch Wise Sales</div>
+
+          <div id="plotChannel" class="plot" style="min-height:280px"></div>
+        </div>
+        <div class="card">
+          <div id="ctBrandSubTitle" class="ct">Primary Brand -> Sub Brand Wise Sales</div>
+
+          <div id="plotBrandSub" class="plot" style="min-height:280px"></div>
+        </div>
+      </div>
+      <div class="small">
+        <div class="card">
+          <div id="ctBranchTitle" class="ct">Primary Sales by Branch</div>
+          <div id="plotBranch" class="plot"></div>
+        </div>
+        <div class="card">
+          <div id="ctStateTitle" class="ct">Primary Sales by State</div>
+          <div id="plotState" class="plot"></div>
+        </div>
+        <div class="card">
+          <div id="ctDistrictTitle" class="ct">Primary Sales by District</div>
+          <div id="plotDistrict" class="plot"></div>
+        </div>
+        <div class="card">
+          <div id="ctAsmTitle" class="ct">Primary Sales by ASM HQ Town</div>
+          <div id="plotAsm" class="plot"></div>
+        </div>
+        <div class="card">
+          <div id="ctSoTitle" class="ct">Primary Sales by SO HQ Town</div>
+          <div id="plotSo" class="plot"></div>
+        </div>
+        <div class="card">
+          <div id="ctPopsTitle" class="ct">Primary Sales by Pops Strata</div>
+          <div id="plotPops" class="plot"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ct">India Map + State Summary</div>
+        <div class="mctrl">
+          <label class="pill"><input type="radio" name="mapMetric" value="Sales" checked> Contribution</label>
+          <label class="pill"><input type="radio" name="mapMetric" value="Growth_Pct"> Growth</label>
+          <label class="pill"><input type="radio" name="mapMetric" value="Salience_Pct"> Salience</label>
+          <label class="pill"><input type="radio" name="mapMetric" value="Growth_Contribution_Pct"> Growth
+            Contribution</label>
+          <button id="btnTop" class="ubtn on">Top</button>
+          <button id="btnBottom" class="ubtn">Bottom</button>
+        </div>
+        <div class="map">
+          <div id="plotMap" class="plot" style="min-height:390px"></div>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>State</th>
+                  <th>Sales</th>
+                  <th>Salience%</th>
+                  <th>Growth Cntr%</th>
+                  <th>Growth%</th>
+                </tr>
+              </thead>
+              <tbody id="stateRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="brandSection" class="cards" style="display:none; width:100%;">
+      <div class="card">
+        <div class="ct">National Brand Performance Funnel</div>
+        <div id="plotGrps" class="plot" style="height:180px; min-height:180px"></div>
+        <div id="plotSov" class="plot" style="height:180px; min-height:180px"></div>
+        <div id="plotTom" class="plot" style="height:180px; min-height:180px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="upload" class="upload h">
+    <div class="uc">
+      <div class="t">Sales Template 2 Data</div>
+      <div class="s">Upload the Excel workbook to start. You can also use the sample workbook already in the project.
+      </div>
+      <div class="ua"><input id="file" class="ubtn" type="file" accept=".xlsx"><button id="btnUpload"
+          class="ubtn p">Upload & Load</button><button id="btnSample" class="ubtn">Use Existing Sample</button></div>
+      <div id="uploadErr" class="us"></div>
+    </div>
+  </div>
+
+  <div id="busy" class="busy"></div>
+  <div id="toast" class="toast"></div>
+  <div id="savedHistoryOverlay" class="saved-history-overlay hidden" onclick="closeSavedHistoryModal(event)">
+    <div class="saved-history-modal" onclick="event.stopPropagation()">
+      <div class="saved-history-head">
+        <div>
+          <div class="saved-history-title">Saved Dashboards</div>
+          <div class="saved-history-sub">Load, rename, or delete saved snapshots.</div>
+        </div>
+        <button class="saved-history-close" type="button" onclick="closeSavedHistoryModal()">Close</button>
+      </div>
+      <div id="savedHistoryGrid" class="saved-history-grid"></div>
+    </div>
+  </div>
+
+  <script>
+    const st = {
+      payload: null,
+      trendMode: 'actual',
+      salesPerfType: 'Primary',
+      salesFilterType: 'Primary',
+      mapMetric: 'Sales',
+      mapBottom: false,
+      geo: null,
+      subPage: 'primary_overview',
+      saved: [],
+      stateRowsCache: [],
+      activeSavedDashboardId: '',
+      activeSavedSnapshotAt: '',
+      savedSidebarExpandedById: {},
+      savedToolbarTicker: null,
+      switchRenderToken: 0
+    };
+    const $ = id => document.getElementById(id);
+    function pageSalesType(page) { return page === 'secondary_overview' ? 'Secondary' : 'Primary'; }
+    function normalizeSubPage(raw) {
+      const p = String(raw || '').toLowerCase();
+      if (p === 'secondary_overview' || p === 'secondary' || p === 'overview_secondary') return 'secondary_overview';
+      if (p === 'brand' || p === 'brand_analysis') return 'brand';
+      return 'primary_overview';
+    }
+    function savedTemplateKey(item) {
+      const type = String(item?.dashboard_type || '').toLowerCase();
+      const hint = String(item?.thumbnail_hint || '').toLowerCase();
+      if (hint === 'dashboard2' || type === 'dashboard2' || type === 'marketing_dashboard') return 'dashboard2';
+      if (hint === 'dashboard3' || type === 'dashboard3' || type === 'sales_cockpit3') return 'dashboard3';
+      if (type === 'sales_cockpit') return 'dashboard1';
+      return 'ai';
+    }
+    function savedItemTypeLabel(item) {
+      const key = savedTemplateKey(item);
+      if (key === 'dashboard2') return 'Sales Template 2';
+      if (key === 'dashboard3') return 'Sales Template 3';
+      if (key === 'dashboard1') return 'Sales Template';
+      return 'AI Dashboard';
+    }
+    function savedPagesForTemplate(key) {
+      if (key === 'dashboard2') {
+        return [
+          { key: 'primary_overview', label: 'Primary Sales Overview' },
+          { key: 'secondary_overview', label: 'Secondary Sales Overview' },
+          { key: 'brand', label: 'Trend Analysis' }
+        ];
+      }
+      if (key === 'dashboard3') {
+        return [
+          { key: 'primary', label: 'Primary Sales' },
+          { key: 'growth', label: 'Growth Analysis' },
+          { key: 'achievement', label: 'Achievement Analysis' },
+          { key: 'dst', label: 'DST Score Card' }
+        ];
+      }
+      return [];
+    }
+    function currentSavedPageKey(key) {
+      if (key === 'dashboard2') return normalizeSubPage(st.subPage);
+      const qs = new URLSearchParams(window.location.search);
+      if (key === 'dashboard3') return String(qs.get('page') || 'primary').toLowerCase();
+      return '';
+    }
+    function openSavedItemPage(item, pageKey) {
+      const id = String(item?.id || '').trim();
+      if (!id) return;
+      const key = savedTemplateKey(item);
+      if (key === 'dashboard2') {
+        window.location.href = '/dashboard2?saved_id=' + encodeURIComponent(id) + '&view=' + encodeURIComponent(pageKey);
+        return;
+      }
+      if (key === 'dashboard3') {
+        window.location.href = '/dashboard3?saved_id=' + encodeURIComponent(id) + '&page=' + encodeURIComponent(pageKey);
+        return;
+      }
+      if (key === 'dashboard1') {
+        window.location.href = '/dashboard?saved_id=' + encodeURIComponent(id);
+        return;
+      }
+      window.location.href = '/?saved_id=' + encodeURIComponent(id);
+    }
+    function syncSidebarTemplateSelection() {
+      const hasSaved = !!String(st.activeSavedDashboardId || '').trim();
+      const t1 = document.querySelector('.tpl > a.tpl-item[href="/dashboard"]');
+      const t2 = $('btnTemplateSales2');
+      const t3 = $('btnTemplateSales3');
+      if (t1) t1.classList.toggle('active', !hasSaved && window.location.pathname.toLowerCase() === '/dashboard');
+      if (t2) t2.classList.toggle('active', !hasSaved && window.location.pathname.toLowerCase() === '/dashboard2');
+      if (t3) t3.classList.toggle('active', !hasSaved && window.location.pathname.toLowerCase() === '/dashboard3');
+      if ($('btnPagePrimaryOverview')) $('btnPagePrimaryOverview').classList.toggle('on', !hasSaved && st.subPage === 'primary_overview');
+      if ($('btnPageSecondaryOverview')) $('btnPageSecondaryOverview').classList.toggle('on', !hasSaved && st.subPage === 'secondary_overview');
+      if ($('btnPageBrand')) $('btnPageBrand').classList.toggle('on', !hasSaved && st.subPage === 'brand');
+    }
+    const DASHBOARD_DESCRIPTIONS = {
+      primary_overview: `
+        <h4>Primary Sales Overview</h4>
+        <p>Primary sales performance overview for national execution reviews.<br>This page consolidates branch-wise, brand-wise, state-wise, and channel-wise performance with growth and achievement context so teams can quickly identify where primary dispatch momentum is strong, where gaps are forming, and which levers require intervention.</p>
+        <div class="desc-sec">Template Features</div>
+        <ul>
+          <li>Comprehensive filter layer across month range, category, brand, sub-brand, channel, branch, and period</li>
+          <li>Primary KPI cards with LY comparison, achievement tracking, and growth signals for rapid performance checks</li>
+          <li>Action-oriented insights section highlighting growth drivers and decline contributors from current data</li>
+          <li>Top and Bottom analysis views in map diagnostics to isolate strongest and weakest state contributions</li>
+        </ul>
+        <div class="desc-sec">Charts Included</div>
+        <ul>
+          <li>Sales performance trend chart with Sales, Achievement, and Growth metric modes</li>
+          <li>Primary Branch Wise Sales with growth and achievement annotation badges</li>
+          <li>Primary Brand to Sub Brand Wise Sales comparison for portfolio movement analysis</li>
+          <li>State map with contribution/growth metric switching and ranked state summary table</li>
+          <li>Primary sales distribution charts by Branch, State, District, ASM HQ, SO HQ, and Pops Strata</li>
+        </ul>
+        <div class="desc-sec">Use Cases</div>
+        <ul>
+          <li>Daily and weekly demand planning reviews</li>
+          <li>Target recovery planning by geography and channel</li>
+          <li>Root-cause analysis for primary growth variance</li>
+        </ul>
+      `,
+      secondary_overview: `
+        <h4>Secondary Sales Overview</h4>
+        <p>Secondary sales performance overview focused on distributor-level sell-out dynamics.<br>This page tracks how secondary throughput is moving across branches, brands, states, and channels, helping teams monitor retail offtake quality and detect pockets of slowdown early.</p>
+        <div class="desc-sec">Template Features</div>
+        <ul>
+          <li>Same enterprise filter framework as primary view for apples-to-apples secondary analysis</li>
+          <li>Secondary KPI cards with LY baselines and pace context for execution governance</li>
+          <li>Secondary-focused insights panel to surface top contributors and drag factors</li>
+          <li>Diagnostic map and regional cuts for quick distributor and market-level escalation</li>
+        </ul>
+        <div class="desc-sec">Charts Included</div>
+        <ul>
+          <li>Secondary Sales performance trend with Sales, Achievement, and Growth toggles</li>
+          <li>Secondary Branch Wise Sales with growth and achievement annotation badges</li>
+          <li>Secondary Brand to Sub Brand Wise Sales for sell-out mix monitoring</li>
+          <li>State map and ranked state table with contribution, salience, and growth views</li>
+          <li>Secondary breakdown charts by Branch, State, District, ASM HQ, SO HQ, and Pops Strata</li>
+        </ul>
+        <div class="desc-sec">Use Cases</div>
+        <ul>
+          <li>Sell-out health checks and downstream demand validation</li>
+          <li>Distributor performance review and corrective action tracking</li>
+          <li>Secondary growth monitoring by channel and geography</li>
+        </ul>
+      `,
+      brand: `
+        <h4>Brand Analysis</h4>
+        <p>Deep-dive brand and sub-brand performance funnel for strategic monthly reviews.<br>This page connects media and brand-health indicators with commercial outcomes to help leadership understand whether awareness and share-of-voice momentum is translating into sales acceleration.</p>
+        <div class="desc-sec">Template Features</div>
+        <ul>
+          <li>Focused brand-funnel workspace designed for leadership and marketing-performance reviews</li>
+          <li>Unified trend framing across GRPs, SOV%, and TOM% to track movement by month</li>
+          <li>Integrated context with primary and secondary sales behavior from overview pages</li>
+          <li>Clear narrative structure for discussion, hypothesis tracking, and follow-up actions</li>
+        </ul>
+        <div class="desc-sec">Charts Included</div>
+        <ul>
+          <li>GRPs trend chart for media pressure tracking</li>
+          <li>SOV% trend chart for share-of-voice movement</li>
+          <li>TOM% trend chart for top-of-mind brand salience</li>
+          <li>Cross-page linkage to sales trend and sub-brand movement diagnostics</li>
+        </ul>
+        <div class="desc-sec">Use Cases</div>
+        <ul>
+          <li>Monthly business review storytelling</li>
+          <li>Brand investment effectiveness monitoring</li>
+          <li>Funnel-to-sales performance alignment discussions</li>
+        </ul>
+      `
+    };
+    function setTemplateSales2Expanded(open) {
+      const pages = $('tplSales2Pages');
+      const btn = $('btnTemplateSales2');
+      if (!pages || !btn) return;
+      pages.classList.toggle('open', !!open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    function setTemplateSales3Expanded(open) {
+      const pages = $('tplSales3Pages');
+      const btn = $('btnTemplateSales3');
+      if (!pages || !btn) return;
+      pages.classList.toggle('open', !!open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    function syncDescriptionPanel() {
+      const panel = $('dashboardDescPanel');
+      if (!panel) return;
+      panel.innerHTML = DASHBOARD_DESCRIPTIONS[st.subPage] || DASHBOARD_DESCRIPTIONS.primary_overview;
+    }
+    function setDescriptionPanelOpen(open) {
+      const panel = $('dashboardDescPanel');
+      if (!panel) return;
+      panel.classList.toggle('open', !!open);
+      syncDescriptionPanel();
+    }
+    function refreshOverviewLayout() {
+      const ids = ['plotTrend', 'plotChannel', 'plotBrandSub', 'plotBranch', 'plotState', 'plotDistrict', 'plotAsm', 'plotSo', 'plotPops', 'plotMap'];
+      ids.forEach(id => {
+        const el = $(id);
+        if (!el) return;
+        try { Plotly.Plots.resize(el); } catch (_) { }
+      });
+    }
+    function syncSubPageInUrl() {
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.set('view', st.subPage);
+        window.history.replaceState({}, '', u.toString());
+      } catch (_) { }
+    }
+    function fmtIN(n) { n = Number(n); if (!Number.isFinite(n)) return '-'; const a = Math.abs(n); if (a >= 1e7) return (n / 1e7).toFixed(2) + ' Cr'; if (a >= 1e5) return (n / 1e5).toFixed(2) + ' L'; if (a >= 1e3) return (n / 1e3).toFixed(1) + 'K'; return n.toFixed(0) }
+    function pctVal(v) { v = Number(v); if (!Number.isFinite(v)) return 0; return Math.abs(v) <= 1 ? v * 100 : v }
+    function fmtPct(v) { return pctVal(v).toFixed(2) + '%' }
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
+    function busy(t) { $('busy').textContent = t || 'Loading...'; $('busy').classList.add('sh') }
+    function idle() { $('busy').classList.remove('sh') }
+    function toast(t) { const e = $('toast'); e.textContent = t || ''; e.classList.add('sh'); clearTimeout(toast.tm); toast.tm = setTimeout(() => e.classList.remove('sh'), 3000) }
+    function cs() { const i = document.querySelector('input[name="csrfmiddlewaretoken"]'); return i ? i.value : '' }
+    function rel(iso) { const t = Date.parse(String(iso || '')); if (!Number.isFinite(t)) return ''; const s = Math.max(1, Math.floor((Date.now() - t) / 1000)); if (s < 60) return s + 's ago'; const m = Math.floor(s / 60); if (m < 60) return m + 'm ago'; const h = Math.floor(m / 60); if (h < 24) return h + 'h ago'; return Math.floor(h / 24) + 'd ago' }
+    function setSidebarSavedLoading(flag) { const bar = $('saved-loading-bar'); if (!bar) return; bar.classList.toggle('hidden', !flag) }
+    function updateSavedToolbar() {
+      const refreshBtn = $('btnRefreshSavedDashboard');
+      const stamp = $('savedDashboardUpdatedAt');
+      const hasSaved = !!String(st.activeSavedDashboardId || '').trim();
+      if (refreshBtn) {
+        refreshBtn.classList.toggle('hidden', !hasSaved);
+        refreshBtn.disabled = false;
+      }
+      if (stamp) {
+        if (hasSaved && st.activeSavedSnapshotAt) {
+          stamp.textContent = `Last updated: ${rel(st.activeSavedSnapshotAt)}`;
+          stamp.classList.remove('hidden');
+        } else {
+          stamp.textContent = '';
+          stamp.classList.add('hidden');
+        }
+      }
+      syncSidebarTemplateSelection();
+    }
+    function norm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '') }
+    function canon(s) { const n = norm(s); return ({ uttaranchal: 'uttarakhand', orissa: 'odisha', nctofdelhi: 'delhi', jammukashmir: 'jammuandkashmir', jammuandkashmir: 'jammuandkashmir', kashmir: 'jammuandkashmir', jk: 'jammuandkashmir', pok: 'azadjammuandkashmir', pakistanoccupiedkashmir: 'azadjammuandkashmir', azadkashmir: 'azadjammuandkashmir' })[n] || n }
+    function fill(id, arr, val) { const e = $(id); e.innerHTML = ''; (arr || []).forEach(x => { const o = document.createElement('option'); o.value = String(x || ''); o.textContent = String(x || ''); if (String(x) == String(val || '')) o.selected = true; e.appendChild(o) }); if (!val && e.options.length) e.selectedIndex = 0 }
+    function setToggle(v) { st.salesFilterType = (v === 'Secondary') ? 'Secondary' : 'Primary'; }
+    function setSalesPerfType(v) {
+      st.salesPerfType = (v === 'Secondary') ? 'Secondary' : 'Primary';
+    }
+    function setSalesContext(v) { setToggle(v); setSalesPerfType(v); }
+    function setSalesPerfMetric(v) {
+      const m = (v === 'growth' || v === 'achievement') ? v : 'actual';
+      st.trendMode = m;
+      $('spMetricActual').classList.toggle('on', m === 'actual');
+      $('spMetricAchievement').classList.toggle('on', m === 'achievement');
+      $('spMetricGrowth').classList.toggle('on', m === 'growth');
+    }
+    function uiFilters() { return { month_from: $('fMonthFrom').value || '', month_to: $('fMonthTo').value || '', sales_type: st.salesFilterType || 'Primary', category: $('fCategory').value || 'All', brand: $('fBrand').value || 'All', sub_brand: $('fSubBrand').value || 'All', channel: $('fChannel').value || 'All', branch: $('fBranch').value || 'All', period: $('fPeriod').value || 'MTD' } }
+    function query(p) { const u = new URLSearchParams(); Object.entries(p || {}).forEach(([k, v]) => { v = String(v ?? '').trim(); if (v) u.append(k, v) }); return u.toString() }
+    async function loadData(p = {}) { const r = await fetch('/api/dashboard2/data/' + (query(p) ? '?' + query(p) : '')); const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || ('Request failed (' + r.status + ')')); return d }
+    async function uploadFile() { const f = $('file').files && $('file').files[0]; if (!f) { $('uploadErr').textContent = 'Please choose a .xlsx file first.'; return } if (!String(f.name || '').toLowerCase().endsWith('.xlsx')) { $('uploadErr').textContent = 'Only .xlsx files are supported.'; return } busy('Loading dashboard...'); $('uploadErr').textContent = ''; try { const fd = new FormData(); fd.append('file', f); const r = await fetch('/api/dashboard2/upload/', { method: 'POST', body: fd, headers: { 'X-CSRFToken': cs() } }); const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || ('Upload failed (' + r.status + ')')); await renderAll(d); $('upload').classList.add('h'); toast('Workbook uploaded and dashboard loaded') } catch (e) { $('uploadErr').textContent = e.message } finally { idle() } }
+    function updateFilters(d) {
+      const f = d?.filters || {}, a = d?.applied_filters || {};
+      fill('fMonthFrom', f.months || [], a.month_from);
+      fill('fMonthTo', f.months || [], a.month_to);
+      fill('fCategory', f.categories || ['All'], a.category || 'All');
+      fill('fBrand', f.brands || ['All'], a.brand || 'All');
+      fill('fSubBrand', f.sub_brands || ['All'], a.sub_brand || 'All');
+      fill('fChannel', f.channels || ['All'], a.channel || 'All');
+      fill('fBranch', f.branches || ['All'], a.branch || 'All');
+      fill('fPeriod', f.periods || ['MTD', 'YTD', 'All'], a.period || 'MTD');
+      if (st.subPage === 'brand') {
+        const keepType = st.salesFilterType || ((a.sales_type === 'Secondary') ? 'Secondary' : 'Primary');
+        setSalesContext(keepType);
+      } else {
+        setSalesContext(pageSalesType(st.subPage));
+      }
+    }
+    function renderSparkline(elId, vals) {
+      const y = Array.isArray(vals) ? vals.map(v => Number(v || 0)).filter(v => Number.isFinite(v)) : [];
+      if (!y.length) { $(elId).innerHTML = ''; return }
+      Plotly.newPlot(elId, [{
+        type: 'scatter', mode: 'lines',
+        x: y.map((_, i) => i + 1), y,
+        line: { color: '#9fb8d6', width: 2 },
+        hoverinfo: 'skip'
+      }], {
+        margin: { t: 2, r: 2, b: 2, l: 2 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        xaxis: { visible: false },
+        yaxis: { visible: false },
+        showlegend: false
+      }, { displayModeBar: false, responsive: true, staticPlot: true });
+    }
+    function paintPct(el, val) {
+      const pct = pctVal(val);
+      el.textContent = fmtPct(val);
+      el.style.color = pct >= 0 ? '#15803d' : '#b91c1c';
+    }
+    function updateDynamicTitles() {
+      const fType = st.salesFilterType || 'Primary';
+      const tType = st.salesPerfType || 'Primary';
+      const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
+      set('ctTrendTitle', `${tType} Sales Performance`);
+      set('ctInsightsTitle', `${fType} Insights`);
+      set('ctChannelTitle', `${fType} Branch Wise Sales`);
+      set('ctBrandSubTitle', `${fType} Brand -> Sub Brand Wise Sales`);
+      set('ctBranchTitle', `${fType} Sales by Branch`);
+      set('ctStateTitle', `${fType} Sales by State`);
+      set('ctDistrictTitle', `${fType} Sales by District`);
+      set('ctAsmTitle', `${fType} Sales by ASM HQ Town`);
+      set('ctSoTitle', `${fType} Sales by SO HQ Town`);
+      set('ctPopsTitle', `${fType} Sales by Pops Strata`);
+    }
+    function updateKpis(d) {
+      const byType = d?.kpis_by_sales_type || {};
+      const p = byType.Primary || d?.kpis || {};
+      const s = byType.Secondary || {};
+      $('kPrimaryValue').textContent = fmtIN(Number(p.actual_sales || 0));
+      $('kPrimaryLy').textContent = 'LY: ' + fmtIN(Number(p.ly_sales || 0));
+      paintPct($('kPrimaryAch'), p.achievement_pct || 0);
+      paintPct($('kPrimaryGrowth'), p.growth_pct || 0);
+      renderSparkline('kPrimarySpark', p.sparkline_actual || []);
+
+      $('kSecondaryValue').textContent = fmtIN(Number(s.actual_sales || 0));
+      $('kSecondaryLy').textContent = 'LY: ' + fmtIN(Number(s.ly_sales || 0));
+      paintPct($('kSecondaryAch'), s.achievement_pct || 0);
+      paintPct($('kSecondaryGrowth'), s.growth_pct || 0);
+      renderSparkline('kSecondarySpark', s.sparkline_actual || []);
+    }
+    function renderTrend(d) {
+      const byType = d?.trend_by_sales_type || {};
+      const t = byType[st.salesPerfType] || d?.trend || {};
+      const m = t.months || [];
+      let y = t.actual || [], txt = y.map(fmtIN), nm = 'Sales';
+      if (st.trendMode === 'growth') { y = (t.growth_pct || []).map(pctVal); txt = y.map(v => v.toFixed(1) + '%'); nm = 'Growth %' }
+      else if (st.trendMode === 'achievement') { y = (t.achievement_pct || []).map(pctVal); txt = y.map(v => v.toFixed(1) + '%'); nm = 'Achievement %' }
+      const tr = [{
+        type: 'scatter', mode: 'lines+markers+text', x: m, y: y, name: nm,
+        line: { color: '#2563eb', width: 3 }, marker: { size: 7, color: '#1d4ed8' },
+        text: txt, textposition: 'top center', textfont: { size: 10, color: '#334155' }
+      }];
+      if (st.trendMode === 'actual') {
+        tr.push({ type: 'scatter', mode: 'lines', x: m, y: t.ly || [], name: 'LY', line: { color: '#94a3b8', width: 2, dash: 'dot' } });
+        tr.push({ type: 'scatter', mode: 'lines', x: m, y: t.target || [], name: 'Target', line: { color: '#2d6a4f', width: 2, dash: 'dash' } });
+      }
+      Plotly.newPlot('plotTrend', tr, {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        margin: { t: 20, l: 60, r: 20, b: 65 },
+        xaxis: { tickangle: -45 },
+        yaxis: { gridcolor: '#e2e8f0' },
+        showlegend: true, legend: { orientation: 'h', x: 0, y: -.22 }
+      }, { displayModeBar: false, responsive: true });
+    }
+    function renderInsights(d) { const g = Array.isArray(d?.growth_drivers) ? d.growth_drivers : [], dc = Array.isArray(d?.decline_contributors) ? d.decline_contributors : []; $('insGrowth').innerHTML = '<h4>Growth Drivers (by Delta)</h4><ol>' + ((g.slice(0, 5).map((r, i) => `<li>${i + 1}. ${esc(r.Sales_Type)} x ${esc(r.State)} x ${esc(r.SKU)} x ${esc(r.Brand)} = ${fmtIN(r.Delta)}</li>`).join('')) || '<li>No records</li>') + '</ol>'; $('insDecline').innerHTML = '<h4>Decline Contributors (by Delta)</h4><ol>' + ((dc.slice(0, 5).map((r, i) => `<li>${i + 1}. ${esc(r.Sales_Type)} x ${esc(r.State)} x ${esc(r.SKU)} x ${esc(r.Brand)} = ${fmtIN(r.Delta)}</li>`).join('')) || '<li>No records</li>') + '</ol>' }
+    function perfLegendTraces() {
+      return [
+        {
+          type: 'scatter',
+          mode: 'markers',
+          x: [null], y: [null],
+          name: 'Sales',
+          hoverinfo: 'skip',
+          marker: { symbol: 'square', size: 10, color: '#2563eb' },
+          visible: 'legendonly'
+        },
+        {
+          type: 'scatter',
+          mode: 'markers',
+          x: [null], y: [null],
+          name: 'Growth',
+          hoverinfo: 'skip',
+          marker: { symbol: 'square', size: 10, color: '#F5A800' },
+          visible: 'legendonly'
+        },
+        {
+          type: 'scatter',
+          mode: 'markers',
+          x: [null], y: [null],
+          name: 'Achievement',
+          hoverinfo: 'skip',
+          marker: { symbol: 'square', size: 10, color: '#CC0000' },
+          visible: 'legendonly'
+        }
+      ];
+    }
+    function renderChannel(d) {
+      const r = Array.isArray(d?.channel_summary) ? d.channel_summary : [];
+      const x = r.map(v => String(v.Channel || ''));
+      const y = r.map(v => Number(v.Actual_Sales || 0));
+      const g = r.map(v => pctVal(v.Growth_Pct || 0));
+      const a = r.map(v => pctVal(v.Achievement_Pct || 0));
+      const maxY = Math.max(1, ...y);
+      const an = [];
+      x.forEach((c, i) => {
+        // Growth (amber) sits just above bar top
+        an.push({
+          x: c, y: y[i], xref: 'x', yref: 'y',
+          text: g[i].toFixed(1) + '%',
+          showarrow: false,
+          bgcolor: '#F5A800',
+          bordercolor: '#F5A800',
+          borderwidth: 1,
+          borderpad: 2,
+          font: { size: 10, color: '#1a1a1a' },
+          xanchor: 'center',
+          yanchor: 'bottom',
+          yshift: 4
+        });
+        // Achievement (red) sits above Growth box
+        an.push({
+          x: c, y: y[i], xref: 'x', yref: 'y',
+          text: a[i].toFixed(1) + '%',
+          showarrow: false,
+          bgcolor: '#CC0000',
+          bordercolor: '#CC0000',
+          borderwidth: 1,
+          borderpad: 2,
+          font: { size: 10, color: '#ffffff' },
+          xanchor: 'center',
+          yanchor: 'bottom',
+          yshift: 28
+        });
+      });
+      Plotly.newPlot('plotChannel', [{
+        type: 'bar',
+        x, y,
+        marker: { color: '#2563eb' },
+        name: 'Sales',
+        showlegend: false
+      }, ...perfLegendTraces()], {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        height: x.length > 5 ? 340 : 320,
+        margin: { t: 18, l: 46, r: 12, b: 80 },
+        annotations: an,
+        yaxis: { showgrid: false, range: [0, maxY * 1.25] },
+        xaxis: { visible: true, showticklabels: true, tickangle: -20, automargin: true },
+        showlegend: true,
+        legend: { orientation: 'h', x: .5, y: -.18, xanchor: 'center', yanchor: 'top' }
+      }, { displayModeBar: false, responsive: true });
+    }
+    function rowTargetValue(v) {
+      const pref = ['Target', 'target', 'Target_Sales', 'target_sales', 'Sales_Target', 'sales_target', 'Monthly_Target', 'monthly_target', 'Target_Value', 'target_value', 'Plan_Target', 'plan_target', 'Budget_Target', 'budget_target'];
+      for (const k of pref) {
+        const n = Number(v?.[k]);
+        if (Number.isFinite(n) && n !== 0) return n;
+      }
+      const keys = Object.keys(v || {});
+      for (const k of keys) {
+        if (!/target/i.test(k)) continue;
+        const n = Number(v?.[k]);
+        if (Number.isFinite(n) && n !== 0) return n;
+      }
+      return null;
+    }
+    function renderBrandSub(d) {
+      // FIX 2: Sort by Actual_Sales descending and take top 8 only
+      const raw = Array.isArray(d?.brand_sub) ? d.brand_sub : [];
+      const sorted = [...raw].sort((a, b) => Number(b.Actual_Sales || 0) - Number(a.Actual_Sales || 0));
+      const r = sorted.slice(0, 8);
+      const x = r.map(v => String(v.Sub_Brand || v.Brand || ''));
+      const shortX = x.map(v => v.length > 10 ? (v.slice(0, 10) + '...') : v);
+      const y = r.map(v => Number(v.Actual_Sales || 0));
+      const g = r.map(v => pctVal(v.Growth_Pct || 0));
+      const type = st.salesFilterType || 'Primary';
+      const byType = d?.kpis_by_sales_type || {};
+      const kpiFallback = pctVal((byType[type] || byType.Primary || d?.kpis || {}).achievement_pct || 0);
+      const a = r.map(v => {
+        const direct = Number(v?.Achievement_Pct ?? v?.achievement_pct);
+        if (Number.isFinite(direct)) return pctVal(direct);
+        const target = rowTargetValue(v);
+        const actual = Number(v?.Actual_Sales ?? v?.actual_sales ?? 0);
+        if (Number.isFinite(target) && target !== 0 && Number.isFinite(actual)) return pctVal((actual / target) * 100);
+        return kpiFallback;
+      });
+      const maxY = Math.max(1, ...y);
+      const an = [];
+      x.forEach((c, i) => {
+        // Growth (amber) sits just above bar top
+        an.push({
+          x: c, y: y[i], xref: 'x', yref: 'y',
+          text: g[i].toFixed(1) + '%',
+          showarrow: false,
+          bgcolor: '#F5A800',
+          bordercolor: '#F5A800',
+          borderwidth: 1,
+          borderpad: 2,
+          font: { size: 10, color: '#1a1a1a' },
+          xanchor: 'center',
+          yanchor: 'bottom',
+          yshift: 4
+        });
+        // Achievement (red) sits above Growth box
+        an.push({
+          x: c, y: y[i], xref: 'x', yref: 'y',
+          text: a[i].toFixed(1) + '%',
+          showarrow: false,
+          bgcolor: '#CC0000',
+          bordercolor: '#CC0000',
+          borderwidth: 1,
+          borderpad: 2,
+          font: { size: 10, color: '#ffffff' },
+          xanchor: 'center',
+          yanchor: 'bottom',
+          yshift: 28
+        });
+      });
+      Plotly.newPlot('plotBrandSub', [{
+        type: 'bar',
+        x, y,
+        customdata: x,
+        hovertemplate: '<b>%{customdata}</b><br>Sales: %{y}<extra></extra>',
+        marker: { color: '#2563eb' },
+        name: 'Sales',
+        showlegend: false
+      }, ...perfLegendTraces()], {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        height: 360,
+        margin: { t: 18, l: 46, r: 12, b: 90 },
+        annotations: an,
+        yaxis: { showgrid: false, range: [0, maxY * 1.25] },
+        xaxis: { visible: true, showticklabels: true, tickangle: -35, automargin: true, tickmode: 'array', tickvals: x, ticktext: shortX },
+        showlegend: true,
+        legend: { orientation: 'h', x: .5, y: -.2, xanchor: 'center', yanchor: 'top' }
+      }, { displayModeBar: false, responsive: true });
+    }
+    function hbar(id, rows, key) { const r = Array.isArray(rows) ? rows.filter(Boolean).slice(0, 12) : [], y = r.map(v => String(v[key] || 'Unknown')), a = r.map(v => Number(v.Actual_Sales || 0)), ly = r.map(v => Number(v.LY_Sales || 0)); Plotly.newPlot(id, [{ type: 'bar', orientation: 'h', y, x: a, name: 'Actual', marker: { color: '#cc2929' }, text: a.map(fmtIN), textposition: 'outside', cliponaxis: false, textfont: { size: 9 } }, { type: 'bar', orientation: 'h', y, x: ly, name: 'LY', marker: { color: '#2d6a4f' }, text: ly.map(fmtIN), textposition: 'outside', cliponaxis: false, textfont: { size: 9 } }], { barmode: 'group', bargap: .2, margin: { l: 140, r: 56, t: 8, b: 10 }, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', xaxis: { showgrid: false, showticklabels: false }, showlegend: false }, { displayModeBar: false, responsive: true }) }
+    async function geo() { if (st.geo) return st.geo; const GEOJSON_URLS = ['https://raw.githubusercontent.com/AnujTiwari/India-State-and-Country-Shapefile-Updated-Jan-2020/master/India_State_Boundary.geojson', 'https://raw.githubusercontent.com/HindustanTimesLabs/shapefiles/master/india/state_ut/india_states_uts.geojson', 'https://raw.githubusercontent.com/AnimeshShaw/india-map-geojson/main/india_state_claimed.geojson', 'https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson', 'https://cdn.jsdelivr.net/gh/geohacker/india@master/state/india_state.geojson', 'https://raw.githubusercontent.com/udit-001/india-maps-data/master/geojson/india.geojson']; for (const u of GEOJSON_URLS) { try { const r = await fetch(u, { cache: 'force-cache' }); if (!r.ok) continue; const j = await r.json(); if (j && Array.isArray(j.features) && j.features.length >= 15) { try { const kr = await fetch('https://raw.githubusercontent.com/india-in-data/kashmir/master/kashmir_geo_final.geojson', { cache: 'force-cache' }); if (kr.ok) { const kj = await kr.json(); if (kj && Array.isArray(kj.features) && !j.__kashmirMerged) { const northHints = ['jammu', 'kashmir', 'ladakh', 'leh', 'gilgit', 'azad', 'pok', 'aksai', 'siachen']; j.features = (j.features || []).filter((f) => { const p = f?.properties || {}; const nm = String(p.st_nm || p.ST_NM || p.state_name || p.STATE || p.NAME_1 || p.name || '').toLowerCase(); if (!nm) return true; return !northHints.some((h) => nm.includes(h)); }); kj.features.forEach(f => { if (!f || !f.geometry || !f.geometry.coordinates || !f.geometry.coordinates.length) return; const props = (f.properties && typeof f.properties === 'object') ? f.properties : {}; const isDisputed = props.TYPE === 'Disputed'; props._forced_north = true; props._disputed = isDisputed; f.properties = props; j.features.push(f) }); j.__kashmirMerged = true } } } catch (_) { } (j.features || []).forEach((f, idx) => { f.properties = f.properties || {}; const nm = String(f.properties.st_nm || f.properties.ST_NM || f.properties.state_name || f.properties.STATE || f.properties.NAME_1 || f.properties.name || f.properties.NAME || `feature_${idx + 1}`).trim(); if (!f.properties.st_nm) f.properties.st_nm = nm; if (!f.properties.ST_NM) f.properties.ST_NM = nm; f.properties.__state_key = nm }); st.geo = j; return j } } catch (_) { } } return null }
+    function geoKey(g) { const p = g?.features?.[0]?.properties || {}; for (const k of ['st_nm', 'ST_NM', 'state_name', 'STATE', 'NAME_1', 'VARNAME_1', 'varname_1', 'name', '__state_key']) if (Object.prototype.hasOwnProperty.call(p, k)) return k; return Object.keys(p)[0] || 'name' }
+    function renderStateRowsTable() {
+      const rows = Array.isArray(st.stateRowsCache) ? st.stateRowsCache : [];
+      const sortedDesc = [...rows].sort((a, b) => Number(b?.Sales || 0) - Number(a?.Sales || 0));
+      const sortedAsc = [...rows].sort((a, b) => Number(a?.Sales || 0) - Number(b?.Sales || 0));
+      const sub = st.mapBottom ? sortedAsc.slice(0, 12) : sortedDesc.slice(0, 12);
+      $('stateRows').innerHTML = sub.map(r => `
+    <tr>
+      <td>${esc(r.State)}</td>
+      <td>${fmtIN(r.Sales)}</td>
+      <td>${fmtPct(r.Salience_Pct)}</td>
+      <td>${fmtPct(r.Growth_Contribution_Pct)}</td>
+      <td style="color:${pctVal(r.Growth_Pct) >= 0 ? '#15803d' : '#b91c1c'}">${fmtPct(r.Growth_Pct)}</td>
+    </tr>
+  `).join('');
+    }
+    async function renderMap() {
+      const rows = Array.isArray(st.stateRowsCache) ? st.stateRowsCache : [];
+      const metric = st.mapMetric || 'Sales';
+      const byState = {};
+      rows.forEach((r) => { byState[canon(r.State)] = r; });
+
+      renderStateRowsTable();
+
+      const g = await geo();
+      if (!g) {
+        Plotly.newPlot('plotMap', [], { annotations: [{ text: 'GeoJSON unavailable', showarrow: false }] }, { displayModeBar: false, responsive: true });
+        return;
+      }
+
+      const stateKey = geoKey(g);
+      const matchedLoc = [];
+      const matchedZ = [];
+      const matchedHover = [];
+      const allLoc = [];
+
+      (g.features || []).forEach((f, idx) => {
+        if (f && f.properties && f.properties._forced_north &&
+          (!f.properties[stateKey] || !String(f.properties[stateKey]).trim())) {
+          const fallbackName = String(
+            f.properties.NAME_1 || f.properties.name || f.properties.st_nm ||
+            f.properties.district || `kashmir_feature_${idx + 1}`
+          ).trim();
+          if (fallbackName) f.properties[stateKey] = fallbackName;
+        }
+        const name = String(f?.properties?.[stateKey] || f?.properties?.NAME_1 || f?.properties?.name || '').trim();
+        if (!name) return;
+        const isKashmir = !!(f?.properties?._forced_north);
+        let row = byState[canon(name)] || null;
+        if (!row && isKashmir) {
+          row = byState['jammuandkashmir'] || byState['jammukashmir'] || byState['jk'] ||
+            byState['azadjammuandkashmir'] || byState['kashmir'] || null;
+        }
+        allLoc.push(name);
+        if (!row) return;
+        const raw = Number(row?.[metric] || 0);
+        const zVal = metric === 'Sales' ? raw : pctVal(raw);
+        matchedLoc.push(name);
+        matchedZ.push(Number.isFinite(zVal) ? zVal : 0);
+        matchedHover.push(`<b>${name}</b><br>Sales: ${fmtIN(row.Sales)}<br>Salience: ${fmtPct(row.Salience_Pct)}<br>Growth Cntr: ${fmtPct(row.Growth_Contribution_Pct)}<br>Growth: ${fmtPct(row.Growth_Pct)}`);
+      });
+
+      Plotly.newPlot(
+        'plotMap',
+        [{
+          type: 'choropleth',
+          geojson: g,
+          featureidkey: `properties.${stateKey}`,
+          locations: matchedLoc,
+          z: matchedZ,
+          hovertext: matchedHover,
+          hoverinfo: 'text',
+          colorscale: metric === 'Sales'
+            ? [[0, '#dcfce7'], [0.25, '#86efac'], [0.5, '#4ade80'], [0.75, '#22c55e'], [1, '#15803d']]
+            : [[0, '#fee2e2'], [0.4, '#fca5a5'], [0.75, '#f97316'], [1, '#16a34a']],
+          showscale: true,
+          marker: { line: { color: 'rgba(0,0,0,0)', width: 0 } }
+        }, {
+          type: 'choropleth',
+          geojson: g,
+          featureidkey: `properties.${stateKey}`,
+          locations: allLoc,
+          z: allLoc.map(() => 0),
+          hoverinfo: 'skip',
+          showscale: false,
+          colorscale: [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']],
+          marker: { line: { color: 'rgba(148,163,184,0.75)', width: 0.65 } }
+        }],
+        {
+          geo: {
+            projection: { type: 'mercator' },
+            fitbounds: 'geojson',
+            showland: false,
+            showcountries: false,
+            showcoastlines: false,
+            showframe: false,
+            bgcolor: 'rgba(0,0,0,0)'
+          },
+          margin: { t: 4, r: 4, b: 4, l: 4 },
+          paper_bgcolor: 'rgba(0,0,0,0)',
+          plot_bgcolor: 'rgba(0,0,0,0)'
+        },
+        { displayModeBar: false, responsive: true, scrollZoom: false, staticPlot: true }
+      );
+    }
+    function funnel(d) { const f = d?.funnel || {}, m = f.months || []; const draw = (id, y, t, p = false) => { const v = Array.isArray(y) ? y.map(n => Number(n || 0)) : [], lab = v.map(n => p ? pctVal(n).toFixed(1) + '%' : Number(n).toFixed(0)), pt = p ? v.map(pctVal) : v; Plotly.newPlot(id, [{ type: 'scatter', mode: 'lines+markers+text', x: m, y: pt, line: { color: '#1d4ed8', width: 2.2 }, marker: { color: '#2563eb', size: 5 }, text: lab, textposition: 'top center', textfont: { size: 9 } }], { height: 180, title: { text: t, font: { size: 13 } }, margin: { t: 24, l: 48, r: 8, b: 34 }, xaxis: { tickangle: -12 }, yaxis: { gridcolor: '#e2e8f0' }, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', showlegend: false }, { displayModeBar: false, responsive: true }) }; draw('plotGrps', f.grps || [], 'GRPs'); draw('plotSov', f.sov || [], 'SOV%', true); draw('plotTom', f.tom || [], 'TOM%', true) }
+    async function renderOverviewCharts(d, token = null) {
+      if (token !== null && token !== st.switchRenderToken) return;
+      renderTrend(d);
+      renderInsights(d);
+      renderChannel(d);
+      renderBrandSub(d);
+      hbar('plotBranch', d?.branch_summary, 'Branch_Name');
+      hbar('plotState', d?.state_summary, 'State');
+      hbar('plotDistrict', d?.district_summary, 'District');
+      hbar('plotAsm', d?.asm_summary, 'ASM_HQ_Town');
+      hbar('plotSo', d?.so_summary, 'SO_HQ_Town');
+      hbar('plotPops', d?.pops_summary, 'Pops_Strata');
+      if (token !== null && token !== st.switchRenderToken) return;
+      await renderMap();
+      if (token !== null && token !== st.switchRenderToken) return;
+      setTimeout(() => { if (token === null || token === st.switchRenderToken) refreshOverviewLayout(); }, 0);
+      setTimeout(() => { if (token === null || token === st.switchRenderToken) refreshOverviewLayout(); }, 120);
+    }
+    function renderBrandCharts(d, token = null) {
+      if (token !== null && token !== st.switchRenderToken) return;
+      funnel(d);
+      setTimeout(() => {
+        if (token !== null && token !== st.switchRenderToken) return;
+        try { Plotly.Plots.resize('plotGrps'); Plotly.Plots.resize('plotSov'); Plotly.Plots.resize('plotTom') } catch (_) { }
+      }, 0);
+      setTimeout(() => {
+        if (token !== null && token !== st.switchRenderToken) return;
+        try { Plotly.Plots.resize('plotGrps'); Plotly.Plots.resize('plotSov'); Plotly.Plots.resize('plotTom') } catch (_) { }
+      }, 140);
+    }
+    async function renderAll(d) {
+      st.payload = d || {};
+      st.stateRowsCache = Array.isArray(d?.state_district) ? d.state_district.map(r => ({ ...(r || {}) })) : [];
+      updateFilters(d);
+      updateDynamicTitles();
+      updateKpis(d);
+      await renderOverviewCharts(d);
+      renderBrandCharts(d);
+    }
+    function setSubPage(page, options = {}) {
+      const rerender = options.rerender !== false;
+      st.switchRenderToken += 1;
+      const token = st.switchRenderToken;
+      st.subPage = normalizeSubPage(page);
+      syncSidebarTemplateSelection();
+      if (String(st.activeSavedDashboardId || '').trim()) renderSavedSidebar();
+      const isOverview = st.subPage === 'primary_overview' || st.subPage === 'secondary_overview';
+      if (isOverview) setSalesContext(pageSalesType(st.subPage));
+      $('overviewSection').style.display = isOverview ? 'grid' : 'none';
+      $('brandSection').style.display = st.subPage === 'brand' ? 'grid' : 'none';
+      $('topRowSection').style.display = isOverview ? 'grid' : 'none';
+      $('salesTypeToggleRow').style.display = isOverview ? 'flex' : 'none';
+      const titleEl = document.querySelector('.head .title');
+      if (titleEl) titleEl.textContent = st.subPage === 'brand'
+        ? 'Sales Dashboard | BRAND ANALYSIS'
+        : (st.subPage === 'secondary_overview' ? 'Sales Dashboard | SECONDARY SALES OVERVIEW' : 'Sales Dashboard | PRIMARY SALES OVERVIEW');
+      updateDynamicTitles();
+      syncDescriptionPanel();
+      syncSubPageInUrl();
+      if (st.subPage === 'brand' && st.payload) {
+        if (rerender) setTimeout(() => renderBrandCharts(st.payload, token), 0);
+        else {
+          setTimeout(() => { if (token === st.switchRenderToken) { try { Plotly.Plots.resize('plotGrps'); Plotly.Plots.resize('plotSov'); Plotly.Plots.resize('plotTom') } catch (_) { } } }, 0);
+          setTimeout(() => { if (token === st.switchRenderToken) { try { Plotly.Plots.resize('plotGrps'); Plotly.Plots.resize('plotSov'); Plotly.Plots.resize('plotTom') } catch (_) { } } }, 120);
+        }
+      } else if (isOverview) {
+        if (rerender && st.payload) {
+          setTimeout(() => { renderOverviewCharts(st.payload, token).catch(() => { }); }, 0);
+        } else {
+          setTimeout(() => { if (token === st.switchRenderToken) refreshOverviewLayout(); }, 0);
+          setTimeout(() => { if (token === st.switchRenderToken) refreshOverviewLayout(); }, 120);
+        }
+      }
+    }
+    const TEMPLATE_PREVIEW = {
+      sales: {
+        title: 'Sales Cockpit',
+        openUrl: '/dashboard',
+        pages: [{ label: 'Overview', slides: ['{% static "Sales.png" %}'] }],
+        desc: 'Sales Cockpit provides a live operating view of MTD execution, MSP tracking, run-rate projections, region performance, and contribution diagnostics by channel, account group, and category. It is built for daily execution reviews, faster interventions, and target recovery planning with live Databricks refresh.',
+        descHtml: `
+      <div style="font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:8px;">Sales Cockpit</div>
+      <div style="font-size:13px;color:#cbd5e1;line-height:1.7;margin-bottom:12px;">A real-time operational dashboard for execution teams to monitor sales pace, plan attainment, and recovery risk across regions and channels.</div>
+      <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Chart Coverage</div>
+      <ul style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+        <li>MTD/LE/MSP/ECO/RRR/DRR KPI cards with trend context</li>
+        <li>India region performance map with contribution overlays</li>
+        <li>Channel, account-group, and category contribution comparisons</li>
+        <li>Daily bars and run-rate visualization for short-term pace tracking</li>
+      </ul>
+      <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Insights It Enables</div>
+      <ul style="margin:0 0 0 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+        <li>Early detection of month-end shortfall risk</li>
+        <li>Pinpointing which regions/channels are over or under-contributing</li>
+        <li>Faster corrective actions with live Databricks refresh</li>
+      </ul>
+    `
+      },
+      marketing: {
+        title: 'Sales Cockpit 2',
+        openUrl: '/dashboard2',
+        pages: [
+          { label: 'Primary Sales Overview', slides: ['{% static "sales2.png" %}', '{% static "sales2b.png" %}'] },
+          { label: 'Secondary Sales Overview', slides: ['{% static "sales2c.png" %}'] },
+          { label: 'Brand Analysis', slides: ['{% static "sales3.png" %}'] }
+        ],
+        desc: 'Sales Cockpit 2 is a multi-page performance dashboard. Primary Sales Overview and Secondary Sales Overview focus on KPI cards, trend trajectory, map diagnostics, and branch/state/channel cuts. Brand Analysis focuses on national brand funnel movement (GRPs, SOV, TOM) for strategic monthly reviews and action tracking.',
+        descHtml: `
+      <div style="font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:8px;">Sales Cockpit 2</div>
+      <div style="font-size:13px;color:#cbd5e1;line-height:1.7;margin-bottom:12px;">A multi-page leadership template for national performance storytelling across operational execution and brand funnel health.</div>
+      <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Primary Sales Overview</div>
+      <ul style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+        <li>Primary/Secondary KPI cards with sparkline momentum</li>
+        <li>Sales trajectory line chart with achievement/growth toggles</li>
+        <li>India map and branch/state/district diagnostic bars</li>
+      </ul>
+      <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Secondary Sales Overview</div>
+      <ul style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+        <li>Secondary sales cuts across channel, branch, state, and sub-brand</li>
+        <li>Growth and achievement overlays tuned for sell-out performance</li>
+      </ul>
+      <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Brand Analysis Page</div>
+      <ul style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+        <li>National Brand Performance Funnel visuals</li>
+        <li>GRPs, SOV, TOM trend movement for monthly brand reviews</li>
+      </ul>
+      <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Insights It Enables</div>
+      <ul style="margin:0 0 0 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+        <li>Identify where growth is concentrated vs diluted</li>
+        <li>Link funnel movement to execution outcomes</li>
+        <li>Support leadership reviews with clear visual narrative</li>
+      </ul>
+    `
+      }
+    };
+    let templatePreviewState = { kind: 'sales', page: 0, slide: 0, showDesc: false };
+    function _renderTemplatePreview() {
+      const overlay = $('templatePreviewOverlay');
+      const content = $('templatePreviewContent');
+      if (!overlay || !content) return;
+      const cfg = TEMPLATE_PREVIEW[templatePreviewState.kind] || TEMPLATE_PREVIEW.sales;
+      const pages = cfg.pages || [];
+      const page = pages[templatePreviewState.page] || pages[0] || { label: 'Primary Sales Overview', slides: [] };
+      const slides = page.slides || [];
+      const current = slides[templatePreviewState.slide] || slides[0] || '';
+      const isDescMode = !!templatePreviewState.showDesc;
+      const mediaOrDesc = isDescMode
+        ? `<div class="template-preview-description">${cfg.descHtml || cfg.desc}</div>`
+        : `<div class="template-preview-media">${current ? `<img src="${current}" alt="${cfg.title}">` : ''}</div>`;
+      content.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      ${pages.map((p, i) => `<button class="template-preview-btn ${i === templatePreviewState.page ? 'template-preview-btn-open' : 'template-preview-btn-close'}" onclick="switchTemplatePreviewPage(${i})">${p.label}</button>`).join('')}
+    </div>
+    ${mediaOrDesc}
+    ${(!isDescMode && slides.length > 1) ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;"><button class="template-preview-btn template-preview-btn-close" onclick="stepTemplatePreview(-1)">&larr; Prev</button><span style="font-size:12px;color:#cbd5e1;">${templatePreviewState.slide + 1}/${slides.length}</span><button class="template-preview-btn template-preview-btn-close" onclick="stepTemplatePreview(1)">Next &rarr;</button></div>` : ''}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button class="template-preview-btn template-preview-btn-close" onclick="toggleTemplatePreviewDesc()">${templatePreviewState.showDesc ? 'Show Screenshots' : 'Show Description'}</button>
+      <button class="template-preview-btn template-preview-btn-close" onclick="closeTemplatePreviewModal()">Close</button>
+      <button class="template-preview-btn template-preview-btn-open" onclick="window.location.href='${cfg.openUrl}'">Open Template &rarr;</button>
+    </div>
+  `;
+      overlay.style.display = 'flex';
+    }
+    function openTemplatePreviewModal(kind = 'sales', event = null) {
+      if (event) { event.preventDefault(); event.stopPropagation(); }
+      if (String(kind || '').toLowerCase() === 'marketing') {
+        const pages = $('tplSales2Pages');
+        if (pages) setTemplateSales2Expanded(!pages.classList.contains('open'));
+        return false;
+      }
+      window.location.href = '/dashboard';
+      return false;
+    }
+    function closeTemplatePreviewModal(event = null) {
+      const overlay = $('templatePreviewOverlay');
+      if (event && event.target && event.target !== overlay) return;
+      if (overlay) overlay.style.display = 'none';
+    }
+    function switchTemplatePreviewPage(i) {
+      const count = (TEMPLATE_PREVIEW[templatePreviewState.kind]?.pages || []).length;
+      templatePreviewState.page = Math.max(0, Math.min(i, count - 1));
+      templatePreviewState.slide = 0;
+      _renderTemplatePreview();
+    }
+    function stepTemplatePreview(step) {
+      const slides = (TEMPLATE_PREVIEW[templatePreviewState.kind]?.pages?.[templatePreviewState.page]?.slides) || [];
+      if (slides.length < 2) return;
+      templatePreviewState.slide = (templatePreviewState.slide + step + slides.length) % slides.length;
+      _renderTemplatePreview();
+    }
+    function toggleTemplatePreviewDesc() {
+      templatePreviewState.showDesc = !templatePreviewState.showDesc;
+      _renderTemplatePreview();
+    }
+    async function apply(filters, text) {
+      busy(text || 'Loading dashboard...');
+      try {
+        const d = await loadData(filters);
+        await renderAll(d);
+        $('upload').classList.add('h');
+      } finally {
+        idle();
+      }
+    }
+    function currentUiState() {
+      return {
+        sub_page: st.subPage || 'primary_overview',
+        map_metric: st.mapMetric || 'Sales',
+        map_bottom: !!st.mapBottom,
+        trend_mode: st.trendMode || 'actual',
+        sales_perf_type: st.salesPerfType || 'Primary',
+        sales_filter_type: st.salesFilterType || 'Primary'
+      };
+    }
+    async function saveCurrentDashboard() {
+      if (!st.payload || Object.keys(st.payload || {}).length === 0) { toast('Load the dashboard first, then save it.'); return }
+      const defName = st.activeSavedDashboardId ? 'Sales Cockpit 2 (Updated)' : 'Sales Cockpit 2';
+      const name = String(window.prompt('Name this dashboard:', defName) || '').trim();
+      if (!name) return;
+      const btn = $('btnSaveDashboard');
+      const prevText = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving...' }
+      busy('Saving layout...');
+      try {
+        const snapshot = {
+          payload: st.payload,
+          structure: {
+            sections: ['filters', 'kpis', 'trend', 'primary_overview', 'secondary_overview', 'brand_analysis', 'map_table'],
+            sub_page: st.subPage || 'primary_overview'
+          },
+          last_snapshot: {
+            generated_at: new Date().toISOString(),
+            filters: uiFilters(),
+            ui_state: currentUiState()
+          },
+          ui_state: currentUiState()
+        };
+        const fd = new FormData();
+        fd.append('name', name);
+        fd.append('dashboard_type', 'sales_cockpit');
+        fd.append('payload', JSON.stringify(snapshot));
+        fd.append('structure', JSON.stringify(snapshot.structure || {}));
+        fd.append('last_snapshot', JSON.stringify(snapshot.last_snapshot || {}));
+        fd.append('filters_json', JSON.stringify(uiFilters()));
+        fd.append('meta_json', JSON.stringify({ ui_state: currentUiState(), view: 'dashboard2', data_source: 'excel' }));
+        fd.append('thumbnail_hint', 'dashboard2');
+        if (st.activeSavedDashboardId) fd.append('id', String(st.activeSavedDashboardId));
+        const r = await fetch('/api/dashboard/save/', { method: 'POST', body: fd, headers: { 'X-CSRFToken': cs() } });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) throw new Error(d.error || ('Save failed (' + r.status + ')'));
+        st.activeSavedDashboardId = String(d.id || st.activeSavedDashboardId || '').trim();
+        st.activeSavedSnapshotAt = String(d.snapshot_taken_at || d.saved_at || d.updated_at || new Date().toISOString());
+        updateSavedToolbar();
+        await saved();
+        toast('Dashboard saved!');
+      } catch (e) {
+        toast('Save failed: ' + e.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = prevText || '💾 Save Layout' }
+        idle();
+      }
+    }
+    function _extractSavedPayload(detail) {
+      const savedPayload = (detail && typeof detail.payload === 'object' && detail.payload) ? detail.payload : {};
+      const basePayload = (savedPayload.payload && typeof savedPayload.payload === 'object') ? savedPayload.payload : savedPayload;
+      const uiState = (savedPayload.ui_state && typeof savedPayload.ui_state === 'object') ? savedPayload.ui_state : {};
+      return { basePayload, uiState };
+    }
+    function _applyUiState(uiState) {
+      if (!uiState || typeof uiState !== 'object') return;
+      setSalesPerfMetric(uiState.trend_mode || 'actual');
+      st.mapMetric = uiState.map_metric || 'Sales';
+      st.mapBottom = !!uiState.map_bottom;
+      const metricRadio = document.querySelector(`input[name="mapMetric"][value="${st.mapMetric}"]`);
+      if (metricRadio) metricRadio.checked = true;
+      $('btnTop').classList.toggle('on', !st.mapBottom);
+      $('btnBottom').classList.toggle('on', st.mapBottom);
+      const rawSub = String(uiState.sub_page || '').toLowerCase();
+      let restoredSub = normalizeSubPage(rawSub || 'primary_overview');
+      if (rawSub === 'overview' && String(uiState.sales_filter_type || '').toLowerCase() === 'secondary') {
+        restoredSub = 'secondary_overview';
+      }
+      setSubPage(restoredSub);
+      if (st.subPage === 'brand' && uiState.sales_filter_type) {
+        setSalesContext(uiState.sales_filter_type);
+        updateDynamicTitles();
+      }
+    }
+    async function loadSavedDashboardById(savedId, { cleanupQuery = false, targetSubPage = '' } = {}) {
+      const id = String(savedId || '').trim();
+      if (!id) return;
+      busy('Restoring dashboard...');
+      try {
+        const r = await fetch('/api/dashboard/history/' + encodeURIComponent(id) + '/', { method: 'GET' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) throw new Error(d.error || ('Load failed (' + r.status + ')'));
+        const t = String(d.dashboard_type || '').toLowerCase();
+        const hint = String(d.thumbnail_hint || '').toLowerCase();
+        if (t === 'sales_cockpit' && hint !== 'dashboard2') { window.location.href = '/dashboard?saved_id=' + encodeURIComponent(id); return }
+        if (t === 'ai_dashboard') { window.location.href = '/?saved_id=' + encodeURIComponent(id); return }
+        const parsed = _extractSavedPayload(d);
+        if (!parsed.basePayload || Object.keys(parsed.basePayload).length === 0) throw new Error('Saved payload is empty.');
+        await renderAll(parsed.basePayload);
+        _applyUiState(parsed.uiState);
+        const forcedSubPage = String(targetSubPage || '').trim();
+        if (forcedSubPage) {
+          setSubPage(forcedSubPage, { rerender: false });
+        }
+        updateDynamicTitles();
+        if (st.payload) renderTrend(st.payload);
+        await renderMap();
+        $('upload').classList.add('h');
+        st.activeSavedDashboardId = String(d.id || id || '').trim();
+        st.activeSavedSnapshotAt = String(d.snapshot_taken_at || d.updated_at || d.saved_at || new Date().toISOString());
+        renderSavedSidebar();
+        updateSavedToolbar();
+        closeSavedHistoryModal();
+        toast('Dashboard restored from history');
+      } catch (e) {
+        toast('Saved load failed: ' + e.message);
+      } finally {
+        if (cleanupQuery) {
+          const qs = new URLSearchParams(window.location.search);
+          qs.delete('saved_id');
+          const next = window.location.pathname + (qs.toString() ? ('?' + qs.toString()) : '');
+          window.history.replaceState({}, document.title, next);
+        }
+        idle();
+      }
+    }
+    async function refreshSavedDashboardData() {
+      const id = String(st.activeSavedDashboardId || '').trim();
+      if (!id) { toast('Load a saved dashboard first.'); return }
+      const btn = $('btnRefreshSavedDashboard');
+      const prevText = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Refreshing...' }
+      busy('Refreshing live data...');
+      try {
+        const r = await fetch('/api/dashboard/history/' + encodeURIComponent(id) + '/refresh/', { method: 'POST', headers: { 'X-CSRFToken': cs() } });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) throw new Error(d.error || ('Refresh failed (' + r.status + ')'));
+        const parsed = _extractSavedPayload(d);
+        if (parsed.basePayload && Object.keys(parsed.basePayload).length) {
+          await renderAll(parsed.basePayload);
+          _applyUiState(parsed.uiState);
+          updateDynamicTitles();
+          if (st.payload) renderTrend(st.payload);
+          await renderMap();
+        }
+        st.activeSavedSnapshotAt = String(d.snapshot_taken_at || d.updated_at || d.saved_at || new Date().toISOString());
+        updateSavedToolbar();
+        toast('Live data loaded from Databricks!');
+      } catch (e) {
+        toast('Refresh failed: ' + e.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = prevText || '🔄 Refresh Data' }
+        idle();
+      }
+    }
+    async function deleteSavedDashboard(id, name = 'Untitled') {
+      const sid = String(id || '').trim();
+      if (!sid) return;
+      if (!confirm(`Delete "${name}"?`)) return;
+      busy('Deleting saved dashboard...');
+      try {
+        const r = await fetch(`/api/dashboard/history/${encodeURIComponent(sid)}/`, {
+          method: 'DELETE',
+          headers: { 'X-CSRFToken': cs() }
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) throw new Error(d.error || `Delete failed (${r.status})`);
+        if (String(st.activeSavedDashboardId || '') === sid) {
+          st.activeSavedDashboardId = '';
+          st.activeSavedSnapshotAt = '';
+          updateSavedToolbar();
+        }
+        await saved();
+        toast('Saved dashboard deleted');
+      } catch (e) {
+        toast('Delete failed: ' + e.message);
+      } finally {
+        idle();
+      }
+    }
+    async function renameSavedDashboard(id, nextName) {
+      const sid = String(id || '').trim();
+      const nm = String(nextName || '').trim();
+      if (!sid || !nm) return;
+      const r = await fetch(`/api/dashboard/history/${encodeURIComponent(sid)}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': cs()
+        },
+        body: JSON.stringify({ name: nm })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) throw new Error(d.error || `Rename failed (${r.status})`);
+    }
+    function renderSavedHistoryModal() {
+      const grid = $('savedHistoryGrid');
+      if (!grid) return;
+      const list = Array.isArray(st.saved) ? st.saved : [];
+      grid.innerHTML = '';
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'saved-history-empty';
+        empty.textContent = 'No saved dashboards available.';
+        grid.appendChild(empty);
+        return;
+      }
+      list.forEach(it => {
+        const card = document.createElement('div');
+        card.className = 'saved-history-card';
+        card.innerHTML = `
+          <div class="saved-history-card-name">${esc(it.name || 'Untitled')}</div>
+          <div class="saved-history-card-meta">
+            <span>${esc(savedItemTypeLabel(it))}</span>
+            <span>${esc(rel(it.updated_at))}</span>
+          </div>
+          <div class="saved-history-card-actions">
+            <button class="saved-history-btn" type="button">Rename</button>
+            <button class="saved-history-btn delete" type="button">Delete</button>
+            <button class="saved-history-btn load" type="button">Load</button>
+          </div>
+        `;
+        const [renameBtn, deleteBtn, loadBtn] = card.querySelectorAll('.saved-history-btn');
+        if (renameBtn) {
+          renameBtn.onclick = async () => {
+            const nextName = prompt('Rename dashboard:', it.name || 'Untitled');
+            if (nextName === null) return;
+            const trimmed = String(nextName || '').trim();
+            if (!trimmed) return;
+            try {
+              busy('Renaming saved dashboard...');
+              await renameSavedDashboard(it.id, trimmed);
+              await saved();
+            } catch (e) {
+              toast('Rename failed: ' + e.message);
+            } finally {
+              idle();
+            }
+          };
+        }
+        if (deleteBtn) {
+          deleteBtn.onclick = async () => {
+            await deleteSavedDashboard(it.id, it.name || 'Untitled');
+          };
+        }
+        if (loadBtn) {
+          loadBtn.onclick = async () => {
+            await loadSavedDashboardById(it.id);
+            closeSavedHistoryModal();
+          };
+        }
+        grid.appendChild(card);
+      });
+    }
+    function openSavedHistoryModal(event = null) {
+      if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const overlay = $('savedHistoryOverlay');
+      if (!overlay) return false;
+      overlay.classList.remove('hidden');
+      renderSavedHistoryModal();
+      return false;
+    }
+    function closeSavedHistoryModal(event = null) {
+      const overlay = $('savedHistoryOverlay');
+      if (!overlay) return;
+      if (event && event.target && event.target !== overlay) return;
+      overlay.classList.add('hidden');
+    }
+    function renderSavedSidebar() {
+      const h = $('savedList');
+      const viewAllBtn = $('btnViewAllSaved');
+      h.innerHTML = '';
+      const fullList = st.saved.slice();
+      const list = fullList.slice(0, 5);
+      if (viewAllBtn) {
+        const canExpand = fullList.length > 5;
+        viewAllBtn.style.visibility = canExpand ? 'visible' : 'hidden';
+        viewAllBtn.textContent = 'View All';
+      }
+      if (!fullList.length) {
+        h.innerHTML = '<div class="saved-empty">No saved dashboards yet.</div>';
+        syncSidebarTemplateSelection();
+        return;
+      }
+      const activeId = String(st.activeSavedDashboardId || '').trim();
+      list.forEach(it => {
+        const sid = String(it?.id || '').trim();
+        const key = savedTemplateKey(it);
+        const pages = savedPagesForTemplate(key);
+        const hasPages = pages.length > 0;
+        const isActive = !!sid && sid === activeId;
+        if (isActive && hasPages) st.savedSidebarExpandedById[sid] = true;
+        const isOpen = hasPages && !!st.savedSidebarExpandedById[sid];
+
+        const grp = document.createElement('div');
+        grp.className = 'saved-group';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'saved-item';
+        if (isActive) b.classList.add('active');
+
+        b.innerHTML = `<div class="n">${esc(it.name || 'Untitled')}</div>`;
+        const del = document.createElement('span');
+        del.className = 'del';
+        del.innerHTML = '&times;';
+        del.title = 'Delete saved dashboard';
+        del.onclick = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          deleteSavedDashboard(it.id, it.name || 'Untitled');
+        };
+        b.appendChild(del);
+        b.onclick = () => {
+          if (!hasPages) {
+            openSavedItemPage(it, '');
+            return;
+          }
+          st.savedSidebarExpandedById[sid] = !isOpen;
+          renderSavedSidebar();
+        };
+        grp.appendChild(b);
+
+        if (hasPages) {
+          const wrap = document.createElement('div');
+          wrap.className = `saved-subpages ${isOpen ? 'open' : ''}`;
+          const activePageKey = currentSavedPageKey(key);
+          pages.forEach(page => {
+            const pageBtn = document.createElement('button');
+            pageBtn.type = 'button';
+            pageBtn.className = 'saved-subpage';
+            pageBtn.textContent = page.label;
+            if (isActive && String(page.key) === activePageKey) {
+              pageBtn.classList.add('active');
+            }
+            pageBtn.onclick = (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              openSavedItemPage(it, page.key);
+            };
+            wrap.appendChild(pageBtn);
+          });
+          grp.appendChild(wrap);
+        }
+        h.appendChild(grp);
+      });
+      syncSidebarTemplateSelection();
+    }
+    async function saved() {
+      setSidebarSavedLoading(true);
+      try {
+        const r = await fetch('/api/dashboard/history/');
+        const d = await r.json().catch(() => ({}));
+        st.saved = Array.isArray(d.dashboards) ? d.dashboards : [];
+      } catch (_) {
+        st.saved = [];
+      } finally {
+        setSidebarSavedLoading(false);
+      }
+      const validIds = new Set(st.saved.map(it => String(it?.id || '').trim()).filter(Boolean));
+      Object.keys(st.savedSidebarExpandedById).forEach(id => {
+        if (!validIds.has(id)) delete st.savedSidebarExpandedById[id];
+      });
+      renderSavedSidebar();
+      renderSavedHistoryModal();
+    }
+    function wire() {
+      $('btnUpload').onclick = uploadFile;
+      $('btnSample').onclick = () => apply({}, 'Loading sample workbook...').then(() => toast('Sample workbook loaded')).catch(e => { $('uploadErr').textContent = e.message });
+      $('btnApply').onclick = () => apply(uiFilters(), 'Applying filters...').then(() => toast('Filters applied')).catch(e => toast('Failed: ' + e.message));
+      $('btnReload').onclick = () => apply(uiFilters(), 'Loading dashboard...').catch(e => toast('Reload failed: ' + e.message));
+      $('btnSaveDashboard').onclick = saveCurrentDashboard;
+      $('btnRefreshSavedDashboard').onclick = refreshSavedDashboardData;
+      $('btnViewAllSaved').onclick = openSavedHistoryModal;
+      $('spMetricActual').onclick = () => { setSalesPerfMetric('actual'); if (st.payload) renderTrend(st.payload) };
+      $('spMetricAchievement').onclick = () => { setSalesPerfMetric('achievement'); if (st.payload) renderTrend(st.payload) };
+      $('spMetricGrowth').onclick = () => { setSalesPerfMetric('growth'); if (st.payload) renderTrend(st.payload) };
+
+      document.querySelectorAll('input[name="mapMetric"]').forEach(r => r.onchange = async () => { st.mapMetric = r.value; if (st.payload) await renderMap() });
+      $('btnTop').onclick = () => { st.mapBottom = false; $('btnTop').classList.add('on'); $('btnBottom').classList.remove('on'); renderStateRowsTable() };
+      $('btnBottom').onclick = () => { st.mapBottom = true; $('btnBottom').classList.add('on'); $('btnTop').classList.remove('on'); renderStateRowsTable() };
+      $('btnPagePrimaryOverview').onclick = () => {
+        setSubPage('primary_overview', { rerender: false });
+        apply(uiFilters(), 'Loading primary sales overview...').catch(e => toast(e.message));
+      };
+      $('btnPageSecondaryOverview').onclick = () => {
+        setSubPage('secondary_overview', { rerender: false });
+        apply(uiFilters(), 'Loading secondary sales overview...').catch(e => toast(e.message));
+      };
+      $('btnPageBrand').onclick = () => setSubPage('brand');
+      $('btnTemplateSales2').onclick = () => {
+        const pages = $('tplSales2Pages');
+        if (!pages) return;
+        setTemplateSales2Expanded(!pages.classList.contains('open'));
+      };
+      $('btnTemplateSales3').onclick = () => {
+        const pages = $('tplSales3Pages');
+        if (!pages) return;
+        setTemplateSales3Expanded(!pages.classList.contains('open'));
+      };
+      $('btnShowDescription').onclick = (e) => {
+        e.stopPropagation();
+        const panel = $('dashboardDescPanel');
+        setDescriptionPanelOpen(!(panel && panel.classList.contains('open')));
+      };
+      document.addEventListener('click', (e) => {
+        const wrap = $('descWrap');
+        if (!wrap || wrap.contains(e.target)) return;
+        setDescriptionPanelOpen(false);
+      });
+    }
+    async function init() {
+      wire();
+      const qs = new URLSearchParams(window.location.search);
+      const viewRaw = String(qs.get('view') || '').toLowerCase();
+      const initialView = normalizeSubPage(viewRaw || 'primary_overview');
+      setSubPage(initialView);
+      setTemplateSales2Expanded(true);
+      setTemplateSales3Expanded(false);
+      syncDescriptionPanel();
+      await saved();
+      updateSavedToolbar();
+      if (!st.savedToolbarTicker) {
+        st.savedToolbarTicker = setInterval(updateSavedToolbar, 60000);
+      }
+      const sid = String(qs.get('saved_id') || '').trim();
+      if (sid) {
+        await loadSavedDashboardById(sid, { cleanupQuery: true, targetSubPage: initialView });
+      } else {
+        $('upload').classList.add('h');
+        await apply({}, 'Loading sample workbook...');
+      }
+    }
+    init();
+  </script>
+</body>
+
+</html>

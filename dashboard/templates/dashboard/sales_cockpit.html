@@ -1,5 +1,7 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,7 +25,8 @@
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             margin: 0;
             padding: 0;
             background: var(--bg);
@@ -40,25 +43,25 @@
             left: 0;
             width: 220px;
             height: 100vh;
-            background: linear-gradient(180deg, #0b1528 0%, #0a1322 100%);
-            border-right: 1px solid rgba(148, 163, 184, 0.25);
-            padding: 16px 12px;
+            background: linear-gradient(180deg, #0b1528, #0a1322);
+            border-right: 1px solid rgba(148, 163, 184, 0.22);
+            padding: 14px 12px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             z-index: 1100;
             overflow: hidden;
         }
 
         .app-shell-home {
             position: absolute;
-            top: 12px;
-            right: 12px;
+            top: 10px;
+            right: 10px;
             width: 28px;
             height: 28px;
             border-radius: 8px;
-            border: 1px solid rgba(148, 163, 184, 0.36);
-            background: rgba(30, 41, 59, 0.45);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.42);
             color: #e2e8f0;
             text-decoration: none;
             display: inline-flex;
@@ -77,8 +80,8 @@
         .app-shell-brand {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            padding: 2px 4px 8px;
+            gap: 9px;
+            padding: 4px 2px 8px;
         }
 
         .app-shell-brand-title {
@@ -91,7 +94,7 @@
 
         .app-shell-brand-sub {
             font-size: 11px;
-            color: #8fa0ba;
+            color: #94a3b8;
             letter-spacing: 0.04em;
             text-transform: uppercase;
             font-weight: 600;
@@ -99,16 +102,17 @@
 
         .app-shell-actions {
             display: grid;
-            gap: 8px;
+            gap: 10px;
         }
 
         .app-shell-btn {
             width: 100%;
             border: 1px solid transparent;
             border-radius: 10px;
-            padding: 9px 10px;
+            padding: 10px 10px;
             font-size: 12px;
             font-weight: 700;
+            line-height: 1.2;
             cursor: pointer;
             text-align: left;
             transition: all 0.2s ease;
@@ -118,6 +122,7 @@
             color: #fff;
             background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
             border-color: rgba(99, 102, 241, 0.58);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.24);
         }
 
         .app-shell-btn.secondary {
@@ -131,7 +136,7 @@
         }
 
         .app-shell-label {
-            margin-top: 4px;
+            margin-top: 6px;
             padding: 0 2px;
             font-size: 10px;
             font-weight: 700;
@@ -142,22 +147,30 @@
 
         .app-shell-templates {
             display: grid;
-            gap: 8px;
+            gap: 6px;
         }
 
         .app-shell-template {
-            border-radius: 10px;
-            border: 1px solid rgba(148, 163, 184, 0.26);
-            background: rgba(15, 23, 42, 0.5);
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: rgba(15, 23, 42, 0.42);
             color: #e5e7eb;
-            padding: 8px 9px;
+            padding: 10px 10px;
             display: grid;
-            grid-template-columns: 16px minmax(0, 1fr) auto;
+            grid-template-columns: 18px minmax(0, 1fr) auto;
             gap: 8px;
             align-items: center;
             text-decoration: none;
             font-size: 12px;
             font-weight: 700;
+            transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .app-shell-template-toggle {
+            width: 100%;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
         }
 
         .app-shell-template .badge {
@@ -183,6 +196,7 @@
         .app-shell-template.live:hover {
             border-color: rgba(56, 189, 248, 0.58);
             background: rgba(30, 58, 138, 0.24);
+            transform: translateY(-1px);
         }
 
         .app-shell-template.soon {
@@ -196,12 +210,53 @@
             color: #cbd5e1;
         }
 
+        .app-shell-subpages {
+            display: grid;
+            gap: 2px;
+            margin-top: -2px;
+            padding: 0 0 0 24px;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transform: translateY(-4px);
+            transition: max-height 0.24s ease, opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .app-shell-subpages.open {
+            max-height: 180px;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .app-shell-subpage {
+            text-decoration: none;
+            border-radius: 8px;
+            color: #94a3b8;
+            padding: 4px 6px;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .app-shell-subpage::before {
+            content: '\25B8';
+            font-size: 10px;
+            color: inherit;
+        }
+
+        .app-shell-subpage.active {
+            color: #7dd3fc;
+            background: rgba(37, 99, 235, 0.16);
+        }
+
         .app-shell-saved-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
-            margin-top: 4px;
+            margin-top: 2px;
             padding: 0 2px;
         }
 
@@ -226,38 +281,144 @@
             gap: 8px;
             overflow: auto;
             min-height: 0;
-            padding-right: 2px;
+            padding-right: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+        }
+
+        .app-shell-saved-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .app-shell-saved-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .app-shell-saved-list::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 999px;
+        }
+
+        .app-shell-saved-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.55);
+        }
+
+        .sidebar-loadbar {
+            height: 4px;
+            width: 100%;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(15, 23, 42, 0.45);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            margin-top: 4px;
+        }
+
+        .sidebar-loadbar::before {
+            content: '';
+            display: block;
+            width: 38%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.95), rgba(16, 185, 129, 0.08));
+            animation: sidebarLoadSweep 0.95s ease-in-out infinite;
+        }
+
+        @keyframes sidebarLoadSweep {
+            0% {
+                transform: translateX(-120%);
+            }
+
+            100% {
+                transform: translateX(320%);
+            }
         }
 
         .app-shell-saved-empty {
-            border-radius: 10px;
-            border: 1px dashed rgba(148, 163, 184, 0.26);
+            border-radius: 0;
+            border: none;
             color: #8fa2be;
-            text-align: center;
+            text-align: left;
             font-size: 11px;
-            padding: 10px 8px;
-            background: rgba(15, 23, 42, 0.22);
+            padding: 4px 6px;
+            background: transparent;
         }
 
         .app-shell-saved-item {
             position: relative;
-            border-radius: 10px;
-            border: 1px solid rgba(148, 163, 184, 0.24);
-            background: rgba(15, 23, 42, 0.5);
-            color: #e5e7eb;
-            padding: 8px 30px 8px 10px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            padding: 4px 6px;
             cursor: pointer;
             text-align: left;
-            transition: border-color 0.2s ease, background 0.2s ease;
+            transition: background 0.2s ease, color 0.2s ease;
         }
 
         .app-shell-saved-item:hover {
-            border-color: rgba(56, 189, 248, 0.55);
-            background: rgba(30, 58, 138, 0.24);
+            background: rgba(37, 99, 235, 0.14);
+            color: #c7d2fe;
+        }
+
+        .app-shell-saved-item.active {
+            background: rgba(37, 99, 235, 0.2);
+            color: #e0f2fe;
+        }
+
+        .app-shell-saved-group {
+            display: grid;
+            gap: 2px;
+        }
+
+        .app-shell-saved-subpages {
+            display: grid;
+            gap: 2px;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transform: translateY(-4px);
+            padding-left: 20px;
+            transition: max-height 0.24s ease, opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .app-shell-saved-subpages.open {
+            max-height: 180px;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .app-shell-saved-subpage-btn {
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: #94a3b8;
+            padding: 4px 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .app-shell-saved-subpage-btn::before {
+            content: '\25B8';
+            font-size: 10px;
+            color: inherit;
+        }
+
+        .app-shell-saved-subpage-btn:hover {
+            background: rgba(37, 99, 235, 0.16);
+            color: #c7d2fe;
+        }
+
+        .app-shell-saved-subpage-btn.active {
+            color: #7dd3fc;
+            background: rgba(37, 99, 235, 0.2);
         }
 
         .app-shell-saved-name {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             white-space: nowrap;
             overflow: hidden;
@@ -265,12 +426,7 @@
         }
 
         .app-shell-saved-meta {
-            margin-top: 4px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 10px;
-            color: #94a3b8;
+            display: none;
         }
 
         .app-shell-saved-type {
@@ -292,27 +448,30 @@
 
         .app-shell-saved-delete {
             position: absolute;
-            right: 8px;
-            top: 7px;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
             width: 16px;
             height: 16px;
-            border-radius: 50%;
-            border: 1px solid rgba(248, 113, 113, 0.28);
-            background: rgba(127, 29, 29, 0.24);
-            color: #fecaca;
-            font-size: 10px;
-            line-height: 1;
-            display: inline-flex;
+            display: none;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.16s ease;
+            border-radius: 50%;
+            background: transparent;
+            color: #ef4444;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1;
+            cursor: pointer;
         }
 
         .app-shell-saved-item:hover .app-shell-saved-delete {
-            opacity: 1;
-            pointer-events: auto;
+            display: inline-flex;
+        }
+
+        .app-shell-saved-delete:hover {
+            background: #dc2626;
+            color: #fff;
         }
 
         .history-overlay {
@@ -511,8 +670,165 @@
             padding-bottom: 1px;
         }
 
-        .top-actions-buttons > * {
+        .top-actions-buttons>* {
             flex-shrink: 0;
+        }
+
+        .desc-popover-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .desc-popover-btn {
+            height: 28px;
+            padding: 0 8px;
+            font-size: 10.5px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #475569;
+            cursor: pointer;
+        }
+
+        .desc-popover-btn:hover {
+            border-color: #94a3b8;
+            color: #1f2937;
+        }
+
+        .desc-popover-panel {
+            position: fixed;
+            left: 16px;
+            top: 16px;
+            width: min(520px, 86vw);
+            max-height: min(72vh, 620px);
+            overflow: auto;
+            padding: 12px 13px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #334155;
+            font-size: 12px;
+            line-height: 1.55;
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.16);
+            display: none;
+            z-index: 1800;
+        }
+
+        .desc-popover-panel.open {
+            display: block;
+        }
+
+        .desc-popover-panel h4 {
+            margin: 0 0 6px;
+            font-size: 13px;
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        .desc-popover-panel p {
+            margin: 0 0 8px;
+            color: #475569;
+        }
+
+        .desc-popover-panel .desc-sec {
+            margin-top: 8px;
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #1d4ed8;
+        }
+
+        .desc-popover-panel ul {
+            margin: 4px 0 0 16px;
+            padding: 0;
+        }
+
+        .desc-popover-panel li {
+            margin: 2px 0;
+        }
+
+        .template-preview-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.85);
+            z-index: 1400;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .template-preview-modal {
+            width: min(1320px, 97vw);
+            max-height: 95vh;
+            overflow: auto;
+            background: #0f172a;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 26px 70px rgba(2, 6, 23, 0.65);
+            color: #e2e8f0;
+        }
+
+        .template-preview-media {
+            width: 100%;
+            height: min(72vh, 780px);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: #111827;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .template-preview-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: transparent;
+        }
+
+        .template-preview-description {
+            width: 100%;
+            height: min(72vh, 780px);
+            border-radius: 12px;
+            overflow: auto;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(2, 6, 23, 0.45);
+            padding: 16px;
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .template-preview-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.34);
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            background: rgba(15, 23, 42, 0.7);
+            color: #cbd5e1;
+        }
+
+        .template-preview-btn-open {
+            background: #dc2626;
+            color: #fff;
+            border-color: #dc2626;
+        }
+
+        .template-preview-btn-close {
+            background: rgba(15, 23, 42, 0.7);
+            color: #cbd5e1;
         }
 
         .saved-toolbar {
@@ -773,7 +1089,7 @@
             box-sizing: border-box;
         }
 
-        .kpi-mini + .kpi-mini {
+        .kpi-mini+.kpi-mini {
             border-top: 0;
         }
 
@@ -1109,7 +1425,7 @@
             padding: 8px;
             margin-right: 10px;
             border-radius: 6px;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             max-width: 130px;
             color: #ffffff;
             font-size: 10px;
@@ -1436,8 +1752,13 @@
         }
 
         @keyframes mappingSpin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .mapping-table {
@@ -1707,8 +2028,13 @@
         }
 
         @keyframes actionBusySpin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .drag-on .chart-card {
@@ -1779,6 +2105,7 @@
         }
     </style>
 </head>
+
 <body>
     <aside class="app-shell-sidebar">
         <a class="app-shell-home" href="/" title="Home">&#8962;</a>
@@ -1788,21 +2115,40 @@
         </div>
 
         <div class="app-shell-actions">
-            <button class="app-shell-btn primary" onclick="window.location.href='/'">+ New AI Dashboard</button>
-            <button class="app-shell-btn secondary" onclick="window.location.href='/'">Generate Empty Dashboard</button>
+            <button class="app-shell-btn primary" onclick="window.location.href='/?open=ai'">AI Generated
+                Dashboard</button>
+            <button class="app-shell-btn secondary" onclick="window.location.href='/'">Make Your Own Dashboard</button>
         </div>
 
         <div class="app-shell-label">Templates</div>
         <div class="app-shell-templates">
-            <a class="app-shell-template live active" href="/dashboard">
-                <span>S</span>
-                <span>Sales Cockpit</span>
+            <a id="tplSales1Link" class="app-shell-template live" href="/dashboard">
+                <span>1</span>
+                <span>Sales Template</span>
                 <span class="badge">Live</span>
             </a>
-            <div class="app-shell-template soon">
-                <span>+</span>
-                <span>Coming Soon</span>
-                <span class="badge">Soon</span>
+            <button id="btnTemplateSales2" type="button" class="app-shell-template app-shell-template-toggle live"
+                aria-expanded="false">
+                <span>2</span>
+                <span>Sales Template 2</span>
+                <span class="badge">Live</span>
+            </button>
+            <div id="tplSales2Pages" class="app-shell-subpages">
+                <a class="app-shell-subpage" href="/dashboard2?view=primary_overview">Primary Sales Overview</a>
+                <a class="app-shell-subpage" href="/dashboard2?view=secondary_overview">Secondary Sales Overview</a>
+                <a class="app-shell-subpage" href="/dashboard2?view=brand">Trend Analysis</a>
+            </div>
+            <button id="btnTemplateSales3" type="button" class="app-shell-template app-shell-template-toggle live"
+                aria-expanded="false">
+                <span>3</span>
+                <span>Sales Template 3</span>
+                <span class="badge">Live</span>
+            </button>
+            <div id="tplSales3Pages" class="app-shell-subpages">
+                <a class="app-shell-subpage" href="/dashboard3?page=primary">Primary Sales</a>
+                <a class="app-shell-subpage" href="/dashboard3?page=growth">Growth Analysis</a>
+                <a class="app-shell-subpage" href="/dashboard3?page=achievement">Achievement Analysis</a>
+                <a class="app-shell-subpage" href="/dashboard3?page=dst">DST Score Card</a>
             </div>
         </div>
 
@@ -1810,21 +2156,45 @@
             <div class="app-shell-label" style="margin-top:0; padding:0;">Saved</div>
             <button id="btnViewAllSaved" class="app-shell-view-all" type="button">View All</button>
         </div>
+        <div id="saved-loading-bar" class="sidebar-loadbar hidden" aria-hidden="true"></div>
         <div id="savedDashboardsList" class="app-shell-saved-list">
             <div class="app-shell-saved-empty">No saved dashboards yet.</div>
         </div>
     </aside>
-
     <div class="page">
         <div class="top-strip">
-            <div class="strip-item"><div class="strip-label">Date</div><div class="strip-value" id="hdrDate">-</div></div>
-            <div class="strip-item"><div class="strip-label">Working Days</div><div class="strip-value" id="hdrWorking">-</div></div>
-            <div class="strip-item"><div class="strip-label">Days Lapsed</div><div class="strip-value" id="hdrLapsed">-</div></div>
-            <div class="strip-item"><div class="strip-label">Days Left</div><div class="strip-value" id="hdrLeft">-</div></div>
-            <div class="strip-item"><div class="strip-label">Account Group</div><div class="strip-value" id="hdrAccount">All</div></div>
-            <div class="strip-item"><div class="strip-label">BCRA & Dairy</div><div class="strip-value" id="hdrBcra">All</div></div>
-            <div class="strip-item"><div class="strip-label">Brand Filter</div><div class="strip-value" id="hdrBrand">All</div></div>
-            <div class="strip-item"><div class="strip-label">Value/Volume</div><div class="strip-value" id="hdrValueMode">Value</div></div>
+            <div class="strip-item">
+                <div class="strip-label">Date</div>
+                <div class="strip-value" id="hdrDate">-</div>
+            </div>
+            <div class="strip-item">
+                <div class="strip-label">Working Days</div>
+                <div class="strip-value" id="hdrWorking">-</div>
+            </div>
+            <div class="strip-item">
+                <div class="strip-label">Days Lapsed</div>
+                <div class="strip-value" id="hdrLapsed">-</div>
+            </div>
+            <div class="strip-item">
+                <div class="strip-label">Days Left</div>
+                <div class="strip-value" id="hdrLeft">-</div>
+            </div>
+            <div class="strip-item">
+                <div class="strip-label">Account Group</div>
+                <div class="strip-value" id="hdrAccount">All</div>
+            </div>
+            <div class="strip-item">
+                <div class="strip-label">BCRA & Dairy</div>
+                <div class="strip-value" id="hdrBcra">All</div>
+            </div>
+            <div class="strip-item">
+                <div class="strip-label">Brand Filter</div>
+                <div class="strip-value" id="hdrBrand">All</div>
+            </div>
+            <div class="strip-item">
+                <div class="strip-label">Value/Volume</div>
+                <div class="strip-value" id="hdrValueMode">Value</div>
+            </div>
         </div>
 
         <div class="top-actions">
@@ -1839,12 +2209,17 @@
                 <button class="btn" id="btnRemapColumns">Remap Columns</button>
                 <div id="savedDashboardToolbar" class="saved-toolbar">
                     <button class="btn" id="btnSaveDashboard">&#128190; Save Layout</button>
-                    <button class="btn" id="btnRefreshSavedDashboard" style="display:none;">&#128260; Refresh Data</button>
+                    <button class="btn" id="btnRefreshSavedDashboard" style="display:none;">&#128260; Refresh
+                        Data</button>
                     <span id="savedDashboardUpdatedAt" class="saved-toolbar-meta" style="display:none;"></span>
                 </div>
                 <button class="btn btn-primary" id="btnAiCharts">AI Chart Generation</button>
                 <button class="btn btn-amber" id="btnRearrange">Rearrange Dashboard</button>
                 <button class="btn btn-soft" id="btnNewAnalysis">New Analysis</button>
+                <div id="descPopoverWrap" class="desc-popover-wrap">
+                    <button id="btnShowDescription" type="button" class="desc-popover-btn">Show Description</button>
+                    <div id="dashboardDescPanel" class="desc-popover-panel"></div>
+                </div>
             </div>
         </div>
 
@@ -1884,11 +2259,20 @@
             <div class="panel left-panel" id="cardLeftPanel">
                 <h1 class="cockpit-title">SALES - COCKPIT</h1>
                 <div class="kpi-grid">
-                    <div class="kpi-box"><div class="v" id="kMsp">-</div><div class="l">MSP</div></div>
-                    <div class="kpi-box"><div class="v" id="kLe">-</div><div class="l">LE</div></div>
+                    <div class="kpi-box">
+                        <div class="v" id="kMsp">-</div>
+                        <div class="l">MSP</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="v" id="kLe">-</div>
+                        <div class="l">LE</div>
+                    </div>
                 </div>
                 <div class="kpi-row">
-                    <div class="kpi-box kpi-box-wide"><div class="v" id="kMtd">-</div><div class="l">MTD</div></div>
+                    <div class="kpi-box kpi-box-wide">
+                        <div class="v" id="kMtd">-</div>
+                        <div class="l">MTD</div>
+                    </div>
                     <div class="kpi-mini-stack">
                         <div class="kpi-mini">
                             <div class="kn">SLY</div>
@@ -1901,7 +2285,10 @@
                     </div>
                 </div>
                 <div class="kpi-row">
-                    <div class="kpi-box kpi-box-wide"><div class="v" id="kEco">-</div><div class="l">ECO (IN CR'S)</div></div>
+                    <div class="kpi-box kpi-box-wide">
+                        <div class="v" id="kEco">-</div>
+                        <div class="l">ECO (IN CR'S)</div>
+                    </div>
                     <div class="kpi-mini-stack">
                         <div class="kpi-mini">
                             <div class="kn">SLY</div>
@@ -1966,7 +2353,8 @@
                 <div class="chart-card" id="cardCategoryContribution">
                     <div class="contrib-header">
                         <h3>Category Contribution</h3>
-                        <button class="contrib-toggle-btn" id="btnToggleCategoryContribution" type="button">Bottom 4</button>
+                        <button class="contrib-toggle-btn" id="btnToggleCategoryContribution" type="button">Bottom
+                            4</button>
                     </div>
                     <div class="chart-plot" id="plotCategoryContribution"></div>
                 </div>
@@ -2029,7 +2417,8 @@
                     <div class="mapping-foot-note" id="mappingModelInfo">Auto-mapped by AI</div>
                     <div class="mapping-foot-actions">
                         <button class="btn" id="btnMappingReset" type="button">Reset to AI Suggestions</button>
-                        <button class="btn btn-primary" id="btnMappingConfirm" type="button">Confirm &amp; Load Dashboard</button>
+                        <button class="btn btn-primary" id="btnMappingConfirm" type="button">Confirm &amp; Load
+                            Dashboard</button>
                     </div>
                 </div>
             </div>
@@ -2064,7 +2453,8 @@
             <div class="logs" id="aiLogs"></div>
         </div>
         <div class="ai-box">
-            <div style="font-size:12px; color:#6a6a6a; font-weight:600;">LLM receives metadata only (column names), not row data.</div>
+            <div style="font-size:12px; color:#6a6a6a; font-weight:600;">LLM receives metadata only (column names), not
+                row data.</div>
         </div>
     </div>
 
@@ -2095,6 +2485,7 @@
             dragId: null,
             aiBusy: false,
             dataSource: null,
+            sessionReady: false,
             databricksTables: {
                 invoice_table: 'llm_test.llm.invoice_template',
                 target_table: 'llm_test.llm.target_template',
@@ -2105,6 +2496,7 @@
             savedDashboards: [],
             activeSavedDashboardId: '',
             activeSavedSnapshotAt: '',
+            savedSidebarExpandedById: {},
         };
 
         const MAPPING_ROWS = [
@@ -2186,6 +2578,12 @@
             el.classList.toggle('hidden', !flag);
         }
 
+        function setSidebarSavedLoading(flag) {
+            const bar = document.getElementById('saved-loading-bar');
+            if (!bar) return;
+            bar.classList.toggle('hidden', !flag);
+        }
+
         async function withActionBusy(message, runner) {
             setActionBusy(true, message);
             try {
@@ -2230,6 +2628,7 @@
                     stamp.textContent = '';
                 }
             }
+            syncTemplateSidebarSelection();
         }
 
         function extractCockpitPayloadFromResponse(data) {
@@ -2245,13 +2644,29 @@
             return null;
         }
 
+        async function ensureCockpitSessionReady() {
+            if (state.sessionReady) return;
+            const src = String(state.dataSource || '').toLowerCase();
+            if (src !== 'databricks') {
+                throw new Error('Saved session is not initialized. Choose Databricks or Excel once to enable refresh.');
+            }
+            const fd = new FormData();
+            fd.append('invoice_table', String(state.databricksTables?.invoice_table || 'llm_test.llm.invoice_template'));
+            fd.append('target_table', String(state.databricksTables?.target_table || 'llm_test.llm.target_template'));
+            if (state.confirmedColumnMapping && typeof state.confirmedColumnMapping === 'object') {
+                fd.append('column_mapping', JSON.stringify(state.confirmedColumnMapping));
+            }
+            await postForm('/api/dashboard/databricks-init/', fd);
+            state.sessionReady = true;
+        }
+
         async function refreshSavedDashboardData() {
             const savedId = String(state.activeSavedDashboardId || '').trim();
             const refreshBtn = document.getElementById('btnRefreshSavedDashboard');
             if (!savedId) return;
             try {
                 setBusy(refreshBtn, true, 'Refreshing...');
-                await withActionBusy('Refreshing from Databricks...', async () => {
+                await withActionBusy('Refreshing live data...', async () => {
                     const res = await fetch(`/api/dashboard/history/${encodeURIComponent(savedId)}/refresh/`, {
                         method: 'POST',
                         headers: { 'X-CSRFToken': getCsrfToken() },
@@ -2259,9 +2674,21 @@
                     if (res.status === 404) {
                         const fd = new FormData();
                         fd.append('filters', JSON.stringify(getActiveFilters()));
-                        const payload = await postForm('/api/dashboard/data/', fd);
+                        let payload = null;
+                        try {
+                            payload = await postForm('/api/dashboard/data/', fd);
+                        } catch (err) {
+                            const msg = String(err && err.message ? err.message : '');
+                            if (msg.includes('No cockpit dataset found') || msg.includes('choose Databricks first')) {
+                                await ensureCockpitSessionReady();
+                                payload = await postForm('/api/dashboard/data/', fd);
+                            } else {
+                                throw err;
+                            }
+                        }
                         renderAll(payload || {});
                         state.activeSavedSnapshotAt = new Date().toISOString();
+                        state.sessionReady = true;
                         updateSavedDashboardToolbar();
                         return;
                     }
@@ -2278,6 +2705,7 @@
                     state.activeSavedSnapshotAt = String(
                         data.snapshot_taken_at || data.updated_at || data.saved_at || new Date().toISOString()
                     );
+                    state.sessionReady = true;
                     updateSavedDashboardToolbar();
                 });
                 showToast('Live data loaded from Databricks!');
@@ -2288,8 +2716,97 @@
             }
         }
 
-        function typeLabel(rawType) {
-            return String(rawType || '').toLowerCase() === 'sales_cockpit' ? 'Sales Cockpit' : 'AI Dashboard';
+        function typeLabel(rawType, thumbnailHint = '') {
+            const hint = String(thumbnailHint || '').toLowerCase();
+            if (hint === 'dashboard2') return 'Sales Template 2';
+            if (hint === 'dashboard3') return 'Sales Template 3';
+            const type = String(rawType || '').toLowerCase();
+            if (type === 'sales_cockpit') return 'Sales Template';
+            if (type === 'dashboard3' || type === 'sales_cockpit3') return 'Sales Template 3';
+            return 'AI Dashboard';
+        }
+
+        function savedTemplateKey(item) {
+            const type = String(item?.dashboard_type || '').toLowerCase();
+            const hint = String(item?.thumbnail_hint || '').toLowerCase();
+            if (hint === 'dashboard2' || type === 'dashboard2' || type === 'marketing_dashboard') return 'dashboard2';
+            if (hint === 'dashboard3' || type === 'dashboard3' || type === 'sales_cockpit3') return 'dashboard3';
+            if (type === 'sales_cockpit') return 'dashboard1';
+            return 'ai';
+        }
+
+        function savedTemplatePages(templateKey) {
+            if (templateKey === 'dashboard2') {
+                return [
+                    { key: 'primary_overview', label: 'Primary Sales Overview' },
+                    { key: 'secondary_overview', label: 'Secondary Sales Overview' },
+                    { key: 'brand', label: 'Trend Analysis' },
+                ];
+            }
+            if (templateKey === 'dashboard3') {
+                return [
+                    { key: 'primary', label: 'Primary Sales' },
+                    { key: 'growth', label: 'Growth Analysis' },
+                    { key: 'achievement', label: 'Achievement Analysis' },
+                    { key: 'dst', label: 'DST Score Card' },
+                ];
+            }
+            return [];
+        }
+
+        function currentTemplatePageKey(templateKey) {
+            const qs = new URLSearchParams(window.location.search);
+            if (templateKey === 'dashboard2') return String(qs.get('view') || 'primary_overview').toLowerCase();
+            if (templateKey === 'dashboard3') return String(qs.get('page') || 'primary').toLowerCase();
+            return '';
+        }
+
+        function openSavedDashboardPage(item, pageKey) {
+            const id = String(item?.id || '').trim();
+            if (!id) return;
+            const key = savedTemplateKey(item);
+            if (key === 'dashboard2') {
+                window.location.href = `/dashboard2?saved_id=${encodeURIComponent(id)}&view=${encodeURIComponent(pageKey)}`;
+                return;
+            }
+            if (key === 'dashboard3') {
+                window.location.href = `/dashboard3?saved_id=${encodeURIComponent(id)}&page=${encodeURIComponent(pageKey)}`;
+                return;
+            }
+            if (key === 'dashboard1') {
+                loadSavedDashboardById(id);
+                return;
+            }
+            window.location.href = `/?saved_id=${encodeURIComponent(id)}`;
+        }
+
+        function syncTemplateSidebarSelection() {
+            const hasSaved = Boolean(String(state.activeSavedDashboardId || '').trim());
+            const path = String(window.location.pathname || '').toLowerCase();
+            const qs = new URLSearchParams(window.location.search);
+            const t1 = document.getElementById('tplSales1Link');
+            const t2 = document.getElementById('btnTemplateSales2');
+            const t3 = document.getElementById('btnTemplateSales3');
+            if (t1) t1.classList.toggle('active', !hasSaved && path === '/dashboard');
+            if (t2) t2.classList.toggle('active', !hasSaved && path === '/dashboard2');
+            if (t3) t3.classList.toggle('active', !hasSaved && path === '/dashboard3');
+
+            const activeView = String(qs.get('view') || 'primary_overview').toLowerCase();
+            const activePage = String(qs.get('page') || 'primary').toLowerCase();
+            const subpages = Array.from(document.querySelectorAll('.app-shell-subpage'));
+            subpages.forEach(link => {
+                const href = String(link.getAttribute('href') || '');
+                let isActive = false;
+                if (!hasSaved && path === '/dashboard2' && href.includes('view=')) {
+                    const m = href.match(/view=([^&]+)/i);
+                    isActive = !!m && decodeURIComponent(m[1]).toLowerCase() === activeView;
+                }
+                if (!hasSaved && path === '/dashboard3' && href.includes('page=')) {
+                    const m = href.match(/page=([^&]+)/i);
+                    isActive = !!m && decodeURIComponent(m[1]).toLowerCase() === activePage;
+                }
+                link.classList.toggle('active', isActive);
+            });
         }
 
         async function fetchSavedDashboards() {
@@ -2306,39 +2823,41 @@
             const list = Array.isArray(state.savedDashboards) ? state.savedDashboards : [];
             host.innerHTML = '';
             if (viewAllBtn) viewAllBtn.style.visibility = list.length > 5 ? 'visible' : 'hidden';
+            const activeSavedId = String(state.activeSavedDashboardId || '').trim();
 
             if (!list.length) {
                 const empty = document.createElement('div');
                 empty.className = 'app-shell-saved-empty';
                 empty.textContent = 'No saved dashboards yet.';
                 host.appendChild(empty);
+                syncTemplateSidebarSelection();
                 return;
             }
 
             list.slice(0, 5).forEach(item => {
+                const itemId = String(item?.id || '').trim();
+                const templateKey = savedTemplateKey(item);
+                const pages = savedTemplatePages(templateKey);
+                const hasPages = pages.length > 0;
+                const isActive = !!itemId && itemId === activeSavedId;
+                if (isActive && hasPages) state.savedSidebarExpandedById[itemId] = true;
+                const isOpen = hasPages && !!state.savedSidebarExpandedById[itemId];
+
+                const group = document.createElement('div');
+                group.className = 'app-shell-saved-group';
                 const row = document.createElement('button');
                 row.type = 'button';
                 row.className = 'app-shell-saved-item';
-                row.title = `${item.name || 'Untitled'} (${typeLabel(item.dashboard_type)})`;
+                if (isActive) row.classList.add('active');
+                row.title = `${item.name || 'Untitled'} (${typeLabel(item.dashboard_type, item.thumbnail_hint)})`;
 
                 const nameDiv = document.createElement('div');
                 nameDiv.className = 'app-shell-saved-name';
                 nameDiv.textContent = item.name || 'Untitled';
-
-                const meta = document.createElement('div');
-                meta.className = 'app-shell-saved-meta';
-                const t = document.createElement('span');
-                t.className = `app-shell-saved-type ${String(item.dashboard_type || '').toLowerCase() === 'sales_cockpit' ? 'sales' : 'ai'}`;
-                t.textContent = typeLabel(item.dashboard_type);
-                const ts = document.createElement('span');
-                ts.textContent = relTime(item.updated_at);
-                meta.appendChild(t);
-                meta.appendChild(ts);
-
                 const del = document.createElement('span');
                 del.className = 'app-shell-saved-delete';
-                del.title = 'Delete';
-                del.textContent = 'x';
+                del.innerHTML = '&times;';
+                del.title = 'Delete saved dashboard';
                 del.onclick = async (ev) => {
                     ev.preventDefault();
                     ev.stopPropagation();
@@ -2352,21 +2871,54 @@
                             const d = await r.json().catch(() => ({}));
                             if (!r.ok || d.error) throw new Error(d.error || `Delete failed (${r.status})`);
                         });
+                        if (String(state.activeSavedDashboardId || '') === String(item.id || '')) {
+                            state.activeSavedDashboardId = '';
+                            state.activeSavedSnapshotAt = '';
+                            updateSavedDashboardToolbar();
+                        }
                         await refreshSavedDashboards();
-                        showToast('Saved dashboard deleted');
                     } catch (err) {
                         showToast(`Delete failed: ${err.message}`);
                     }
                 };
 
                 row.appendChild(nameDiv);
-                row.appendChild(meta);
                 row.appendChild(del);
                 row.onclick = () => {
-                    loadSavedDashboardById(item.id);
+                    if (!hasPages) {
+                        loadSavedDashboardById(item.id);
+                        return;
+                    }
+                    state.savedSidebarExpandedById[itemId] = !isOpen;
+                    renderSavedSidebarList();
                 };
-                host.appendChild(row);
+                group.appendChild(row);
+
+                if (hasPages) {
+                    const subWrap = document.createElement('div');
+                    subWrap.className = `app-shell-saved-subpages ${isOpen ? 'open' : ''}`;
+                    const activePageKey = currentTemplatePageKey(templateKey);
+                    pages.forEach(page => {
+                        const subBtn = document.createElement('button');
+                        subBtn.type = 'button';
+                        subBtn.className = 'app-shell-saved-subpage-btn';
+                        subBtn.textContent = page.label;
+                        if (isActive && String(page.key || '') === activePageKey) {
+                            subBtn.classList.add('active');
+                        }
+                        subBtn.onclick = (ev) => {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            openSavedDashboardPage(item, page.key);
+                        };
+                        subWrap.appendChild(subBtn);
+                    });
+                    group.appendChild(subWrap);
+                }
+
+                host.appendChild(group);
             });
+            syncTemplateSidebarSelection();
         }
 
         function renderSavedHistoryModal() {
@@ -2393,7 +2945,7 @@
                 meta.className = 'history-card-meta';
                 const type = document.createElement('span');
                 type.className = `app-shell-saved-type ${String(item.dashboard_type || '').toLowerCase() === 'sales_cockpit' ? 'sales' : 'ai'}`;
-                type.textContent = typeLabel(item.dashboard_type);
+                type.textContent = typeLabel(item.dashboard_type, item.thumbnail_hint);
                 const ts = document.createElement('span');
                 ts.textContent = relTime(item.updated_at);
                 meta.appendChild(type);
@@ -2445,6 +2997,11 @@
                             const d = await r.json().catch(() => ({}));
                             if (!r.ok || d.error) throw new Error(d.error || `Delete failed (${r.status})`);
                         });
+                        if (String(state.activeSavedDashboardId || '') === String(item.id || '')) {
+                            state.activeSavedDashboardId = '';
+                            state.activeSavedSnapshotAt = '';
+                            updateSavedDashboardToolbar();
+                        }
                         await refreshSavedDashboards();
                     } catch (err) {
                         showToast(`Delete failed: ${err.message}`);
@@ -2483,11 +3040,18 @@
         }
 
         async function refreshSavedDashboards() {
+            setSidebarSavedLoading(true);
             try {
                 state.savedDashboards = await fetchSavedDashboards();
             } catch (_) {
                 state.savedDashboards = [];
+            } finally {
+                setSidebarSavedLoading(false);
             }
+            const liveIds = new Set(state.savedDashboards.map(item => String(item?.id || '').trim()).filter(Boolean));
+            Object.keys(state.savedSidebarExpandedById || {}).forEach(id => {
+                if (!liveIds.has(id)) delete state.savedSidebarExpandedById[id];
+            });
             renderSavedSidebarList();
             renderSavedHistoryModal();
         }
@@ -3266,23 +3830,23 @@
                 const rk = canonicalRegionKey(p.region);
                 const fillColor = regionColor(rk);
                 return {
-                type: 'scattergeo',
-                mode: 'markers+text',
-                lat: [p.lat],
-                lon: [p.lon],
-                text: [`${Number(p.pct || 0).toFixed(2)}%`],
-                customdata: [regionLabel(p.region)],
-                hovertemplate: '%{customdata}<extra></extra>',
-                textposition: 'middle center',
-                marker: {
-                    size: [20 + Math.min(20, Math.sqrt(Math.abs(num(p.value))) / 4)],
-                    color: fillColor,
-                    line: { color: '#2f2f2f', width: 1.2 },
-                    opacity: 0.95,
-                },
-                textfont: { color: fillColor, size: 12, family: 'Segoe UI' },
-                showlegend: false,
-            };
+                    type: 'scattergeo',
+                    mode: 'markers+text',
+                    lat: [p.lat],
+                    lon: [p.lon],
+                    text: [`${Number(p.pct || 0).toFixed(2)}%`],
+                    customdata: [regionLabel(p.region)],
+                    hovertemplate: '%{customdata}<extra></extra>',
+                    textposition: 'middle center',
+                    marker: {
+                        size: [20 + Math.min(20, Math.sqrt(Math.abs(num(p.value))) / 4)],
+                        color: fillColor,
+                        line: { color: '#2f2f2f', width: 1.2 },
+                        opacity: 0.95,
+                    },
+                    textfont: { color: fillColor, size: 12, family: 'Segoe UI' },
+                    showlegend: false,
+                };
             });
         }
 
@@ -3708,7 +4272,7 @@
                     const bg = donutDiv.querySelector('.bg');
                     if (bg) bg.style.fill = 'none';
                 }
-            }).catch(() => {});
+            }).catch(() => { });
         }
 
         function renderBaseCharts(payload) {
@@ -4103,6 +4667,7 @@
                 if (state.activeSavedDashboardId && savedResult && typeof savedResult === 'object') {
                     state.activeSavedDashboardId = String(savedResult.id || state.activeSavedDashboardId);
                     state.activeSavedSnapshotAt = String(savedResult.saved_at || new Date().toISOString());
+                    renderSavedSidebarList();
                     updateSavedDashboardToolbar();
                 }
                 showToast('Dashboard saved!');
@@ -4115,15 +4680,34 @@
             const id = String(savedId || '').trim();
             if (!id) return;
             try {
-                await withActionBusy('Loading saved dashboard...', async () => {
+                await withActionBusy('Restoring dashboard...', async () => {
                     const res = await fetch(`/api/dashboard/history/${encodeURIComponent(id)}/`, { method: 'GET' });
                     const data = await res.json().catch(() => ({}));
                     if (!res.ok || data.error) throw new Error(data.error || `Load failed (${res.status})`);
                     const type = String(data.dashboard_type || '').toLowerCase();
+                    const hint = String(data.thumbnail_hint || '').toLowerCase();
+                    if (hint === 'dashboard2') {
+                        window.location.href = `/dashboard2?saved_id=${encodeURIComponent(id)}`;
+                        return;
+                    }
                     if (type && type !== 'sales_cockpit') {
                         window.location.href = `/?saved_id=${encodeURIComponent(id)}`;
                         return;
                     }
+
+                    const savedMeta = safeJsonParse(data.meta_json, {});
+                    const metaSource = String(savedMeta.data_source || '').trim().toLowerCase();
+                    if (metaSource) state.dataSource = metaSource;
+                    if (savedMeta.invoice_table) {
+                        state.databricksTables.invoice_table = String(savedMeta.invoice_table);
+                    }
+                    if (savedMeta.target_table) {
+                        state.databricksTables.target_table = String(savedMeta.target_table);
+                    }
+                    if (savedMeta.column_mapping && typeof savedMeta.column_mapping === 'object') {
+                        state.confirmedColumnMapping = savedMeta.column_mapping;
+                    }
+                    state.sessionReady = false;
 
                     state.activeSavedDashboardId = String(data.id || id);
                     state.activeSavedSnapshotAt = String(data.snapshot_taken_at || data.updated_at || data.created_at || '');
@@ -4137,6 +4721,7 @@
                     renderChartList();
                     applyVisibility();
                     document.getElementById('uploadOverlay').classList.add('hidden');
+                    renderSavedSidebarList();
                     updateSavedDashboardToolbar();
                 });
                 closeSavedHistoryModal();
@@ -4311,6 +4896,9 @@
             state.confirmedColumnMapping = confirmed;
             state.activeSavedDashboardId = '';
             state.activeSavedSnapshotAt = '';
+            renderSavedSidebarList();
+            updateSavedDashboardToolbar();
+            state.sessionReady = true;
             renderAll(payload);
             hideMappingOverlay();
             document.getElementById('uploadOverlay').classList.add('hidden');
@@ -4326,9 +4914,26 @@
             const status = document.getElementById('uploadStatus');
             const btn = document.getElementById('btnUseDatabricks');
             status.textContent = '';
-            setBusy(btn, true, 'Preparing...');
+            setBusy(btn, true, 'Loading...');
             try {
-                await withActionBusy('Preparing Databricks metadata...', async () => openColumnMappingWizard(false));
+                const fd = new FormData();
+                fd.append('invoice_table', state.databricksTables.invoice_table);
+                fd.append('target_table', state.databricksTables.target_table);
+                if (state.confirmedColumnMapping && typeof state.confirmedColumnMapping === 'object') {
+                    fd.append('column_mapping', JSON.stringify(state.confirmedColumnMapping));
+                }
+                const payload = await withActionBusy('Loading dashboard...', async () => postForm('/api/dashboard/databricks-init/', fd));
+                state.activeSavedDashboardId = '';
+                state.activeSavedSnapshotAt = '';
+                renderSavedSidebarList();
+                updateSavedDashboardToolbar();
+                state.sessionReady = true;
+                renderAll(payload);
+                hideMappingOverlay();
+                const mapOverlay = document.getElementById('mappingOverlay');
+                if (mapOverlay) mapOverlay.style.display = 'none';
+                document.getElementById('uploadOverlay').classList.add('hidden');
+                showToast('Databricks data loaded');
             } catch (e) {
                 hideMappingOverlay();
                 status.textContent = e.message;
@@ -4360,6 +4965,9 @@
                 });
                 state.activeSavedDashboardId = '';
                 state.activeSavedSnapshotAt = '';
+                renderSavedSidebarList();
+                updateSavedDashboardToolbar();
+                state.sessionReady = true;
                 renderAll(payload);
                 document.getElementById('uploadOverlay').classList.add('hidden');
                 showToast('Dataset uploaded');
@@ -4374,11 +4982,12 @@
             const btn = document.getElementById('btnApplyFilters');
             setBusy(btn, true, 'Applying...');
             try {
-                const payload = await withActionBusy('Loading charts...', async () => {
+                const payload = await withActionBusy('Applying filters...', async () => {
                     const fd = new FormData();
                     fd.append('filters', JSON.stringify(getActiveFilters()));
                     return postForm('/api/dashboard/data/', fd);
                 });
+                state.sessionReady = true;
                 renderAll(payload);
                 await refreshAllCustomCharts();
                 showToast('Filters applied');
@@ -4474,14 +5083,17 @@
             state.confirmedColumnMapping = null;
             state.activeSavedDashboardId = '';
             state.activeSavedSnapshotAt = '';
+            state.sessionReady = false;
             renderCustomCharts();
             renderChartList();
+            renderSavedSidebarList();
             updateSavedDashboardToolbar();
-            document.getElementById('uploadOverlay').classList.remove('hidden');
+            document.getElementById('uploadOverlay').classList.add('hidden');
             hideMappingOverlay();
             document.getElementById('uploadStatus').textContent = '';
             document.getElementById('uploadFile').value = '';
-            showToast('Start a new upload');
+            showToast('Starting a new Databricks analysis...');
+            initDatabricksSource();
         }
 
         function rearrangeDashboardLayout() {
@@ -4543,6 +5155,187 @@
         });
         document.getElementById('btnNewAnalysis').addEventListener('click', resetToNewAnalysis);
         document.getElementById('btnRearrange').addEventListener('click', rearrangeDashboardLayout);
+        function setSales2SidebarExpanded(open) {
+            const pages = document.getElementById('tplSales2Pages');
+            const btn = document.getElementById('btnTemplateSales2');
+            if (!pages || !btn) return;
+            pages.classList.toggle('open', !!open);
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        function setSales3SidebarExpanded(open) {
+            const pages = document.getElementById('tplSales3Pages');
+            const btn = document.getElementById('btnTemplateSales3');
+            if (!pages || !btn) return;
+            pages.classList.toggle('open', !!open);
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        document.getElementById('btnTemplateSales2').addEventListener('click', () => {
+            const pages = document.getElementById('tplSales2Pages');
+            if (!pages) return;
+            setSales2SidebarExpanded(!pages.classList.contains('open'));
+        });
+        document.getElementById('btnTemplateSales3').addEventListener('click', () => {
+            const pages = document.getElementById('tplSales3Pages');
+            if (!pages) return;
+            setSales3SidebarExpanded(!pages.classList.contains('open'));
+        });
+        const descWrap = document.getElementById('descPopoverWrap');
+        const descPanel = document.getElementById('dashboardDescPanel');
+        function positionDescriptionPopover() {
+            if (!descPanel) return;
+            const btn = document.getElementById('btnShowDescription');
+            if (!btn) return;
+            const pad = 10;
+            const gap = 8;
+            const btnRect = btn.getBoundingClientRect();
+            let top = btnRect.bottom + gap;
+            let left = Math.max(pad, btnRect.right - descPanel.offsetWidth);
+            if (left + descPanel.offsetWidth > (window.innerWidth - pad)) {
+                left = Math.max(pad, window.innerWidth - descPanel.offsetWidth - pad);
+            }
+            if (top + descPanel.offsetHeight > (window.innerHeight - pad)) {
+                top = Math.max(pad, btnRect.top - descPanel.offsetHeight - gap);
+            }
+            descPanel.style.left = `${Math.round(left)}px`;
+            descPanel.style.top = `${Math.round(top)}px`;
+        }
+        const SALES_COCKPIT_DESCRIPTION_HTML = `
+            <h4>Sales Cockpit</h4>
+            <p>Real-time sales KPI dashboard powered by Databricks for daily execution rhythm and fast corrective action.</p>
+            <div class="desc-sec">Template Features</div>
+            <ul>
+                <li>Live filters for month, account group, category, brand, and value/volume</li>
+                <li>KPI cards for MTD, LE, MSP, ECO, RRR, DRR with instant variance context</li>
+                <li>AI chart generation and custom chart panel for ad-hoc analysis</li>
+                <li>Saved dashboard snapshots with refresh flow</li>
+            </ul>
+            <div class="desc-sec">Charts Included</div>
+            <ul>
+                <li>Regional performance map and contribution diagnostics</li>
+                <li>Business channel, account group, and category contribution views</li>
+                <li>Daily bars with run-rate progression and pacing checks</li>
+                <li>Trend comparisons across MTD, LYMTD, and target-linked metrics</li>
+            </ul>
+            <div class="desc-sec">Use Cases</div>
+            <ul>
+                <li>Daily stand-up performance tracking</li>
+                <li>Early risk detection for month-end target recovery</li>
+                <li>Region/channel-level intervention planning</li>
+            </ul>
+        `;
+        if (descPanel) descPanel.innerHTML = SALES_COCKPIT_DESCRIPTION_HTML;
+        document.getElementById('btnShowDescription').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!descPanel) return;
+            const isOpening = !descPanel.classList.contains('open');
+            descPanel.classList.toggle('open', isOpening);
+            if (isOpening) requestAnimationFrame(positionDescriptionPopover);
+        });
+        document.addEventListener('click', (e) => {
+            if (!descWrap || !descPanel || descWrap.contains(e.target)) return;
+            descPanel.classList.remove('open');
+        });
+        window.addEventListener('resize', () => {
+            if (descPanel && descPanel.classList.contains('open')) positionDescriptionPopover();
+        });
+        window.addEventListener('scroll', () => {
+            if (descPanel && descPanel.classList.contains('open')) positionDescriptionPopover();
+        }, true);
+        const TEMPLATE_PREVIEW = {
+            sales: {
+                title: 'Sales Cockpit',
+                openUrl: '/dashboard',
+                pages: [{ label: 'Overview', slides: ['{% static "Sales.png" %}'] }],
+                desc: 'Sales Cockpit provides a live operating view of MTD execution, MSP tracking, run-rate projections, region performance, and contribution diagnostics by channel, account group, and category. It is built for daily execution reviews, faster interventions, and target recovery planning with live Databricks refresh.',
+                descHtml: `
+                    <div style="font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:8px;">Sales Cockpit</div>
+                    <div style="font-size:13px;color:#cbd5e1;line-height:1.7;margin-bottom:12px;">A real-time operational dashboard for execution teams to monitor sales pace, plan attainment, and recovery risk across regions and channels.</div>
+                    <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Chart Coverage</div>
+                    <ul style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+                        <li>MTD/LE/MSP/ECO/RRR/DRR KPI cards with trend context</li>
+                        <li>India region performance map with contribution overlays</li>
+                        <li>Channel, account-group, and category contribution comparisons</li>
+                        <li>Daily bars and run-rate visualization for short-term pace tracking</li>
+                    </ul>
+                    <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Insights It Enables</div>
+                    <ul style="margin:0 0 0 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+                        <li>Early detection of month-end shortfall risk</li>
+                        <li>Pinpointing which regions/channels are over or under-contributing</li>
+                        <li>Faster corrective actions with live Databricks refresh</li>
+                    </ul>
+                `
+            },
+            marketing: {
+                title: 'Sales Cockpit 2',
+                openUrl: '/dashboard2',
+                pages: [
+                    { label: 'Primary Sales Overview', slides: ['{% static "sales2.png" %}', '{% static "sales2b.png" %}'] },
+                    { label: 'Secondary Sales Overview', slides: ['{% static "sales2c.png" %}'] },
+                    { label: 'Brand Analysis', slides: ['{% static "sales3.png" %}'] }
+                ],
+                desc: 'Sales Cockpit 2 is a multi-page performance dashboard. Primary Sales Overview and Secondary Sales Overview focus on KPI cards, trend trajectory, map diagnostics, and branch/state/channel cuts. Brand Analysis focuses on national brand funnel movement (GRPs, SOV, TOM) for strategic monthly reviews and action tracking.',
+                descHtml: `
+                    <div style="font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:8px;">Sales Cockpit 2</div>
+                    <div style="font-size:13px;color:#cbd5e1;line-height:1.7;margin-bottom:12px;">A multi-page leadership template for national performance storytelling across operational execution and brand funnel health.</div>
+                    <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Primary Sales Overview</div>
+                    <ul style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+                        <li>Primary/Secondary KPI cards with sparkline momentum</li>
+                        <li>Sales trajectory line chart with achievement/growth toggles</li>
+                        <li>India map and branch/state/district diagnostic bars</li>
+                    </ul>
+                    <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Secondary Sales Overview</div>
+                    <ul style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+                        <li>Secondary sales cuts across channel, branch, state, and sub-brand</li>
+                        <li>Growth and achievement overlays tuned for sell-out performance</li>
+                    </ul>
+                    <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Brand Analysis Page</div>
+                    <ul style="margin:0 0 12px 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+                        <li>National Brand Performance Funnel visuals</li>
+                        <li>GRPs, SOV, TOM trend movement for monthly brand reviews</li>
+                    </ul>
+                    <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Insights It Enables</div>
+                    <ul style="margin:0 0 0 18px;padding:0;color:#cbd5e1;line-height:1.75;font-size:13px;">
+                        <li>Identify where growth is concentrated vs diluted</li>
+                        <li>Link funnel movement to execution outcomes</li>
+                        <li>Support leadership reviews with clear visual narrative</li>
+                    </ul>
+                `
+            }
+        };
+        let templatePreviewState = { kind: 'sales', page: 0, slide: 0, showDesc: false };
+        function _renderTemplatePreview() {
+            const overlay = document.getElementById('templatePreviewOverlay');
+            const content = document.getElementById('templatePreviewContent');
+            if (!overlay || !content) return;
+            const cfg = TEMPLATE_PREVIEW[templatePreviewState.kind] || TEMPLATE_PREVIEW.sales;
+            const pages = cfg.pages || [];
+            const page = pages[templatePreviewState.page] || pages[0] || { label: 'Primary Sales Overview', slides: [] };
+            const slides = page.slides || [];
+            const current = slides[templatePreviewState.slide] || slides[0] || '';
+            const isDescMode = !!templatePreviewState.showDesc;
+            const mediaOrDesc = isDescMode
+                ? `<div class="template-preview-description">${cfg.descHtml || cfg.desc}</div>`
+                : `<div class="template-preview-media">${current ? `<img src="${current}" alt="${cfg.title}">` : ''}</div>`;
+            content.innerHTML = `
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                    ${pages.map((p, i) => `<button class="template-preview-btn ${i === templatePreviewState.page ? 'template-preview-btn-open' : 'template-preview-btn-close'}" onclick="switchTemplatePreviewPage(${i})">${p.label}</button>`).join('')}
+                </div>
+                ${mediaOrDesc}
+                ${(!isDescMode && slides.length > 1) ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;"><button class="template-preview-btn template-preview-btn-close" onclick="stepTemplatePreview(-1)">← Prev</button><span style="font-size:12px;color:#cbd5e1;">${templatePreviewState.slide + 1}/${slides.length}</span><button class="template-preview-btn template-preview-btn-close" onclick="stepTemplatePreview(1)">Next →</button></div>` : ''}
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                    <button class="template-preview-btn template-preview-btn-close" onclick="toggleTemplatePreviewDesc()">${templatePreviewState.showDesc ? 'Show Screenshots' : 'Show Description'}</button>
+                    <button class="template-preview-btn template-preview-btn-close" onclick="closeTemplatePreviewModal()">Close</button>
+                    <button class="template-preview-btn template-preview-btn-open" onclick="window.location.href='${cfg.openUrl}'">Open Template →</button>
+                </div>
+            `;
+            overlay.style.display = 'flex';
+        }
+        function openTemplatePreviewModal(kind = 'sales', event = null) { if (event) { event.preventDefault(); event.stopPropagation(); } if (String(kind || '').toLowerCase() === 'marketing') { const pages = document.getElementById('tplSales2Pages'); if (pages) setSales2SidebarExpanded(!pages.classList.contains('open')); return false; } window.location.href = '/dashboard'; return false; }
+        function closeTemplatePreviewModal(event = null) { const overlay = document.getElementById('templatePreviewOverlay'); if (event && event.target && event.target !== overlay) return; if (overlay) overlay.style.display = 'none'; }
+        function switchTemplatePreviewPage(i) { templatePreviewState.page = Math.max(0, Math.min(i, (TEMPLATE_PREVIEW[templatePreviewState.kind].pages || []).length - 1)); templatePreviewState.slide = 0; _renderTemplatePreview(); }
+        function stepTemplatePreview(step) { const slides = (TEMPLATE_PREVIEW[templatePreviewState.kind].pages?.[templatePreviewState.page]?.slides) || []; if (slides.length < 2) return; templatePreviewState.slide = (templatePreviewState.slide + step + slides.length) % slides.length; _renderTemplatePreview(); }
+        function toggleTemplatePreviewDesc() { templatePreviewState.showDesc = !templatePreviewState.showDesc; _renderTemplatePreview(); }
+
         document.getElementById('btnOpenCharts').addEventListener('click', () => {
             document.getElementById('chartsSide').classList.toggle('open');
         });
@@ -4605,23 +5398,33 @@
             });
         });
         applyGridViewportHeight();
+        syncTemplateSidebarSelection();
         updateSavedDashboardToolbar();
         setInterval(updateSavedDashboardToolbar, 60000);
         (async () => {
             const upload = document.getElementById('uploadOverlay');
-            const hasSavedId = Boolean(new URLSearchParams(window.location.search).get('saved_id'));
-            if (upload) {
-                if (hasSavedId) upload.classList.add('hidden');
-                else upload.classList.remove('hidden');
+            const mapping = document.getElementById('mappingOverlay');
+            const remapBtn = document.getElementById('btnRemapColumns');
+            if (upload) upload.classList.add('hidden');
+            if (mapping) {
+                mapping.classList.add('hidden');
+                mapping.style.display = 'none';
+            }
+            if (remapBtn) {
+                remapBtn.style.display = 'none';
+                remapBtn.disabled = true;
             }
             await refreshSavedDashboards();
             const restored = await loadSavedCockpitFromQuery();
-            if (upload) {
-                if (restored) upload.classList.add('hidden');
-                else upload.classList.remove('hidden');
+            if (!restored) {
+                try {
+                    await initDatabricksSource();
+                } catch (e) {
+                    showToast(`Autoload failed: ${e.message}`);
+                }
             }
         })();
     </script>
 </body>
-</html>
 
+</html>
