@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, dashboard2_utils, cockpit_utils, wireframe_utils, dashboard_service
+from . import views, dashboard2_utils, cockpit_utils, wireframe_utils, dashboard_service, utils
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/dashboard/databricks-init/', cockpit_utils.sales_cockpit_databricks_init, name='sales_cockpit_databricks_init'),
     path('api/dashboard/data/', cockpit_utils.sales_cockpit_data, name='sales_cockpit_data'),
     path('api/dashboard/custom-chart/', cockpit_utils.sales_cockpit_custom_chart, name='sales_cockpit_custom_chart'),
+    path('api/dashboard/configure-sql/', utils.dashboard_configure_sql, name='dashboard_configure_sql'),
     path('api/dashboard2/upload/', dashboard2_utils.dashboard2_upload, name='dashboard2_upload'),
     path('api/dashboard2/data/', dashboard2_utils.dashboard2_data, name='dashboard2_data'),
     path('api/dashboard/save/', dashboard_service.dashboard_save, name='dashboard_save'),

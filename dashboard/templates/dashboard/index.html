@@ -140,7 +140,7 @@
         .widget-drag-handle {
             position: absolute;
             top: 10px;
-            right: 80px;
+            right: 36px;
             z-index: 14;
             background: rgba(30, 41, 59, 0.92);
             color: #cbd5e1;
@@ -192,6 +192,35 @@
             background: rgba(127, 29, 29, 0.42);
             border-color: rgba(239, 68, 68, 0.45);
             color: #fee2e2;
+        }
+
+        .kpi-config-btn {
+            position: absolute;
+            right: 100px;
+            top: 10px;
+            z-index: 14;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.92);
+            color: #cbd5e1;
+            border-radius: 8px;
+            font-size: 10px;
+            line-height: 1;
+            padding: 4px 8px;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+        }
+
+        .kpi-card:hover .kpi-config-btn {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .kpi-config-btn:hover {
+            background: rgba(30, 58, 138, 0.6);
+            border-color: rgba(96, 165, 250, 0.8);
+            color: #dbeafe;
         }
 
         .chart-plot-area {
@@ -328,7 +357,6 @@
 
         .kpi-card {
             background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.7));
-            border-left: 4px solid;
             border-radius: 12px;
             padding: 12px 16px;
             display: grid;
@@ -1200,6 +1228,261 @@
             text-align: center;
         }
 
+        .config-drawer-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.45);
+            z-index: 1210;
+            display: none;
+        }
+
+        .config-drawer {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            bottom: 16px;
+            width: min(440px, calc(100vw - 28px));
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 16px;
+            box-shadow: 0 24px 50px rgba(2, 6, 23, 0.58);
+            backdrop-filter: blur(10px);
+            z-index: 1220;
+            transform: translateX(calc(100% + 24px));
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.24s ease, opacity 0.2s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-drawer.open {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .config-drawer-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 12px 12px 8px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .config-drawer-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #e2e8f0;
+            line-height: 1.2;
+        }
+
+        .config-drawer-sub {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .config-drawer-close {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.8);
+            color: #cbd5e1;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .config-drawer-close:hover {
+            border-color: #f87171;
+            color: #fee2e2;
+            background: rgba(127, 29, 29, 0.3);
+        }
+
+        .config-drawer-body {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .config-card {
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
+            background: rgba(30, 41, 59, 0.65);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-card-title {
+            font-size: 12px;
+            color: #cbd5e1;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+        }
+
+        .config-label {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .config-select {
+            width: 100%;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.88);
+            color: #e2e8f0;
+            font-size: 12px;
+            padding: 7px 8px;
+            outline: none;
+        }
+
+        .config-select:focus {
+            border-color: rgba(56, 189, 248, 0.7);
+        }
+
+        .config-textarea {
+            width: 100%;
+            min-height: 78px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.88);
+            color: #e2e8f0;
+            font-size: 12px;
+            padding: 8px;
+            resize: vertical;
+            outline: none;
+            line-height: 1.35;
+        }
+
+        .config-textarea:focus {
+            border-color: rgba(56, 189, 248, 0.7);
+        }
+
+        .config-chart-types {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .config-chart-type-btn {
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.86);
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .config-chart-type-btn.active,
+        .config-chart-type-btn:hover {
+            border-color: rgba(56, 189, 248, 0.8);
+            color: #e0f2fe;
+            background: rgba(2, 132, 199, 0.28);
+        }
+
+        .config-status {
+            font-size: 12px;
+            color: #bfdbfe;
+            min-height: 16px;
+            line-height: 1.35;
+        }
+
+        .config-status.error {
+            color: #fecaca;
+        }
+
+        .config-actions {
+            padding: 10px 12px 12px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .config-ai-input {
+            flex: 1 1 190px;
+            min-width: 170px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.88);
+            color: #e2e8f0;
+            font-size: 12px;
+            padding: 8px 10px;
+            outline: none;
+        }
+
+        .config-ai-input:focus {
+            border-color: rgba(56, 189, 248, 0.7);
+        }
+
+        .config-generate-btn {
+            border: 1px solid rgba(125, 211, 252, 0.7);
+            border-radius: 10px;
+            background: rgba(2, 132, 199, 0.28);
+            color: #e0f2fe;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 8px 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .config-generate-btn:hover {
+            background: rgba(2, 132, 199, 0.42);
+        }
+
+        .config-inline-btn {
+            border: 1px solid rgba(125, 211, 252, 0.6);
+            border-radius: 8px;
+            background: rgba(2, 132, 199, 0.2);
+            color: #dbeafe;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 6px 10px;
+            cursor: pointer;
+            align-self: flex-start;
+        }
+
+        .config-inline-btn:hover {
+            background: rgba(2, 132, 199, 0.35);
+        }
+
+        .config-metric-panel {
+            border: 1px dashed rgba(148, 163, 184, 0.35);
+            border-radius: 8px;
+            padding: 8px;
+            background: rgba(15, 23, 42, 0.42);
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .config-metric-panel-name {
+            font-size: 12px;
+            color: #e2e8f0;
+            font-weight: 700;
+        }
+
+        .config-metric-panel-formula {
+            font-size: 11px;
+            color: #cbd5e1;
+            line-height: 1.35;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
         .glossary-list {
             overflow-y: auto;
             display: flex;
@@ -1364,6 +1647,14 @@
                 width: auto;
                 bottom: 88px;
             }
+
+            .config-drawer {
+                top: 8px;
+                right: 8px;
+                bottom: 8px;
+                width: calc(100vw - 16px);
+                max-width: none;
+            }
         }
 
 
@@ -1411,7 +1702,6 @@
 
         .kpi-card {
             background: linear-gradient(145deg, var(--app-kpi-bg-1), var(--app-kpi-bg-2));
-            border-left-color: var(--app-accent) !important;
         }
 
         .startup-card {
@@ -2987,6 +3277,7 @@
         }
 
         .widget-drag-handle,
+        .kpi-config-btn,
         .expand-btn,
         .control-btn,
         .edit-toggle,
@@ -3369,8 +3660,7 @@
 
                 <div class="launcher-template-list">
                     <button id="launcherTemplateSales1" class="launcher-template-item live" type="button"
-                        aria-label="Sales Template"
-                        onclick="window.location.href='/dashboard'">
+                        aria-label="Sales Template" onclick="window.location.href='/dashboard'">
                         <span class="launcher-template-icon">1</span>
                         <span class="launcher-template-name">Sales Template</span>
                         <span class="launcher-template-badge live">Live</span>
@@ -3692,6 +3982,138 @@
         <div id="glossary-list" class="glossary-list"></div>
     </aside>
 
+    <div id="config-drawer-backdrop" class="config-drawer-backdrop" onclick="closeManualConfigDrawer()"></div>
+    <aside id="config-drawer" class="config-drawer" aria-hidden="true">
+        <div class="config-drawer-head">
+            <div>
+                <div class="config-drawer-title">Configure Chart</div>
+                <div id="config-drawer-subtitle" class="config-drawer-sub">Choose manual axis mapping.</div>
+            </div>
+            <button class="config-drawer-close" onclick="closeManualConfigDrawer()" title="Close">x</button>
+        </div>
+        <div class="config-drawer-body">
+            <div class="config-card">
+                <div class="config-card-title">Chart Type</div>
+                <input id="config-chart-type" type="hidden" value="bar">
+                <div class="config-chart-types">
+                    <button type="button" class="config-chart-type-btn active" data-value="bar"
+                        onclick="setManualChartType('bar')">Bar</button>
+                    <button type="button" class="config-chart-type-btn" data-value="line"
+                        onclick="setManualChartType('line')">Line</button>
+                    <button type="button" class="config-chart-type-btn" data-value="pie"
+                        onclick="setManualChartType('pie')">Pie</button>
+                    <button type="button" class="config-chart-type-btn" data-value="scatter"
+                        onclick="setManualChartType('scatter')">Scatter</button>
+                    <button type="button" class="config-chart-type-btn" data-value="heatmap"
+                        onclick="setManualChartType('heatmap')">Heatmap</button>
+                    <button type="button" class="config-chart-type-btn" data-value="table"
+                        onclick="setManualChartType('table')">Table</button>
+                    <button type="button" class="config-chart-type-btn" data-value="treemap"
+                        onclick="setManualChartType('treemap')">Treemap</button>
+                    <button type="button" class="config-chart-type-btn" data-value="waterfall"
+                        onclick="setManualChartType('waterfall')">Waterfall</button>
+                    <button type="button" class="config-chart-type-btn" data-value="india_map"
+                        onclick="setManualChartType('india_map')">Map</button>
+                </div>
+                <div id="config-role-hint" class="config-label" style="margin-top:10px;">Bar/Line: X vs Y, Pie:
+                    Legend vs Value</div>
+            </div>
+
+            <div class="config-card">
+                <div class="config-card-title">Metric (KB Section 4)</div>
+                <div class="config-label">Metric Name</div>
+                <select id="config-metric-select" class="config-select" onchange="onManualMetricChange()"></select>
+                <div class="config-label">Metric Formula (Editable for this chart only)</div>
+                <textarea id="config-metric-formula" class="config-textarea"
+                    placeholder="Pick a metric from KB, then edit formula if needed for this chart."></textarea>
+                <button id="config-metric-update-btn" type="button" class="config-inline-btn"
+                    onclick="updateChartOnlyMetric()">Update Metric For This Chart</button>
+            </div>
+
+            <div class="config-card">
+                <div id="config-x-axis-title" class="config-card-title">X-Axis</div>
+                <div id="config-x-table-label" class="config-label">Table</div>
+                <select id="config-x-table" class="config-select" onchange="onManualConfigTableChange('x')"></select>
+                <div id="config-x-column-label" class="config-label">Column</div>
+                <select id="config-x-column" class="config-select" onchange="updateManualAxisRoleLabels()"></select>
+                <div id="config-x-metric-panel" class="config-metric-panel">
+                    <div class="config-label">Metric Name</div>
+                    <div id="config-x-metric-name" class="config-metric-panel-name">Metric</div>
+                    <div class="config-label">Metric Formula</div>
+                    <div id="config-x-metric-formula" class="config-metric-panel-formula">-</div>
+                </div>
+            </div>
+
+            <div class="config-card">
+                <div id="config-y-axis-title" class="config-card-title">Y-Axis</div>
+                <div id="config-y-table-label" class="config-label">Table</div>
+                <select id="config-y-table" class="config-select" onchange="onManualConfigTableChange('y')"></select>
+                <div id="config-y-column-label" class="config-label">Column</div>
+                <select id="config-y-column" class="config-select" onchange="updateManualAxisRoleLabels()"></select>
+                <div id="config-y-metric-panel" class="config-metric-panel">
+                    <div class="config-label">Metric Name</div>
+                    <div id="config-y-metric-name" class="config-metric-panel-name">Metric</div>
+                    <div class="config-label">Metric Formula</div>
+                    <div id="config-y-metric-formula" class="config-metric-panel-formula">-</div>
+                </div>
+            </div>
+
+            <div class="config-card">
+                <div class="config-card-title">Aggregation</div>
+                <select id="config-aggregation" class="config-select">
+                    <option value="AUTO">AI Decide</option>
+                    <option value="SUM">SUM</option>
+                    <option value="COUNT">COUNT</option>
+                    <option value="AVG">AVG</option>
+                    <option value="MIN">MIN</option>
+                    <option value="MAX">MAX</option>
+                </select>
+            </div>
+
+            <div id="config-status" class="config-status"></div>
+        </div>
+        <div class="config-actions">
+            <input id="config-ai-edit-input" class="config-ai-input" type="text" placeholder="Edit With AI"
+                onkeydown="if(event.key === 'Enter') applyManualConfiguration()">
+            <button class="config-generate-btn" onclick="applyManualConfiguration()">Generate &amp; Update</button>
+        </div>
+    </aside>
+
+    <div id="kpi-config-drawer-backdrop" class="config-drawer-backdrop" onclick="closeKpiConfigDrawer()"></div>
+    <aside id="kpi-config-drawer" class="config-drawer" aria-hidden="true">
+        <div class="config-drawer-head">
+            <div>
+                <div class="config-drawer-title">Configure KPI</div>
+                <div id="kpi-config-drawer-subtitle" class="config-drawer-sub">Edit metric for one KPI.</div>
+            </div>
+            <button class="config-drawer-close" onclick="closeKpiConfigDrawer()" title="Close">x</button>
+        </div>
+        <div class="config-drawer-body">
+            <div class="config-card">
+                <div class="config-card-title">Metric (KB Section 4)</div>
+                <div class="config-label">Metric Name</div>
+                <select id="kpi-config-metric-select" class="config-select" onchange="onKpiMetricChange()"></select>
+                <div class="config-label">Metric Formula (Editable for this KPI only)</div>
+                <textarea id="kpi-config-metric-formula" class="config-textarea"
+                    placeholder="Pick a metric from KB, then edit formula if needed for this KPI."></textarea>
+                <div class="config-label">Aggregation</div>
+                <select id="kpi-config-aggregation" class="config-select">
+                    <option value="AUTO">AI Decide</option>
+                    <option value="SUM">SUM</option>
+                    <option value="COUNT">COUNT</option>
+                    <option value="AVG">AVG</option>
+                    <option value="MIN">MIN</option>
+                    <option value="MAX">MAX</option>
+                </select>
+            </div>
+            <div id="kpi-config-status" class="config-status"></div>
+        </div>
+        <div class="config-actions">
+            <button class="config-generate-btn" onclick="applyKpiManualConfiguration()">Generate &amp; Update
+                KPI</button>
+        </div>
+    </aside>
+
     <div id="chart-request-status-wrap" class="chatbot-status-wrap">
         <div id="chart-request-status" class="chatbot-status" aria-live="polite"></div>
         <button id="chart-request-status-close" class="chatbot-status-close" onclick="clearChartRequestStatus()"
@@ -3832,6 +4254,20 @@
         let processRequestToken = 0;
         let isFilterLoading = false;
         let userStoppedFilterLoad = false;
+        let manualConfigState = {
+            chartId: '',
+            tables: [],
+            relationships: [],
+            metrics: [],
+            chartMetrics: {},
+            loaded: false,
+            metricAxis: 'y',
+            dimensionAxis: 'x',
+            initialPayload: null
+        };
+        let kpiConfigState = {
+            kpiId: ''
+        };
         let savedDashboardsCache = [];
         let activeSavedDashboardId = '';
         let activeSavedSnapshotTakenAt = '';
@@ -5685,6 +6121,9 @@
                 label: String((k && k.label) || ''),
                 sql: String((k && (k.sql || k.value_sql)) || ''),
                 trend_sql: String((k && k.trend_sql) || ''),
+                manual_config: (k && typeof k.manual_config === 'object' && k.manual_config)
+                    ? cloneDashboardPayload(k.manual_config)
+                    : {},
             }));
 
             const charts = Array.isArray(currentData.charts) ? currentData.charts : [];
@@ -5698,6 +6137,9 @@
                     ylabel: String(c.ylabel || ''),
                     sql: String(c.sql || ''),
                     showDataLabels: Boolean(c.showDataLabels),
+                    manual_config: (c && typeof c.manual_config === 'object' && c.manual_config)
+                        ? cloneDashboardPayload(c.manual_config)
+                        : {},
                 }));
 
             return payload;
@@ -6475,6 +6917,9 @@
                     keep.sparkline = Array.isArray(source.sparkline) ? [...source.sparkline] : [];
                     if (source.sql !== undefined) keep.sql = source.sql;
                     if (source.trend_sql !== undefined) keep.trend_sql = source.trend_sql;
+                    if (source.manual_config && typeof source.manual_config === 'object') {
+                        keep.manual_config = cloneDashboardPayload(source.manual_config);
+                    }
                     return keep;
                 });
             }
@@ -6520,12 +6965,18 @@
                         if (source.region_col !== undefined) keep.region_col = source.region_col || keep.region_col;
                         if (source.metric_col !== undefined) keep.metric_col = source.metric_col || keep.metric_col;
                         if (source.sql !== undefined) keep.sql = source.sql;
+                        if (source.manual_config && typeof source.manual_config === 'object') {
+                            keep.manual_config = cloneDashboardPayload(source.manual_config);
+                        }
                         keep.original = createChartSnapshot(keep);
                         return keep;
                     }
 
                     _copyChartDataFields(keep, source);
                     if (source.sql !== undefined) keep.sql = source.sql;
+                    if (source.manual_config && typeof source.manual_config === 'object') {
+                        keep.manual_config = cloneDashboardPayload(source.manual_config);
+                    }
                     if (!keep.title && source.title) keep.title = source.title;
                     if (!keep.xlabel && source.xlabel) keep.xlabel = source.xlabel;
                     if (!keep.ylabel && source.ylabel) keep.ylabel = source.ylabel;
@@ -7518,7 +7969,7 @@
 
             modalTitle.textContent = `${entry.title} (KPI)`;
             modalContainer.innerHTML = `
-                <div class="kpi-card" style="border-left-color:${color}; max-width: 440px; margin: 10px auto; resize:none; transform:none; min-height: 130px;">
+                <div class="kpi-card" style="max-width: 440px; margin: 10px auto; resize:none; transform:none; min-height: 130px;">
                     <div class="kpi-card-content">
 <div class="text-[10px] uppercase font-bold tracking-wider kpi-label-text">${escapeHtml(entry.kpi.label || 'KPI')}</div>
                         <div class="text-3xl font-bold mt-1 mb-1 kpi-value-text">${escapeHtml(entry.kpi.value || '0')}</div>
@@ -8317,7 +8768,7 @@
             const sparkId = `custom-kpi-spark-${Date.now()}`;
 
             body.innerHTML = `
-                <div class="kpi-card" style="border-left-color:${color}; min-height: 120px; min-width: 260px; transform:none;">
+                <div class="kpi-card" style="min-height: 120px; min-width: 260px; transform:none;">
                     <div class="kpi-card-content">
 <div class="text-[10px] uppercase font-bold tracking-wider kpi-label-text">${escapeHtml(customPopupKpi.label || 'KPI')}</div>
                         <div class="text-[1.65rem] leading-none font-extrabold mt-1 mb-1 kpi-value-text">${escapeHtml(customPopupKpi.value || '0')}</div>
@@ -8938,6 +9389,7 @@
             const mergedRegions = Object.values(mergedMap);
             regions = mergedRegions;
             const metricLabel = String(meta.metric_label || chart?.ylabel || 'Value');
+            const mapTitle = String((chart && chart.title) || `${metricLabel} Map`);
 
             if (!regions.length) {
                 container.innerHTML = `
@@ -9331,7 +9783,7 @@
 
                 const layout = {
                     title: {
-                        text: 'Region Performance Map',
+                        text: mapTitle,
                         font: {
                             size: 13,
                             color: (getActiveTheme().chartTitle || '#ffffff'),
@@ -9424,6 +9876,9 @@
 
         function renderSingleChart(container, chart, color, isModal = false) {
             const activeTheme = getActiveTheme();
+            const metricUnitType = String(
+                ((chart && chart.manual_config && chart.manual_config.metric_unit) || chart.unit_type || '')
+            ).trim().toLowerCase();
             const commonLayout = {
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
@@ -9452,12 +9907,104 @@
                 ? (Array.isArray(chart.x) ? chart.x.length : 0)
                 : (chartType === 'treemap' ? (Array.isArray(chart.labels) ? chart.labels.length : (Array.isArray(chart.x) ? chart.x.length : 0)) : 0);
             const shouldShowLegend = (chartType === 'pie' || chartType === 'treemap') && legendCategoryCount > 1;
+            const _formatIndianCompactNumber = (n, unitHint = 'number') => {
+                const unit = String(unitHint || '').trim().toLowerCase();
+                if (!Number.isFinite(n)) return String(n ?? '');
+                if (unit === 'percent') {
+                    const pct = Math.abs(n) <= 1.5 ? (n * 100.0) : n;
+                    return `${pct.toFixed(2)}%`;
+                }
+                const suffix = unit === 'currency_rate' ? '/day' : '';
+                const abs = Math.abs(n);
+                if (abs >= 10000000) return `${(n / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 0 })} Cr${suffix}`;
+                if (abs >= 100000) return `${(n / 100000).toLocaleString('en-IN', { maximumFractionDigits: 0 })} L${suffix}`;
+                if (abs >= 1000) return `${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}${suffix}`;
+                if (Number.isInteger(n)) return `${n}${suffix}`;
+                return `${n.toFixed(2)}${suffix}`;
+            };
+            const _niceStep = (rawStep) => {
+                const s = Math.abs(Number(rawStep) || 0);
+                if (!Number.isFinite(s) || s <= 0) return 1;
+                const exponent = Math.floor(Math.log10(s));
+                const power = Math.pow(10, exponent);
+                const fraction = s / power;
+                let niceFraction = 1;
+                if (fraction <= 1) niceFraction = 1;
+                else if (fraction <= 2) niceFraction = 2;
+                else if (fraction <= 5) niceFraction = 5;
+                else niceFraction = 10;
+                return niceFraction * power;
+            };
+            const _buildNiceTicks = (values, targetCount = 5) => {
+                const nums = (Array.isArray(values) ? values : [])
+                    .map(v => Number(v))
+                    .filter(v => Number.isFinite(v));
+                if (!nums.length) return [];
+                let minV = Math.min(...nums);
+                let maxV = Math.max(...nums);
+                if (minV === maxV) {
+                    if (minV === 0) return [0, 1];
+                    const step0 = _niceStep(Math.abs(minV) / Math.max(2, targetCount - 1));
+                    const base0 = minV > 0 ? 0 : Math.floor(minV / step0) * step0;
+                    return Array.from({ length: Math.max(3, targetCount) }, (_, i) => base0 + (i * step0));
+                }
+                if (minV >= 0) minV = 0; // keep positive metric charts anchored at zero
+                const span = maxV - minV;
+                let step = _niceStep(span / Math.max(2, targetCount - 1));
+                let start = Math.floor(minV / step) * step;
+                let end = Math.ceil(maxV / step) * step;
+                let ticks = [];
+                for (let v = start; v <= end + step * 0.5; v += step) ticks.push(v);
+                while (ticks.length > 8) {
+                    step = _niceStep(step * 1.8);
+                    start = Math.floor(minV / step) * step;
+                    end = Math.ceil(maxV / step) * step;
+                    ticks = [];
+                    for (let v = start; v <= end + step * 0.5; v += step) ticks.push(v);
+                }
+                const out = [];
+                const seen = new Set();
+                ticks.forEach(v => {
+                    const key = Number(v).toFixed(6);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    out.push(Number(v));
+                });
+                return out;
+            };
             const formatValueLabel = (v) => {
                 const n = Number(v);
                 if (!Number.isFinite(n)) return String(v ?? '');
-                if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-                if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}K`;
-                return Number.isInteger(n) ? String(n) : n.toFixed(2);
+                return _formatIndianCompactNumber(n, metricUnitType || 'number');
+            };
+            const _truncateAxisLabel = (label, maxLen) => {
+                const text = String(label ?? '').trim();
+                const lim = Math.max(4, Number(maxLen) || 0);
+                if (!Number.isFinite(lim) || lim <= 0) return text;
+                if (text.length <= lim) return text;
+                return `${text.slice(0, lim - 1)}...`;
+            };
+            const _axisLabelLimit = (labels) => {
+                const count = Array.isArray(labels) ? labels.length : 0;
+                if (count >= 36) return 8;
+                if (count >= 24) return 10;
+                if (count >= 14) return 12;
+                return 16;
+            };
+            const _applyCategoryTickLabels = (axisCfg, labels) => {
+                const raw = Array.isArray(labels) ? labels.map(v => String(v ?? '')) : [];
+                if (!raw.length || !axisCfg) return;
+                const maxLen = _axisLabelLimit(raw);
+                const tickText = isModal ? raw : raw.map(v => _truncateAxisLabel(v, maxLen));
+                axisCfg.type = 'category';
+                axisCfg.tickmode = 'array';
+                axisCfg.tickvals = raw;
+                axisCfg.ticktext = tickText;
+                axisCfg.tickangle = raw.length > 8 ? -45 : 0;
+                axisCfg.tickfont = {
+                    ...(axisCfg.tickfont || {}),
+                    size: isModal ? 11 : (raw.length > 20 ? 7 : 8)
+                };
             };
             const toFiniteNumber = (v) => {
                 const n = Number(v);
@@ -9532,6 +10079,8 @@
                     decreasing: { marker: { color: activeTheme.waterfallDec || '#ef4444' } },
                     totals: { marker: { color: activeTheme.waterfallTotal || color } }
                 };
+                trace.customdata = (chart.y || []).map(v => formatValueLabel(v));
+                trace.hovertemplate = '%{x}<br>Value: %{customdata}<extra></extra>';
                 if (showDataLabels) {
                     trace.text = (chart.y || []).map(v => formatValueLabel(v));
                     trace.textposition = 'outside';
@@ -9547,6 +10096,8 @@
                     colors: buildPieGreenPalette(Array.isArray(trace.labels) ? trace.labels.length : 0),
                     line: { color: activeTheme.appBgSoft2 || '#0f172a', width: 2 }
                 };
+                trace.hovertemplate = '%{label}<br>Value: %{text}<extra></extra>';
+                trace.text = (chart.y || []).map(v => formatValueLabel(v));
             } else if (chartType === 'heatmap') {
                 const rawX = Array.isArray(chart.x) ? chart.x.map(v => String(v ?? '')) : [];
                 const rawY = Array.isArray(chart.y) ? chart.y.map(v => String(v ?? '')) : [];
@@ -9664,6 +10215,8 @@
                 trace.fill = 'tozeroy';
                 trace.fillcolor = color + '15';
                 trace.marker = { size: isModal ? 8 : 6, color: color };
+                trace.customdata = (chart.y || []).map(v => formatValueLabel(v));
+                trace.hovertemplate = '%{x}<br>Value: %{customdata}<extra></extra>';
                 if (showDataLabels) {
                     trace.mode = 'lines+markers+text';
                     trace.text = (chart.y || []).map(v => formatValueLabel(v));
@@ -9680,6 +10233,8 @@
                     opacity: 0.7,
                     line: { color: activeTheme.chartTitle, width: 1 }
                 };
+                trace.customdata = (chart.y || []).map(v => formatValueLabel(v));
+                trace.hovertemplate = '%{x}<br>Value: %{customdata}<extra></extra>';
                 if (showDataLabels) {
                     trace.mode = 'markers+text';
                     trace.text = (chart.y || []).map(v => formatValueLabel(v));
@@ -9689,6 +10244,8 @@
                 trace.type = 'bar';
                 trace.x = chart.x;
                 trace.y = chart.y;
+                trace.customdata = (chart.y || []).map(v => formatValueLabel(v));
+                trace.hovertemplate = '%{x}<br>Value: %{customdata}<extra></extra>';
                 if (showDataLabels) {
                     trace.text = (chart.y || []).map(v => formatValueLabel(v));
                     trace.textposition = 'outside';
@@ -9703,11 +10260,8 @@
                 automargin: true
             };
 
-            if (chartType === 'bar' && chart.x && chart.x.length > 10) {
-                xaxisConfig.tickangle = -45;
-                xaxisConfig.tickmode = 'linear';
-                xaxisConfig.tick0 = 0;
-                xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 15 : 8));
+            if (chartType === 'bar') {
+                _applyCategoryTickLabels(xaxisConfig, Array.isArray(chart.x) ? chart.x : []);
             } else if (chartType === 'line') {
                 const rawX = Array.isArray(chart.x) ? chart.x.slice(0, 160) : [];
                 const weekLabelCount = rawX.reduce((count, v) => {
@@ -9736,25 +10290,13 @@
                 const weekLabelAxis = rawX.length > 0 && weekLabelCount >= Math.max(2, Math.floor(rawX.length * 0.4));
                 const lineHasDateAxis = rawX.length > 0 && dateHintCount >= Math.max(2, Math.floor(rawX.length * 0.3));
                 if (weekLabelAxis) {
-                    xaxisConfig.type = 'category';
-                    xaxisConfig.tickangle = -45;
-                    if (chart.x && chart.x.length > 20) {
-                        xaxisConfig.tickmode = 'linear';
-                        xaxisConfig.tick0 = 0;
-                        xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 16 : 8));
-                    }
+                    _applyCategoryTickLabels(xaxisConfig, Array.isArray(chart.x) ? chart.x : rawX);
                 } else if (lineHasDateAxis) {
                     xaxisConfig.tickangle = -45;
                     xaxisConfig.tickformat = '%b %Y';
                     xaxisConfig.nticks = isModal ? 12 : 6;
                 } else {
-                    xaxisConfig.type = 'category';
-                    xaxisConfig.tickangle = (chart.x && chart.x.length > 8) ? -45 : 0;
-                    if (chart.x && chart.x.length > 20) {
-                        xaxisConfig.tickmode = 'linear';
-                        xaxisConfig.tick0 = 0;
-                        xaxisConfig.dtick = Math.ceil(chart.x.length / (isModal ? 16 : 8));
-                    }
+                    _applyCategoryTickLabels(xaxisConfig, Array.isArray(chart.x) ? chart.x : rawX);
                 }
             } else if (chartType === 'heatmap') {
                 xaxisConfig.tickfont.size = isModal ? 10 : 7;
@@ -9819,6 +10361,25 @@
                 const tickAngleAbs = Math.abs(Number(finalLayout.xaxis.tickangle || 0));
                 if (tickAngleAbs >= 30) {
                     finalLayout.margin.b = Math.max(Number(finalLayout.margin.b) || 0, 52);
+                }
+            }
+
+            if (
+                finalLayout &&
+                finalLayout.yaxis &&
+                chartType !== 'pie' &&
+                chartType !== 'treemap' &&
+                chartType !== 'table' &&
+                chartType !== 'heatmap'
+            ) {
+                const yVals = (Array.isArray(chart.y) ? chart.y : [])
+                    .map(v => Number(v))
+                    .filter(v => Number.isFinite(v));
+                if (yVals.length) {
+                    const uniq = _buildNiceTicks(yVals, 5);
+                    finalLayout.yaxis.tickmode = 'array';
+                    finalLayout.yaxis.tickvals = uniq;
+                    finalLayout.yaxis.ticktext = uniq.map(v => formatValueLabel(v));
                 }
             }
 
@@ -9947,14 +10508,1268 @@
             return preferred.filter(t => allowed.has(t));
         }
 
+        function _getCsrfToken() {
+            const tokenEl = document.querySelector('[name=csrfmiddlewaretoken]');
+            return tokenEl ? String(tokenEl.value || '') : '';
+        }
+
+        function _setManualConfigStatus(message, isError = false) {
+            const statusEl = document.getElementById('config-status');
+            if (!statusEl) return;
+            statusEl.textContent = String(message || '');
+            statusEl.classList.toggle('error', Boolean(isError));
+        }
+
+        function setManualChartType(chartType) {
+            const normalized = String(chartType || 'bar').trim().toLowerCase();
+            const hiddenEl = document.getElementById('config-chart-type');
+            if (hiddenEl) hiddenEl.value = normalized || 'bar';
+            document.querySelectorAll('.config-chart-type-btn').forEach(btn => {
+                const btnType = String(btn.getAttribute('data-value') || '').toLowerCase();
+                if (btnType === normalized) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            _applyManualChartRoleUi();
+        }
+
+        function _manualChartRoleSchema(chartType) {
+            const t = String(chartType || 'bar').trim().toLowerCase();
+            if (t === 'india_map') {
+                return {
+                    xRole: 'Dimension',
+                    yRole: 'Value',
+                    xTableLabel: 'Dimension Table',
+                    xColumnLabel: 'Dimension Column (customer_region_name)',
+                    yTableLabel: 'Metric Table',
+                    yColumnLabel: 'Metric Column',
+                    hint: 'Map: choose exactly one KB metric and region dimension (customer_region_name).',
+                    enforceMetricAxis: 'y'
+                };
+            }
+            if (t === 'pie') {
+                return {
+                    xRole: 'Legend',
+                    yRole: 'Value',
+                    xTableLabel: 'Legend Table',
+                    xColumnLabel: 'Legend Column',
+                    yTableLabel: 'Value Table',
+                    yColumnLabel: 'Value Column',
+                    hint: 'Pie: select category in Legend and metric in Value.',
+                    enforceMetricAxis: 'y'
+                };
+            }
+            if (t === 'treemap') {
+                return {
+                    xRole: 'Label',
+                    yRole: 'Value',
+                    xTableLabel: 'Label Table',
+                    xColumnLabel: 'Label Column',
+                    yTableLabel: 'Value Table',
+                    yColumnLabel: 'Value Column',
+                    hint: 'Treemap: Label controls tiles, Value controls tile size.',
+                    enforceMetricAxis: 'y'
+                };
+            }
+            if (t === 'waterfall') {
+                return {
+                    xRole: 'Category',
+                    yRole: 'Value',
+                    xTableLabel: 'Category Table',
+                    xColumnLabel: 'Category Column',
+                    yTableLabel: 'Value Table',
+                    yColumnLabel: 'Value Column',
+                    hint: 'Waterfall: Category on X and signed value on Y.',
+                    enforceMetricAxis: 'y'
+                };
+            }
+            if (t === 'table') {
+                return {
+                    xRole: 'Dimension',
+                    yRole: 'Value',
+                    xTableLabel: 'Dimension Table',
+                    xColumnLabel: 'Dimension Column',
+                    yTableLabel: 'Value Table',
+                    yColumnLabel: 'Value Column',
+                    hint: 'Table: Dimension is the grouping column and Value is the metric.',
+                    enforceMetricAxis: 'y'
+                };
+            }
+            if (t === 'heatmap') {
+                return {
+                    xRole: 'X Bucket',
+                    yRole: 'Y Bucket',
+                    xTableLabel: 'X Bucket Table',
+                    xColumnLabel: 'X Bucket Column',
+                    yTableLabel: 'Y Bucket Table',
+                    yColumnLabel: 'Y Bucket Column',
+                    hint: 'Heatmap: X and Y are buckets; metric formula drives intensity.',
+                    enforceMetricAxis: ''
+                };
+            }
+            if (t === 'scatter') {
+                return {
+                    xRole: 'X-Axis',
+                    yRole: 'Y-Axis',
+                    xTableLabel: 'X Table',
+                    xColumnLabel: 'X Column',
+                    yTableLabel: 'Y Table',
+                    yColumnLabel: 'Y Column',
+                    hint: 'Scatter: compare two numeric axes.',
+                    enforceMetricAxis: ''
+                };
+            }
+            if (t === 'line') {
+                return {
+                    xRole: 'X-Axis',
+                    yRole: 'Y-Axis',
+                    xTableLabel: 'X Table',
+                    xColumnLabel: 'X Column',
+                    yTableLabel: 'Y Table',
+                    yColumnLabel: 'Y Column',
+                    hint: 'Line: usually Date/Dimension on X and Metric on Y.',
+                    enforceMetricAxis: ''
+                };
+            }
+            return {
+                xRole: 'X-Axis',
+                yRole: 'Y-Axis',
+                xTableLabel: 'X Table',
+                xColumnLabel: 'X Column',
+                yTableLabel: 'Y Table',
+                yColumnLabel: 'Y Column',
+                hint: 'Bar: Dimension on X and Metric on Y.',
+                enforceMetricAxis: ''
+            };
+        }
+
+        function _applyManualChartRoleUi() {
+            const chartType = String(document.getElementById('config-chart-type')?.value || 'bar').trim().toLowerCase();
+            const role = _manualChartRoleSchema(chartType);
+            const xTableLabel = document.getElementById('config-x-table-label');
+            const xColumnLabel = document.getElementById('config-x-column-label');
+            const yTableLabel = document.getElementById('config-y-table-label');
+            const yColumnLabel = document.getElementById('config-y-column-label');
+            const roleHint = document.getElementById('config-role-hint');
+            const metricFormulaEl = document.getElementById('config-metric-formula');
+            const metricUpdateBtn = document.getElementById('config-metric-update-btn');
+
+            if (xTableLabel) xTableLabel.textContent = role.xTableLabel || 'Table';
+            if (xColumnLabel) xColumnLabel.textContent = role.xColumnLabel || 'Column';
+            if (yTableLabel) yTableLabel.textContent = role.yTableLabel || 'Table';
+            if (yColumnLabel) yColumnLabel.textContent = role.yColumnLabel || 'Column';
+            if (roleHint) roleHint.textContent = role.hint || '';
+
+            const mapMode = chartType === 'india_map';
+            if (metricFormulaEl) {
+                metricFormulaEl.readOnly = mapMode;
+                metricFormulaEl.setAttribute('aria-readonly', mapMode ? 'true' : 'false');
+            }
+            if (metricUpdateBtn) {
+                metricUpdateBtn.style.display = mapMode ? 'none' : '';
+            }
+
+            if (role.enforceMetricAxis === 'x' || role.enforceMetricAxis === 'y') {
+                manualConfigState.metricAxis = role.enforceMetricAxis;
+                manualConfigState.dimensionAxis = role.enforceMetricAxis === 'x' ? 'y' : 'x';
+            }
+
+            if (mapMode) {
+                _rebuildManualMetricSelect(document.getElementById('config-metric-select')?.value || '', manualConfigState.chartId || '');
+                _enforceMapDimensionSelection();
+            }
+            updateManualAxisRoleLabels();
+        }
+
+        function _normalizeManualTablePayload(rawTables) {
+            if (!Array.isArray(rawTables)) return [];
+            return rawTables
+                .map((tableItem) => {
+                    const tableName = String((tableItem && (tableItem.name || tableItem.table || tableItem.table_name)) || '').trim();
+                    if (!tableName) return null;
+                    const columns = Array.isArray(tableItem && tableItem.columns)
+                        ? tableItem.columns
+                            .map((col) => {
+                                if (typeof col === 'string') {
+                                    const colName = String(col || '').trim();
+                                    return colName ? { name: colName, datatype: '', description: '' } : null;
+                                }
+                                const colName = String((col && (col.name || col.column || col.column_name)) || '').trim();
+                                if (!colName) return null;
+                                return {
+                                    name: colName,
+                                    datatype: String((col && col.datatype) || '').trim(),
+                                    description: String((col && col.description) || '').trim()
+                                };
+                            })
+                            .filter(Boolean)
+                        : [];
+                    return { name: tableName, columns };
+                })
+                .filter(Boolean);
+        }
+
+        function _normalizeManualMetricsPayload(rawMetrics) {
+            if (!Array.isArray(rawMetrics)) return [];
+            return rawMetrics
+                .map((metric) => {
+                    if (!metric || typeof metric !== 'object') return null;
+                    const name = String(metric.name || metric.metric_name || '').trim();
+                    if (!name) return null;
+                    return {
+                        name,
+                        formula: String(metric.formula || '').trim(),
+                        description: String(metric.description || '').trim()
+                    };
+                })
+                .filter(Boolean);
+        }
+
+        function _isManualMapType(chartType = null) {
+            const t = String(chartType || document.getElementById('config-chart-type')?.value || '').trim().toLowerCase();
+            return t === 'india_map';
+        }
+
+        function _normalizeManualColumnToken(value) {
+            return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+        }
+
+        function _isMapRegionColumnName(columnName) {
+            const raw = String(columnName || '').trim().toLowerCase();
+            if (!raw) return false;
+            const norm = _normalizeManualColumnToken(raw);
+            if (!norm) return false;
+            if (norm === 'customerregionname') return true;
+            if (norm === 'regionname' || norm.endsWith('regionname')) return true;
+            if (norm.includes('region')) return true;
+            if (norm.includes('zone')) return true;
+            if (norm.includes('state')) return true;
+            return false;
+        }
+
+        function _findFirstMapRegionDimension() {
+            const tables = Array.isArray(manualConfigState.tables) ? manualConfigState.tables : [];
+            let fallback = { table: '', column: '' };
+            for (let i = 0; i < tables.length; i++) {
+                const tableName = String(tables[i] && tables[i].name || '').trim();
+                const cols = Array.isArray(tables[i] && tables[i].columns) ? tables[i].columns : [];
+                for (let j = 0; j < cols.length; j++) {
+                    const colName = String(cols[j] && cols[j].name || '').trim();
+                    const norm = _normalizeManualColumnToken(colName);
+                    if (norm === 'customerregionname') {
+                        return { table: tableName, column: colName };
+                    }
+                    if (!fallback.column && _isMapRegionColumnName(colName)) {
+                        fallback = { table: tableName, column: colName };
+                    }
+                }
+            }
+            return fallback;
+        }
+
+        function _getMapRegionColumnsForTable(tableName) {
+            const selectedTable = String(tableName || '').trim().toLowerCase();
+            const tableObj = (manualConfigState.tables || []).find(t => String(t && t.name || '').trim().toLowerCase() === selectedTable);
+            const columns = Array.isArray(tableObj && tableObj.columns) ? tableObj.columns : [];
+            const names = columns.map(c => String(c && c.name || '').trim()).filter(Boolean);
+            const exact = names.filter(col => _normalizeManualColumnToken(col) === 'customerregionname');
+            if (exact.length) return exact;
+            return names.filter(col => _isMapRegionColumnName(col));
+        }
+
+        function _enforceMapDimensionSelection() {
+            if (!_isManualMapType()) return;
+            const xTableSel = document.getElementById('config-x-table');
+            const xColSel = document.getElementById('config-x-column');
+            if (!xTableSel || !xColSel) return;
+
+            let cols = _getMapRegionColumnsForTable(xTableSel.value);
+            if (!cols.length) {
+                const first = _findFirstMapRegionDimension();
+                if (first.table) {
+                    _setSelectValueCaseInsensitive(xTableSel, first.table);
+                    cols = _getMapRegionColumnsForTable(xTableSel.value);
+                }
+            }
+
+            _setSelectOptions(xColSel, cols, xColSel.value || '');
+            if (!String(xColSel.value || '').trim() && cols.length) {
+                xColSel.value = cols[0];
+            }
+        }
+
+        function _metricCatalogForChart(chartId = '') {
+            const base = Array.isArray(manualConfigState.metrics) ? [...manualConfigState.metrics] : [];
+            if (_isManualMapType()) {
+                return base;
+            }
+            const key = String(chartId || manualConfigState.chartId || '').trim();
+            const custom = key ? (manualConfigState.chartMetrics || {})[key] : null;
+            if (custom && String(custom.name || '').trim()) {
+                const customName = String(custom.name || '').trim().toLowerCase();
+                const filtered = base.filter(m => String(m && m.name || '').trim().toLowerCase() !== customName);
+                filtered.push({
+                    name: String(custom.name || '').trim(),
+                    formula: String(custom.formula || '').trim(),
+                    description: String(custom.description || 'Chart-only metric').trim()
+                });
+                return filtered;
+            }
+            return base;
+        }
+
+        function _findManualMetricByName(name, chartId = '') {
+            const target = String(name || '').trim().toLowerCase();
+            if (!target) return null;
+            return _metricCatalogForChart(chartId).find(m => String(m && m.name || '').trim().toLowerCase() === target) || null;
+        }
+
+        function _rebuildManualMetricSelect(preferredValue = '', chartId = '') {
+            const metricSel = document.getElementById('config-metric-select');
+            if (!metricSel) return;
+            const prev = String(preferredValue || metricSel.value || '').trim();
+            metricSel.innerHTML = '';
+            const mapMode = _isManualMapType();
+            if (!mapMode) {
+                const noneOption = document.createElement('option');
+                noneOption.value = '';
+                noneOption.textContent = 'None (Use axis column)';
+                metricSel.appendChild(noneOption);
+            }
+            _metricCatalogForChart(chartId).forEach((m) => {
+                const name = String(m && m.name || '').trim();
+                if (!name) return;
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                metricSel.appendChild(option);
+            });
+            if (prev) {
+                _setSelectValueCaseInsensitive(metricSel, prev);
+            } else if (mapMode && metricSel.options.length > 0) {
+                metricSel.selectedIndex = 0;
+            }
+        }
+
+        function updateChartOnlyMetric() {
+            if (_isManualMapType()) {
+                _setManualConfigStatus('India Map only allows metrics from KB Section 4. Custom metric update is disabled.', true);
+                return;
+            }
+            const chartId = String(manualConfigState.chartId || '').trim();
+            const metricSel = document.getElementById('config-metric-select');
+            const formulaEl = document.getElementById('config-metric-formula');
+            if (!chartId || !metricSel || !formulaEl) return;
+
+            const formula = String(formulaEl.value || '').trim();
+            if (!formula) {
+                _setManualConfigStatus('Metric formula is empty. Enter a formula before updating metric.', true);
+                return;
+            }
+
+            const selectedName = String(metricSel.value || '').trim() || 'Custom Metric';
+            const isChartMetric = /\(chart\)$/i.test(selectedName);
+            const chartMetricName = isChartMetric ? selectedName : `${selectedName} (Chart)`;
+            manualConfigState.chartMetrics[chartId] = {
+                name: chartMetricName,
+                formula,
+                description: 'Chart-only metric'
+            };
+            _rebuildManualMetricSelect(chartMetricName, chartId);
+            onManualMetricChange();
+            _setManualConfigStatus(`Updated chart-only metric '${chartMetricName}'.`);
+        }
+
+        function onManualMetricChange() {
+            const metricSel = document.getElementById('config-metric-select');
+            const formulaEl = document.getElementById('config-metric-formula');
+            if (!metricSel || !formulaEl) return;
+            const selectedName = String(metricSel.value || '').trim();
+            if (!selectedName) {
+                if (_isManualMapType()) {
+                    const firstMetric = _metricCatalogForChart(String(manualConfigState.chartId || '').trim())[0] || null;
+                    if (firstMetric && String(firstMetric.name || '').trim()) {
+                        _setSelectValueCaseInsensitive(metricSel, firstMetric.name);
+                        formulaEl.value = String(firstMetric.formula || '').trim();
+                        autoMapMetricToAxis(firstMetric, manualConfigState.metricAxis || 'y');
+                        updateManualAxisRoleLabels();
+                        return;
+                    }
+                }
+                formulaEl.value = '';
+                manualConfigState.metricAxis = '';
+                manualConfigState.dimensionAxis = '';
+                updateManualAxisRoleLabels();
+                return;
+            }
+            const metricObj = _findManualMetricByName(selectedName);
+            formulaEl.value = metricObj ? String(metricObj.formula || '') : '';
+            autoMapMetricToAxis(metricObj || null, manualConfigState.metricAxis || 'y');
+            updateManualAxisRoleLabels();
+        }
+
+        function _allManualConfigColumns() {
+            const cols = [];
+            (manualConfigState.tables || []).forEach((t) => {
+                (Array.isArray(t && t.columns) ? t.columns : []).forEach((c) => {
+                    const colName = String(c && c.name || '').trim();
+                    if (!colName) return;
+                    cols.push(colName);
+                });
+            });
+            return cols;
+        }
+
+        function _guessMetricColumnFromFormula(formulaText) {
+            const formula = String(formulaText || '').trim().toLowerCase();
+            if (!formula) return '';
+            const cols = _allManualConfigColumns();
+            if (!cols.length) return '';
+            const sorted = cols.slice().sort((a, b) => String(b).length - String(a).length);
+            const found = sorted.find((col) => {
+                const low = String(col || '').trim().toLowerCase();
+                if (!low) return false;
+                if (formula.includes(low)) return true;
+                const tail = low.includes('_') ? low.split('_').pop() : low;
+                return Boolean(tail && tail.length >= 3 && formula.includes(tail));
+            });
+            return String(found || '').trim();
+        }
+
+        function _normalizeAxis(axisValue, fallback = 'y') {
+            const v = String(axisValue || '').trim().toLowerCase();
+            return v === 'x' || v === 'y' ? v : fallback;
+        }
+
+        function autoMapMetricToAxis(metricObj, preferredMetricAxis = 'y') {
+            const metricName = String(metricObj && metricObj.name || document.getElementById('config-metric-select')?.value || '').trim();
+            if (!metricName) return;
+            const formula = String(metricObj && metricObj.formula || document.getElementById('config-metric-formula')?.value || '').trim();
+            const metricCol = _guessMetricColumnFromFormula(formula);
+            if (!metricCol) return;
+
+            const xColSel = document.getElementById('config-x-column');
+            const yColSel = document.getElementById('config-y-column');
+            const xTableSel = document.getElementById('config-x-table');
+            const yTableSel = document.getElementById('config-y-table');
+            if (!xColSel || !yColSel || !xTableSel || !yTableSel) return;
+
+            const currentX = String(xColSel.value || '').trim();
+            const currentY = String(yColSel.value || '').trim();
+            const metricInX = currentX && currentX.toLowerCase() === metricCol.toLowerCase();
+            const metricInY = currentY && currentY.toLowerCase() === metricCol.toLowerCase();
+
+            if (metricInX) {
+                manualConfigState.metricAxis = 'x';
+                manualConfigState.dimensionAxis = 'y';
+                return;
+            }
+            if (metricInY) {
+                manualConfigState.metricAxis = 'y';
+                manualConfigState.dimensionAxis = 'x';
+                return;
+            }
+
+            const axis = _normalizeAxis(preferredMetricAxis, 'y');
+            const tableSel = axis === 'x' ? xTableSel : yTableSel;
+            const colSel = axis === 'x' ? xColSel : yColSel;
+            const axisKey = axis === 'x' ? 'x' : 'y';
+
+            const metricTable = _findTableForColumn(metricCol, String(tableSel.value || '').trim()) || _findTableForColumn(metricCol);
+            if (metricTable) {
+                _setSelectValueCaseInsensitive(tableSel, metricTable);
+                onManualConfigTableChange(axisKey);
+            }
+            _setSelectValueCaseInsensitive(colSel, metricCol);
+            manualConfigState.metricAxis = axis;
+            manualConfigState.dimensionAxis = axis === 'x' ? 'y' : 'x';
+        }
+
+        function updateManualAxisRoleLabels() {
+            const xTitle = document.getElementById('config-x-axis-title');
+            const yTitle = document.getElementById('config-y-axis-title');
+            if (!xTitle || !yTitle) return;
+
+            const xTableLabel = document.getElementById('config-x-table-label');
+            const xTableSel = document.getElementById('config-x-table');
+            const xColLabel = document.getElementById('config-x-column-label');
+            const xColSel = document.getElementById('config-x-column');
+            const yTableLabel = document.getElementById('config-y-table-label');
+            const yTableSel = document.getElementById('config-y-table');
+            const yColLabel = document.getElementById('config-y-column-label');
+            const yColSel = document.getElementById('config-y-column');
+            const xMetricPanel = document.getElementById('config-x-metric-panel');
+            const yMetricPanel = document.getElementById('config-y-metric-panel');
+            const xMetricName = document.getElementById('config-x-metric-name');
+            const yMetricName = document.getElementById('config-y-metric-name');
+            const xMetricFormula = document.getElementById('config-x-metric-formula');
+            const yMetricFormula = document.getElementById('config-y-metric-formula');
+
+            const xCol = String(document.getElementById('config-x-column')?.value || '').trim();
+            const yCol = String(document.getElementById('config-y-column')?.value || '').trim();
+            const metricSel = String(document.getElementById('config-metric-select')?.value || '').trim();
+            const metricFormula = String(document.getElementById('config-metric-formula')?.value || '').trim();
+            const metricCol = _guessMetricColumnFromFormula(metricFormula);
+            const chartType = String(document.getElementById('config-chart-type')?.value || 'bar').trim().toLowerCase();
+            const role = _manualChartRoleSchema(chartType);
+            const pretty = (value) => String(value || '').trim().replace(/_/g, ' ').replace(/\s+/g, ' ');
+            const metricLabel = pretty(metricSel || metricCol || 'Metric');
+
+            let metricAxis = '';
+            if (metricCol && xCol && xCol.toLowerCase() === metricCol.toLowerCase()) metricAxis = 'x';
+            else if (metricCol && yCol && yCol.toLowerCase() === metricCol.toLowerCase()) metricAxis = 'y';
+            else if (metricSel) metricAxis = _normalizeAxis(manualConfigState.metricAxis || 'y', 'y');
+            if (role.enforceMetricAxis === 'x' || role.enforceMetricAxis === 'y') {
+                metricAxis = role.enforceMetricAxis;
+            }
+
+            if (metricAxis) {
+                manualConfigState.metricAxis = metricAxis;
+                manualConfigState.dimensionAxis = metricAxis === 'x' ? 'y' : 'x';
+            }
+
+            const xRole = String(role.xRole || 'X-Axis');
+            const yRole = String(role.yRole || 'Y-Axis');
+            if (metricAxis === 'x') {
+                xTitle.textContent = `${xRole} (${metricLabel})`;
+                yTitle.textContent = `${yRole} (${pretty(yCol || 'Dimension')})`;
+            } else if (metricAxis === 'y') {
+                xTitle.textContent = `${xRole} (${pretty(xCol || 'Dimension')})`;
+                yTitle.textContent = `${yRole} (${metricLabel})`;
+            } else {
+                xTitle.textContent = `${xRole} (${pretty(xCol || 'Dimension')})`;
+                yTitle.textContent = `${yRole} (${pretty(yCol || 'Dimension')})`;
+            }
+
+            const isXMetric = metricAxis === 'x';
+            const isYMetric = metricAxis === 'y';
+            if (xTableLabel) xTableLabel.style.display = isXMetric ? 'none' : '';
+            if (xTableSel) xTableSel.style.display = isXMetric ? 'none' : '';
+            if (xColLabel) xColLabel.style.display = isXMetric ? 'none' : '';
+            if (xColSel) xColSel.style.display = isXMetric ? 'none' : '';
+            if (yTableLabel) yTableLabel.style.display = isYMetric ? 'none' : '';
+            if (yTableSel) yTableSel.style.display = isYMetric ? 'none' : '';
+            if (yColLabel) yColLabel.style.display = isYMetric ? 'none' : '';
+            if (yColSel) yColSel.style.display = isYMetric ? 'none' : '';
+
+            if (xMetricPanel) xMetricPanel.style.display = isXMetric ? 'flex' : 'none';
+            if (yMetricPanel) yMetricPanel.style.display = isYMetric ? 'flex' : 'none';
+            if (xMetricName) xMetricName.textContent = metricLabel || 'Metric';
+            if (yMetricName) yMetricName.textContent = metricLabel || 'Metric';
+            if (xMetricFormula) xMetricFormula.textContent = metricFormula || '-';
+            if (yMetricFormula) yMetricFormula.textContent = metricFormula || '-';
+        }
+
+        function _setSelectOptions(selectEl, options, preferredValue = '') {
+            if (!selectEl) return;
+            const prevValue = String(preferredValue || selectEl.value || '').trim();
+            selectEl.innerHTML = '';
+            (Array.isArray(options) ? options : []).forEach((optValue) => {
+                const value = String(optValue || '').trim();
+                if (!value) return;
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                selectEl.appendChild(option);
+            });
+            if (prevValue && Array.from(selectEl.options).some(o => String(o.value) === prevValue)) {
+                selectEl.value = prevValue;
+            } else if (selectEl.options.length > 0) {
+                selectEl.selectedIndex = 0;
+            }
+        }
+
+        function _setSelectValueCaseInsensitive(selectEl, targetValue) {
+            if (!selectEl) return false;
+            const target = String(targetValue || '').trim().toLowerCase();
+            if (!target) return false;
+            const match = Array.from(selectEl.options || []).find(o => String(o.value || '').trim().toLowerCase() === target);
+            if (!match) return false;
+            selectEl.value = String(match.value || '');
+            return true;
+        }
+
+        function _findTableForColumn(columnName, preferredTable = '') {
+            const targetCol = String(columnName || '').trim().toLowerCase();
+            if (!targetCol) return '';
+
+            const tables = Array.isArray(manualConfigState.tables) ? manualConfigState.tables : [];
+            const preferred = String(preferredTable || '').trim().toLowerCase();
+
+            const normalizeToken = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+            const targetNorm = normalizeToken(targetCol);
+            const targetTail = targetCol.includes('_') ? targetCol.split('_').pop() : targetCol;
+            const targetTailNorm = normalizeToken(targetTail);
+
+            const hasColumn = (tableObj) => {
+                const cols = Array.isArray(tableObj && tableObj.columns) ? tableObj.columns : [];
+                return cols.some(c => {
+                    const colName = String(c && c.name || '').trim().toLowerCase();
+                    if (!colName) return false;
+                    if (colName === targetCol) return true;
+                    const colNorm = normalizeToken(colName);
+                    if (colNorm && colNorm === targetNorm) return true;
+                    const colTail = colName.includes('_') ? colName.split('_').pop() : colName;
+                    const colTailNorm = normalizeToken(colTail);
+                    if (targetTailNorm && colTailNorm && targetTailNorm === colTailNorm) return true;
+                    if (targetNorm && colNorm && (colNorm.endsWith(targetNorm) || targetNorm.endsWith(colNorm))) return true;
+                    return false;
+                });
+            };
+
+            if (preferred) {
+                const preferredHit = tables.find(t => String(t && t.name || '').trim().toLowerCase() === preferred && hasColumn(t));
+                if (preferredHit) return String(preferredHit.name || '');
+            }
+
+            const directHit = tables.find(t => hasColumn(t));
+            if (directHit) return String(directHit.name || '');
+            return '';
+        }
+
+        function onManualConfigTableChange(axis) {
+            const key = String(axis || '').toLowerCase() === 'y' ? 'y' : 'x';
+            const tableSel = document.getElementById(`config-${key}-table`);
+            const colSel = document.getElementById(`config-${key}-column`);
+            if (!tableSel || !colSel) return;
+            const selectedTable = String(tableSel.value || '').trim().toLowerCase();
+            const tableObj = (manualConfigState.tables || []).find(t => String(t.name || '').trim().toLowerCase() === selectedTable);
+            let columns = Array.isArray(tableObj && tableObj.columns) ? tableObj.columns.map(c => c.name) : [];
+            if (_isManualMapType() && key === 'x') {
+                const exact = columns.filter(c => _normalizeManualColumnToken(c) === 'customerregionname');
+                columns = exact.length ? exact : columns.filter(c => _isMapRegionColumnName(c));
+            }
+            _setSelectOptions(colSel, columns, colSel.value || '');
+            if (_isManualMapType() && key === 'x') {
+                _enforceMapDimensionSelection();
+            }
+            updateManualAxisRoleLabels();
+        }
+
+        function _buildManualConfigFallbackCatalog() {
+            const fallbackColumns = [];
+            const seen = new Set();
+            (Array.isArray(availableFilterDefs) ? availableFilterDefs : []).forEach(def => {
+                const col = String(def && def.column || '').trim();
+                if (!col) return;
+                const key = col.toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+                fallbackColumns.push({ name: col, datatype: '', description: 'Fallback from filter metadata' });
+            });
+            return [{
+                name: 'analysis_view',
+                columns: fallbackColumns
+            }];
+        }
+
+        function _hydrateManualConfigSelects(chartId) {
+            const xTableSel = document.getElementById('config-x-table');
+            const yTableSel = document.getElementById('config-y-table');
+            const xColSel = document.getElementById('config-x-column');
+            const yColSel = document.getElementById('config-y-column');
+            const metricSel = document.getElementById('config-metric-select');
+            const metricFormulaEl = document.getElementById('config-metric-formula');
+            const chart = getChartById(chartId);
+            const chartType = String((chart && chart.type) || 'bar').trim().toLowerCase();
+            const mapMode = chartType === 'india_map';
+            const tableNames = (manualConfigState.tables || []).map(t => t.name);
+            _setSelectOptions(xTableSel, tableNames);
+            _setSelectOptions(yTableSel, tableNames);
+            _rebuildManualMetricSelect('', chartId);
+            onManualConfigTableChange('x');
+            onManualConfigTableChange('y');
+            onManualMetricChange();
+
+            if (chart) {
+                const savedCfg = (chart.manual_config && typeof chart.manual_config === 'object')
+                    ? chart.manual_config
+                    : {};
+                const xColumnHint = String(savedCfg.x_column || chart.xlabel || '').trim();
+                const yColumnHint = String(savedCfg.y_column || chart.ylabel || '').trim();
+                const xTableHint = String(savedCfg.x_table || '').trim();
+                const yTableHint = String(savedCfg.y_table || '').trim();
+                const resolvedXTable = _findTableForColumn(xColumnHint, xTableHint);
+                const resolvedYTable = _findTableForColumn(yColumnHint, yTableHint);
+                const metricNameHint = String(savedCfg.metric_name || '').trim();
+                const metricFormulaHint = String(savedCfg.metric_formula || '').trim();
+                const metricAxisHint = String(savedCfg.metric_axis || '').trim().toLowerCase();
+                manualConfigState.metricAxis = metricAxisHint === 'x' || metricAxisHint === 'y' ? metricAxisHint : 'y';
+                manualConfigState.dimensionAxis = manualConfigState.metricAxis === 'x' ? 'y' : 'x';
+
+                if (!mapMode && metricNameHint && metricFormulaHint) {
+                    const baseMetric = (manualConfigState.metrics || []).find(
+                        m => String(m && m.name || '').trim().toLowerCase() === metricNameHint.toLowerCase()
+                    );
+                    const baseFormula = String(baseMetric && baseMetric.formula || '').trim();
+                    if (!baseMetric || baseFormula.toLowerCase() !== metricFormulaHint.toLowerCase()) {
+                        manualConfigState.chartMetrics[chartId] = {
+                            name: metricNameHint,
+                            formula: metricFormulaHint,
+                            description: 'Chart-only metric'
+                        };
+                        _rebuildManualMetricSelect(metricNameHint, chartId);
+                    }
+                }
+
+                if (resolvedXTable) _setSelectValueCaseInsensitive(xTableSel, resolvedXTable);
+                if (resolvedYTable) _setSelectValueCaseInsensitive(yTableSel, resolvedYTable);
+                onManualConfigTableChange('x');
+                onManualConfigTableChange('y');
+
+                if (xColumnHint) _setSelectValueCaseInsensitive(xColSel, xColumnHint);
+                if (yColumnHint) _setSelectValueCaseInsensitive(yColSel, yColumnHint);
+                if (metricNameHint && metricSel) {
+                    _setSelectValueCaseInsensitive(metricSel, metricNameHint);
+                    onManualMetricChange();
+                }
+                if (metricFormulaHint && metricFormulaEl && !mapMode) {
+                    metricFormulaEl.value = metricFormulaHint;
+                }
+                if (metricNameHint || metricFormulaHint || metricAxisHint) {
+                    autoMapMetricToAxis(
+                        metricNameHint ? { name: metricNameHint, formula: String(metricFormulaEl?.value || '') } : null,
+                        manualConfigState.metricAxis || 'y'
+                    );
+                }
+
+                const aggHint = String(savedCfg.aggregation || 'AUTO').trim().toUpperCase();
+                const aggSel = document.getElementById('config-aggregation');
+                if (aggSel) {
+                    if (!_setSelectValueCaseInsensitive(aggSel, aggHint)) {
+                        aggSel.value = 'AUTO';
+                    }
+                }
+                setManualChartType(chartType || 'bar');
+                if (mapMode) {
+                    _enforceMapDimensionSelection();
+                    const selectedMetric = _findManualMetricByName(String(metricSel?.value || ''), chartId);
+                    if (metricFormulaEl && selectedMetric) {
+                        metricFormulaEl.value = String(selectedMetric.formula || '').trim();
+                    }
+                }
+                updateManualAxisRoleLabels();
+            } else {
+                manualConfigState.metricAxis = 'y';
+                manualConfigState.dimensionAxis = 'x';
+                setManualChartType('bar');
+                updateManualAxisRoleLabels();
+            }
+            try {
+                manualConfigState.initialPayload = _collectManualConfigPayload();
+            } catch (_) {
+                manualConfigState.initialPayload = null;
+            }
+        }
+
+        async function _loadManualConfigMetadata(forceReload = false) {
+            if (manualConfigState.loaded && !forceReload) return;
+            const formData = new FormData();
+            formData.append('action', 'metadata');
+            formData.append('filters', JSON.stringify(activeFilters || {}));
+            if (currentData && currentData.session_id) {
+                formData.append('session_id', String(currentData.session_id));
+            }
+
+            const csrfToken = _getCsrfToken();
+            const res = await fetch('/api/dashboard/configure-sql/', {
+                method: 'POST',
+                body: formData,
+                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+            });
+            if (!res.ok) {
+                throw new Error(`Metadata endpoint returned ${res.status}`);
+            }
+            const data = await res.json();
+            manualConfigState.tables = _normalizeManualTablePayload(data.tables || []);
+            manualConfigState.relationships = Array.isArray(data.relationships) ? data.relationships : [];
+            manualConfigState.metrics = _normalizeManualMetricsPayload(data.metrics || []);
+            manualConfigState.loaded = manualConfigState.tables.length > 0;
+        }
+
+        async function openManualConfigDrawer(chartId) {
+            const targetChartId = String(chartId || '').trim();
+            if (!targetChartId) return;
+            manualConfigState.chartId = targetChartId;
+            manualConfigState.metricAxis = 'y';
+            manualConfigState.dimensionAxis = 'x';
+            manualConfigState.initialPayload = null;
+            closeEditMenus();
+            const aiInput = document.getElementById('config-ai-edit-input');
+            if (aiInput) aiInput.value = '';
+
+            const drawer = document.getElementById('config-drawer');
+            const backdrop = document.getElementById('config-drawer-backdrop');
+            const subtitle = document.getElementById('config-drawer-subtitle');
+            if (subtitle) subtitle.textContent = `Manual mapping for ${targetChartId}`;
+            if (backdrop) backdrop.style.display = 'block';
+            if (drawer) {
+                drawer.classList.add('open');
+                drawer.setAttribute('aria-hidden', 'false');
+            }
+
+            _setManualConfigStatus('Loading table metadata from knowledge base...');
+            try {
+                await _loadManualConfigMetadata();
+            } catch (err) {
+                manualConfigState.tables = _buildManualConfigFallbackCatalog();
+                manualConfigState.loaded = manualConfigState.tables.length > 0;
+                _setManualConfigStatus('Configure metadata endpoint unavailable. Using fallback columns from current dashboard filters.', true);
+            }
+
+            _hydrateManualConfigSelects(targetChartId);
+            if (!document.getElementById('config-status')?.classList.contains('error')) {
+                _setManualConfigStatus('Select axis mappings, aggregation, and chart type, then click Generate & Update.');
+            }
+        }
+
+        function closeManualConfigDrawer() {
+            const drawer = document.getElementById('config-drawer');
+            const backdrop = document.getElementById('config-drawer-backdrop');
+            if (drawer) {
+                drawer.classList.remove('open');
+                drawer.setAttribute('aria-hidden', 'true');
+            }
+            if (backdrop) backdrop.style.display = 'none';
+        }
+
+        function _collectManualConfigPayload() {
+            const xTable = String(document.getElementById('config-x-table')?.value || '').trim();
+            const xColumn = String(document.getElementById('config-x-column')?.value || '').trim();
+            const yTable = String(document.getElementById('config-y-table')?.value || '').trim();
+            const yColumn = String(document.getElementById('config-y-column')?.value || '').trim();
+            const aggregation = String(document.getElementById('config-aggregation')?.value || 'AUTO').trim().toUpperCase();
+            const chartType = String(document.getElementById('config-chart-type')?.value || 'bar').trim().toLowerCase();
+            const metricName = String(document.getElementById('config-metric-select')?.value || '').trim();
+            let metricFormula = String(document.getElementById('config-metric-formula')?.value || '').trim();
+            const metricAxis = _normalizeAxis(manualConfigState.metricAxis || 'y', 'y');
+            const dimensionAxis = metricAxis === 'x' ? 'y' : 'x';
+
+            if (!xTable || !xColumn || !yTable || !yColumn) {
+                throw new Error('Please select table and column for both X and Y axes.');
+            }
+
+            if (chartType === 'india_map') {
+                if (!metricName) {
+                    throw new Error('For India Map, select one metric from KB Section 4.');
+                }
+                const metricObj = _findManualMetricByName(metricName, String(manualConfigState.chartId || '').trim());
+                if (!metricObj || !String(metricObj.formula || '').trim()) {
+                    throw new Error('Selected map metric must be from KB Section 4.');
+                }
+                metricFormula = String(metricObj.formula || '').trim();
+                if (!_isMapRegionColumnName(xColumn)) {
+                    throw new Error('For India Map, Dimension column must be customer_region_name (region).');
+                }
+            }
+
+            return {
+                x_table: xTable,
+                x_column: xColumn,
+                y_table: yTable,
+                y_column: yColumn,
+                aggregation,
+                chart_type: chartType,
+                metric_name: metricName,
+                metric_formula: metricFormula,
+                metric_axis: metricAxis,
+                dimension_axis: dimensionAxis
+            };
+        }
+
+        function _applyGeneratedChartToSlot(chartId, generatedChart, sourceLabel = 'manual configuration') {
+            const targetId = String(chartId || '').trim();
+            if (!targetId || !generatedChart || !currentData || !Array.isArray(currentData.charts)) return;
+
+            const targetIndex = currentData.charts.findIndex(c => c && c.id === targetId);
+            if (targetIndex === -1) return;
+
+            const previous = cloneChart(currentData.charts[targetIndex]);
+            if (previous) {
+                addChartToLibrary(previous, { source: `Replaced ${targetId} via ${sourceLabel}` });
+            }
+
+            const replacement = cloneChart(generatedChart);
+            replacement.id = targetId;
+            replacement._layoutSpan = previous && Number(previous._layoutSpan) > 0
+                ? Number(previous._layoutSpan)
+                : (Number(replacement._layoutSpan) || 1);
+
+            const replacementMinH = previous && Number(previous._layoutMinH) > 0
+                ? Number(previous._layoutMinH)
+                : Number(replacement._layoutMinH);
+            if (Number.isFinite(replacementMinH) && replacementMinH > 0) {
+                replacement._layoutMinH = Math.max(92, Math.round(replacementMinH));
+            } else {
+                delete replacement._layoutMinH;
+            }
+
+            if (sourceLabel === 'manual configuration') {
+                const configuredChartType = String(document.getElementById('config-chart-type')?.value || replacement.type || 'bar').trim().toLowerCase();
+                const configuredMetricName = String(document.getElementById('config-metric-select')?.value || '').trim();
+                const configuredMetricObj = _findManualMetricByName(configuredMetricName, String(manualConfigState.chartId || '').trim());
+                const metricFormula = configuredChartType === 'india_map'
+                    ? String((configuredMetricObj && configuredMetricObj.formula) || '').trim()
+                    : String(document.getElementById('config-metric-formula')?.value || '').trim();
+                const xCol = String(document.getElementById('config-x-column')?.value || '').trim();
+                const yCol = String(document.getElementById('config-y-column')?.value || '').trim();
+                const metricAxis = _normalizeAxis(manualConfigState.metricAxis || 'y', 'y');
+                replacement.manual_config = {
+                    x_table: String(document.getElementById('config-x-table')?.value || '').trim(),
+                    x_column: xCol,
+                    y_table: String(document.getElementById('config-y-table')?.value || '').trim(),
+                    y_column: yCol,
+                    aggregation: String(document.getElementById('config-aggregation')?.value || 'AUTO').trim().toUpperCase(),
+                    chart_type: configuredChartType,
+                    metric_name: configuredMetricName,
+                    metric_formula: metricFormula,
+                    metric_axis: metricAxis,
+                    dimension_axis: metricAxis === 'x' ? 'y' : 'x'
+                };
+            }
+
+            replacement.original = createChartSnapshot(replacement);
+            _touchGlossaryStamp(replacement);
+            currentData.charts[targetIndex] = replacement;
+
+            renderChartById(targetId);
+            refreshDashboardLayoutAfterChartMutation();
+            renderChartLibrary();
+        }
+
+        async function _applyManualConfigurationViaCustomChartFallback(payload) {
+            const lines = [
+                'Manual chart configuration request.',
+                `X-Axis Table: ${payload.x_table}`,
+                `X-Axis Column: ${payload.x_column}`,
+                `Y-Axis Table: ${payload.y_table}`,
+                `Y-Axis Column: ${payload.y_column}`,
+                `Aggregation: ${payload.aggregation}`,
+                `Chart Type: ${payload.chart_type}`,
+                `Metric Name: ${payload.metric_name || '(none)'}`,
+                `Metric Formula: ${payload.metric_formula || '(none)'}`,
+                `Metric Axis: ${payload.metric_axis || 'y'}`,
+                'Use the active dashboard filters and preserve their constraints exactly.',
+                'Use KB relationships and selected columns to determine required joins.',
+                'Return a chart that maps selected X and Y axis.'
+            ];
+            return _postCustomArtifactRequest(lines.join('\n'), 'chart', null, true);
+        }
+
+        function _manualConfigCompareKeys() {
+            return [
+                'x_table',
+                'x_column',
+                'y_table',
+                'y_column',
+                'aggregation',
+                'chart_type',
+                'metric_name',
+                'metric_formula',
+                'metric_axis',
+                'dimension_axis'
+            ];
+        }
+
+        function _normalizeManualConfigValue(value) {
+            return String(value || '').trim().toLowerCase();
+        }
+
+        function _sameManualConfigPayload(a, b) {
+            if (!a || !b) return false;
+            return _manualConfigCompareKeys().every((key) => (
+                _normalizeManualConfigValue(a[key]) === _normalizeManualConfigValue(b[key])
+            ));
+        }
+
+        function _manualConfigHasUserChanges(payload) {
+            const baseline = manualConfigState.initialPayload;
+            if (!baseline || !payload) return false;
+            return !_sameManualConfigPayload(payload, baseline);
+        }
+
+        function _buildAiInstructionWithConfigSuggestion(userInstruction, payload) {
+            const lines = [
+                String(userInstruction || '').trim(),
+                '',
+                'Configuration suggestion (apply this if compatible with the request):',
+                `- Chart Type: ${payload.chart_type || ''}`,
+                `- X Axis: ${payload.x_column || ''} (table: ${payload.x_table || ''})`,
+                `- Y Axis: ${payload.y_column || ''} (table: ${payload.y_table || ''})`,
+                `- Aggregation: ${payload.aggregation || 'AUTO'}`,
+                `- Metric Name: ${payload.metric_name || '(none)'}`,
+                `- Metric Formula: ${payload.metric_formula || '(none)'}`,
+                `- Metric Axis: ${payload.metric_axis || 'y'}`,
+                `- Dimension Axis: ${payload.dimension_axis || 'x'}`
+            ];
+            return lines.join('\n').trim();
+        }
+
+        async function applyManualConfiguration(chartId = null) {
+            const targetChartId = String(chartId || manualConfigState.chartId || '').trim();
+            if (!targetChartId) return;
+
+            const aiInput = document.getElementById('config-ai-edit-input');
+            const aiInstruction = String(aiInput?.value || '').trim();
+            if (aiInstruction) {
+                let payloadForSuggestion = null;
+                let hasConfigChanges = false;
+                try {
+                    payloadForSuggestion = _collectManualConfigPayload();
+                    hasConfigChanges = _manualConfigHasUserChanges(payloadForSuggestion);
+                } catch (_) {
+                    payloadForSuggestion = null;
+                    hasConfigChanges = false;
+                }
+
+                const finalInstruction = (hasConfigChanges && payloadForSuggestion)
+                    ? _buildAiInstructionWithConfigSuggestion(aiInstruction, payloadForSuggestion)
+                    : aiInstruction;
+
+                _setManualConfigStatus(
+                    hasConfigChanges
+                        ? `Updating ${targetChartId} with AI + configure suggestions...`
+                        : `Updating ${targetChartId} with AI...`
+                );
+                const ok = await aiEditChart(targetChartId, finalInstruction);
+                if (!ok) {
+                    _setManualConfigStatus(`Failed to update ${targetChartId} with AI.`, true);
+                    return;
+                }
+                if (aiInput) aiInput.value = '';
+                _setManualConfigStatus(`${targetChartId} updated successfully.`);
+                closeManualConfigDrawer();
+                return;
+            }
+
+            let payload = null;
+            try {
+                payload = _collectManualConfigPayload();
+            } catch (err) {
+                _setManualConfigStatus(err.message || 'Configuration is incomplete.', true);
+                return;
+            }
+
+            _setManualConfigStatus(`Generating SQL and updating ${targetChartId}...`);
+
+            const formData = new FormData();
+            formData.append('action', 'generate');
+            formData.append('chart_id', targetChartId);
+            formData.append('x_table', payload.x_table);
+            formData.append('x_column', payload.x_column);
+            formData.append('y_table', payload.y_table);
+            formData.append('y_column', payload.y_column);
+            formData.append('aggregation', payload.aggregation);
+            formData.append('chart_type', payload.chart_type);
+            formData.append('metric_name', payload.metric_name || '');
+            formData.append('metric_formula', payload.metric_formula || '');
+            formData.append('metric_axis', payload.metric_axis || '');
+            formData.append('dimension_axis', payload.dimension_axis || '');
+            formData.append('filters', JSON.stringify(activeFilters || {}));
+            if (currentData && currentData.session_id) {
+                formData.append('session_id', String(currentData.session_id));
+            }
+
+            try {
+                const csrfToken = _getCsrfToken();
+                const res = await fetch('/api/dashboard/configure-sql/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+                });
+
+                let data = null;
+                if (res.ok) {
+                    data = await res.json();
+                } else {
+                    if (String(payload.chart_type || '').toLowerCase() === 'india_map') {
+                        throw new Error(`Configure endpoint returned ${res.status}. Map configuration requires KB-metric validation and cannot use fallback generation.`);
+                    }
+                    data = await _applyManualConfigurationViaCustomChartFallback(payload);
+                }
+
+                const generatedChart = data && data.chart ? data.chart : null;
+                if (!generatedChart) {
+                    throw new Error((data && data.error) || 'No chart returned by backend');
+                }
+
+                _applyGeneratedChartToSlot(targetChartId, generatedChart);
+                _setManualConfigStatus(`${targetChartId} updated successfully.`);
+
+                const status = document.getElementById('chart-request-status');
+                if (status) status.textContent = `${targetChartId} updated from Configure panel.`;
+                closeManualConfigDrawer();
+            } catch (err) {
+                _setManualConfigStatus(err.message || 'Failed to apply manual configuration.', true);
+            }
+        }
+
+        function _setKpiConfigStatus(message, isError = false) {
+            const statusEl = document.getElementById('kpi-config-status');
+            if (!statusEl) return;
+            statusEl.textContent = String(message || '');
+            statusEl.classList.toggle('error', Boolean(isError));
+        }
+
+        function onKpiMetricChange() {
+            const metricSel = document.getElementById('kpi-config-metric-select');
+            const formulaEl = document.getElementById('kpi-config-metric-formula');
+            if (!metricSel || !formulaEl) return;
+            const selectedName = String(metricSel.value || '').trim();
+            if (!selectedName) {
+                formulaEl.value = '';
+                return;
+            }
+            const metricObj = (manualConfigState.metrics || []).find(m => String(m.name || '').trim().toLowerCase() === selectedName.toLowerCase());
+            formulaEl.value = metricObj ? String(metricObj.formula || '') : '';
+        }
+
+        async function openKpiConfigDrawer(kpiId) {
+            const targetKpiId = String(kpiId || '').trim();
+            if (!targetKpiId) return;
+            kpiConfigState.kpiId = targetKpiId;
+
+            const drawer = document.getElementById('kpi-config-drawer');
+            const backdrop = document.getElementById('kpi-config-drawer-backdrop');
+            const subtitle = document.getElementById('kpi-config-drawer-subtitle');
+            if (subtitle) subtitle.textContent = `Manual KPI mapping for ${targetKpiId}`;
+            if (backdrop) backdrop.style.display = 'block';
+            if (drawer) {
+                drawer.classList.add('open');
+                drawer.setAttribute('aria-hidden', 'false');
+            }
+
+            _setKpiConfigStatus('Loading metric metadata...');
+            try {
+                await _loadManualConfigMetadata();
+            } catch (_) {
+                _setKpiConfigStatus('KPI configure metadata endpoint unavailable.', true);
+            }
+
+            const metricSel = document.getElementById('kpi-config-metric-select');
+            const metricFormula = document.getElementById('kpi-config-metric-formula');
+            const aggSel = document.getElementById('kpi-config-aggregation');
+
+            if (metricSel) {
+                metricSel.innerHTML = '';
+                const noneOption = document.createElement('option');
+                noneOption.value = '';
+                noneOption.textContent = 'None';
+                metricSel.appendChild(noneOption);
+                (manualConfigState.metrics || []).forEach((m) => {
+                    const name = String(m && m.name || '').trim();
+                    if (!name) return;
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    metricSel.appendChild(option);
+                });
+            }
+            onKpiMetricChange();
+
+            const kpi = getKpiById(targetKpiId);
+            const cfg = (kpi && kpi.manual_config && typeof kpi.manual_config === 'object') ? kpi.manual_config : {};
+            if (cfg.metric_name) {
+                _setSelectValueCaseInsensitive(metricSel, cfg.metric_name);
+                onKpiMetricChange();
+            }
+            if (cfg.metric_formula && metricFormula) metricFormula.value = String(cfg.metric_formula);
+            if (aggSel) _setSelectValueCaseInsensitive(aggSel, String(cfg.aggregation || 'AUTO'));
+
+            if (!document.getElementById('kpi-config-status')?.classList.contains('error')) {
+                _setKpiConfigStatus('Select metric and click Generate & Update KPI.');
+            }
+        }
+
+        function closeKpiConfigDrawer() {
+            const drawer = document.getElementById('kpi-config-drawer');
+            const backdrop = document.getElementById('kpi-config-drawer-backdrop');
+            if (drawer) {
+                drawer.classList.remove('open');
+                drawer.setAttribute('aria-hidden', 'true');
+            }
+            if (backdrop) backdrop.style.display = 'none';
+        }
+
+        function _collectKpiConfigPayload() {
+            const aggregation = String(document.getElementById('kpi-config-aggregation')?.value || 'AUTO').trim().toUpperCase();
+            const metricName = String(document.getElementById('kpi-config-metric-select')?.value || '').trim();
+            const metricFormula = String(document.getElementById('kpi-config-metric-formula')?.value || '').trim();
+            if (!metricName && !metricFormula) {
+                throw new Error('Please select or enter a metric for KPI.');
+            }
+            return { aggregation, metric_name: metricName, metric_formula: metricFormula };
+        }
+
+        function _applyGeneratedKpiToSlot(kpiId, generatedKpi) {
+            if (!currentData || !Array.isArray(currentData.kpis)) return;
+            const targetId = String(kpiId || '').trim();
+            const idx = currentData.kpis.findIndex(k => ensureKpiId(k) === targetId);
+            if (idx === -1) return;
+            const prev = cloneKpi(currentData.kpis[idx]);
+            if (prev) addKpiToLibrary(prev, { source: `Replaced ${targetId} via manual configuration` });
+            const next = cloneKpi(generatedKpi || {});
+            next._id = targetId;
+            const existingManual = (next.manual_config && typeof next.manual_config === 'object') ? next.manual_config : {};
+            next.manual_config = {
+                ...existingManual,
+                aggregation: String(document.getElementById('kpi-config-aggregation')?.value || 'AUTO').trim().toUpperCase(),
+                metric_name: String(document.getElementById('kpi-config-metric-select')?.value || '').trim(),
+                metric_formula: String(document.getElementById('kpi-config-metric-formula')?.value || '').trim(),
+            };
+            _touchGlossaryStamp(next);
+            currentData.kpis[idx] = next;
+            renderKpisSection(currentData, getThemeColor());
+            renderChartLibrary();
+        }
+
+        async function applyKpiManualConfiguration(kpiId = null) {
+            const targetKpiId = String(kpiId || kpiConfigState.kpiId || '').trim();
+            if (!targetKpiId) return;
+            let payload = null;
+            try {
+                payload = _collectKpiConfigPayload();
+            } catch (err) {
+                _setKpiConfigStatus(err.message || 'KPI configuration is incomplete.', true);
+                return;
+            }
+
+            _setKpiConfigStatus(`Generating and updating ${targetKpiId}...`);
+            const formData = new FormData();
+            formData.append('action', 'generate_kpi');
+            formData.append('kpi_id', targetKpiId);
+            formData.append('aggregation', payload.aggregation);
+            formData.append('metric_name', payload.metric_name || '');
+            formData.append('metric_formula', payload.metric_formula || '');
+            formData.append('filters', JSON.stringify(activeFilters || {}));
+            if (currentData && currentData.session_id) {
+                formData.append('session_id', String(currentData.session_id));
+            }
+
+            try {
+                const csrfToken = _getCsrfToken();
+                const res = await fetch('/api/dashboard/configure-sql/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `KPI configure failed (${res.status})`);
+                const generatedKpi = data && data.kpi ? data.kpi : null;
+                if (!generatedKpi) throw new Error('No KPI returned by backend');
+                _applyGeneratedKpiToSlot(targetKpiId, generatedKpi);
+                _setKpiConfigStatus(`${targetKpiId} updated successfully.`);
+                const status = document.getElementById('chart-request-status');
+                if (status) status.textContent = `${targetKpiId} updated from KPI Configure panel.`;
+                closeKpiConfigDrawer();
+            } catch (err) {
+                _setKpiConfigStatus(err.message || 'Failed to apply KPI configuration.', true);
+            }
+        }
+
         function buildChartControlsHtml(chartId) {
             const chart = getChartById(chartId);
             if (!chart) return '';
 
-            const currentType = String(chart.type || 'bar').toLowerCase();
-            const typeOptions = getEditableChartTypes(chart)
-                .map(t => `<option value="${t}" ${t === currentType ? 'selected' : ''}>${chartTypeLabel(t)}</option>`)
-                .join('');
             const labelsToggleText = chart.showDataLabels ? 'Hide Data Labels' : 'Show Data Labels';
 
             return `
@@ -9962,19 +11777,13 @@
                     <div class="edit-menu">
                         <button class="control-btn edit-toggle" onclick="toggleEditMenu('${chartId}')" title="Edit Chart">Edit</button>
                         <div class="edit-dropdown" id="edit-dropdown-${chartId}">
-                            <div class="edit-row">
-                                <span class="edit-label">Type</span>
-                                <select class="edit-select" onchange="onChartTypeSelect('${chartId}', this)">${typeOptions}</select>
-                            </div>
-                            <button class="edit-item" onclick="swapAxes('${chartId}')">Swap X/Y</button>
+                            <button class="edit-item" onclick="openManualConfigDrawer('${chartId}')">Configure</button>
                             <button class="edit-item" onclick="renameAxisLabels('${chartId}')">Edit Axis Labels</button>
-                            <button class="edit-item" onclick="aiEditChart('${chartId}')">Edit with AI</button>
                             <button class="edit-item" onclick="toggleDataLabels('${chartId}')">${labelsToggleText}</button>
                             <button class="edit-item" onclick="sortChart('${chartId}')">Sort by Y</button>
                             <button class="edit-item" onclick="resetChart('${chartId}')">Reset Chart</button>
                         </div>
                     </div>
-                    <button class="control-btn reset-toggle" onclick="resetChart('${chartId}')" title="Reset Chart">Reset</button>
                 </div>
             `;
         }
@@ -10237,18 +12046,20 @@
             renderChartById(chartId);
         }
 
-        async function aiEditChart(chartId) {
+        async function aiEditChart(chartId, prefilledInstruction = '') {
             const chart = getChartById(chartId);
-            if (!chart || !currentData) return;
+            if (!chart || !currentData) return false;
 
-            const instruction = prompt(
-                'What change do you want? Example: Replace Product with Brand and keep sales by month.',
-                `Replace ${chart.xlabel || 'current dimension'} with ...`
-            );
-            if (instruction === null) return;
-
-            const trimmed = String(instruction).trim();
-            if (!trimmed) return;
+            let trimmed = String(prefilledInstruction || '').trim();
+            if (!trimmed) {
+                const instruction = prompt(
+                    'What change do you want? Example: Replace Product with Brand and keep sales by month.',
+                    `Replace ${chart.xlabel || 'current dimension'} with ...`
+                );
+                if (instruction === null) return false;
+                trimmed = String(instruction).trim();
+            }
+            if (!trimmed) return false;
 
             closeEditMenus();
             const status = document.getElementById('chart-request-status');
@@ -10280,7 +12091,7 @@
 
                 if (!data) {
                     if (status) status.textContent = 'AI chart edit cancelled.';
-                    return;
+                    return false;
                 }
 
                 const generatedChart = data.chart || null;
@@ -10325,9 +12136,11 @@
                 renderChartLibrary();
 
                 if (status) status.textContent = `${chartId} updated with AI.`;
+                return true;
             } catch (error) {
                 if (status) status.textContent = 'AI chart edit failed.';
                 alert('Error: ' + error.message);
+                return false;
             }
         }
 
@@ -10539,11 +12352,11 @@
                 const kpiDiv = document.createElement('div');
                 kpiDiv.className = `kpi-card ${pendingKpiReplaceLibraryId ? 'kpi-replace-target' : ''}`;
                 kpiDiv.id = kpiId;
-                kpiDiv.style.borderLeftColor = color;
                 kpiDiv.setAttribute('onclick', `handleKpiCardClick('${kpiId}')`);
 
                 kpiDiv.innerHTML = `
                     <button class="widget-remove-btn" onclick="event.stopPropagation(); removeKpi('${kpiId}')" title="Remove KPI">x</button>
+                    <button class="kpi-config-btn" onclick="event.stopPropagation(); openKpiConfigDrawer('${kpiId}')" title="Configure KPI">Configure</button>
                     <div class="widget-drag-handle" onmousedown="startWidgetDrag(event, '${kpiId}')">Move</div>
                     <div class="kpi-card-content">
 <div class="text-[10px] uppercase font-bold tracking-wider kpi-label-text">${k.label}</div>

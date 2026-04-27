@@ -18,8 +18,28 @@ def get_databricks_connection():
     return sql.connect(server_hostname=host, http_path=http_path, access_token=token)
 
 
+import re
+
 def run_query(connection, query, parameters=None):
     cleaned = (query or "").strip().rstrip(";")
+    
+    # ------------------ SAFETY CHECK ------------------
+    # Strip string literals safely
+    q_no_strings = re.sub(r"'(?:\\.|[^'])*'", "", cleaned)
+    q_no_strings = re.sub(r'"(?:\\.|[^"])*"', "", q_no_strings)
+    # Strip block comments and inline comments
+    q_clean = re.sub(r"/\*.*?\*/", "", q_no_strings, flags=re.DOTALL)
+    q_clean = re.sub(r"--.*$", "", q_clean, flags=re.MULTILINE)
+    
+    allowed_starts = {"SELECT", "WITH", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"}
+    statements = [s.strip().upper() for s in q_clean.split(";") if s.strip()]
+    
+    for stmt in statements:
+        first_word = stmt.split()[0] if stmt.split() else ""
+        if first_word and first_word not in allowed_starts:
+            raise ValueError(f"Only read-only Databricks queries are allowed. Invalid command: {first_word}")
+    # --------------------------------------------------
+
     with connection.cursor() as cur:
         if parameters:
             cur.execute(cleaned, parameters)
